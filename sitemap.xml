@@ -1,12 +1,28 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
     <url>
+        <loc>
+            http://stefanodacchille.github.io/blog/2012/03/09/ignition-v0-dot-1-the-ignited-way-of-doing-location/
+        </loc>
+        <lastmod>2013-04-28T22:11:44+02:00</lastmod>
+    </url>
+    <url>
+        <loc>
+            http://stefanodacchille.github.io/blog/2012/10/16/location-on-android-dot-dot-dot-the-qype-way/
+        </loc>
+        <lastmod>2013-04-28T22:08:30+02:00</lastmod>
+    </url>
+    <url>
+        <loc>http://stefanodacchille.github.io/blog/2013/01/24/deal-with-the-unforeseen/</loc>
+        <lastmod>2013-04-28T22:06:35+02:00</lastmod>
+    </url>
+    <url>
         <loc>http://stefanodacchille.github.io/blog/archives/</loc>
-        <lastmod>2013-04-28T19:23:47+02:00</lastmod>
+        <lastmod>2013-04-28T22:11:44+02:00</lastmod>
     </url>
     <url>
         <loc>http://stefanodacchille.github.io/</loc>
-        <lastmod>2013-04-28T19:23:47+02:00</lastmod>
+        <lastmod>2013-04-28T22:11:44+02:00</lastmod>
     </url>
     <url>
         <loc>http://stefanodacchille.github.io/robots.txt</loc>
