@@ -4,7 +4,7 @@
   <title><![CDATA[Category: kitkat | Octodroid]]></title>
   <link href="http://stefanodacchille.github.io/blog/categories/kitkat/atom.xml" rel="self"/>
   <link href="http://stefanodacchille.github.io/"/>
-  <updated>2014-03-09T21:29:14+01:00</updated>
+  <updated>2014-03-09T21:42:21+01:00</updated>
   <id>http://stefanodacchille.github.io/</id>
   <author>
     <name><![CDATA[Stefano Dacchille]]></name>
@@ -15,9 +15,9 @@
   
   <entry>
     <title type="html"><![CDATA[WebView Explorations]]></title>
-    <link href="http://stefanodacchille.github.io/blog/2014/02/23/android-webview-explorations/"/>
+    <link href="http://stefanodacchille.github.io/blog/2014/02/23/webview-explorations/"/>
     <updated>2014-02-23T12:55:15+01:00</updated>
-    <id>http://stefanodacchille.github.io/blog/2014/02/23/android-webview-explorations</id>
+    <id>http://stefanodacchille.github.io/blog/2014/02/23/webview-explorations</id>
     <content type="html"><![CDATA[<p>In the last few weeks I&rsquo;ve been playing around with <code>WebView</code>s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don&rsquo;t know what I&rsquo;m talking about &ndash; after all, the API has mostly remained untouched apart some nice additions, more about this in a bit &ndash; a couple of useful links by the Google folks are <a href="https://developers.google.com/chrome/mobile/docs/webview/overview">this</a> and <a href="http://developer.android.com/guide/webapps/migrating.html">this</a>.</p>
 
 <p><strong>Disclaimer</strong>: with this post I don&rsquo;t intend to describe all the differences in the API, I just want to highlight some of the problems/solutions I experienced/found by developing an application that uses the <code>WebView</code> API extensively.</p>
