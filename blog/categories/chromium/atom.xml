@@ -4,7 +4,7 @@
   <title><![CDATA[Category: chromium | Octodroid]]></title>
   <link href="http://stefanodacchille.github.io/blog/categories/chromium/atom.xml" rel="self"/>
   <link href="http://stefanodacchille.github.io/"/>
-  <updated>2014-03-09T21:15:26+01:00</updated>
+  <updated>2014-03-09T21:29:14+01:00</updated>
   <id>http://stefanodacchille.github.io/</id>
   <author>
     <name><![CDATA[Stefano Dacchille]]></name>
@@ -14,7 +14,7 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Android Webview Explorations]]></title>
+    <title type="html"><![CDATA[WebView Explorations]]></title>
     <link href="http://stefanodacchille.github.io/blog/2014/02/23/android-webview-explorations/"/>
     <updated>2014-02-23T12:55:15+01:00</updated>
     <id>http://stefanodacchille.github.io/blog/2014/02/23/android-webview-explorations</id>
