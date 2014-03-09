@@ -4,7 +4,7 @@
   <title><![CDATA[Category: qype | Octodroid]]></title>
   <link href="http://stefanodacchille.github.io/blog/categories/qype/atom.xml" rel="self"/>
   <link href="http://stefanodacchille.github.io/"/>
-  <updated>2013-04-29T00:21:54+02:00</updated>
+  <updated>2014-03-09T21:15:26+01:00</updated>
   <id>http://stefanodacchille.github.io/</id>
   <author>
     <name><![CDATA[Stefano Dacchille]]></name>
@@ -18,9 +18,9 @@
     <link href="http://stefanodacchille.github.io/blog/2012/10/16/location-on-android-dot-dot-dot-the-qype-way/"/>
     <updated>2012-10-16T14:00:00+02:00</updated>
     <id>http://stefanodacchille.github.io/blog/2012/10/16/location-on-android-dot-dot-dot-the-qype-way</id>
-    <content type="html"><![CDATA[<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it's possible to include it in an already existing application. This time I'll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application.</p>
+    <content type="html"><![CDATA[<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it&rsquo;s possible to include it in an already existing application. This time I&rsquo;ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application.</p>
 
-<p>A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user's location, and it needs to know it as quickly as possible - nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
+<p>A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user&rsquo;s location, and it needs to know it as quickly as possible &ndash; nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
 
 <ol>
 <li>a good trade off between quickness and accuracy is achieved.</li>
@@ -28,7 +28,7 @@
 </ol>
 
 
-<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> - I'll go back to this in a bit - and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
+<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> &ndash; I&rsquo;ll go back to this in a bit &ndash; and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
 
 <p>So what happens when a new location is received? As you already know from the previous post, <code>IgnitedLocationManager</code> invokes the <code>onIgnitedLocationChanged()</code> callback in the current <code>IgnitedActivity</code>. Since we want our logic to be shared across all out location-aware activities, each of them has a reference to an instance of the <code>QypeLocationManager</code> and it invokes a callback on this object each time a new location is returned:</p>
 
@@ -38,7 +38,7 @@ public boolean onIgnitedLocationChanged(Location location) {
 }
 </code></pre>
 
-<p>This callback has got two locations as parameters: the current location and the location used for the last search. I'll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it's the first time the current Activity is making a request - in this case the Activity is probably being created for the first time - and, if that's the case, it checks if the current location is not null and if it's "good enough" or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
+<p>This callback has got two locations as parameters: the current location and the location used for the last search. I&rsquo;ll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it&rsquo;s the first time the current Activity is making a request &ndash; in this case the Activity is probably being created for the first time &ndash; and, if that&rsquo;s the case, it checks if the current location is not null and if it&rsquo;s &ldquo;good enough&rdquo; or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
 
 <pre><code>public boolean onNewLocation(final QypeLocationAwareActivity context, Location newLocation,
         Location lastSearchedLocation) {
@@ -72,9 +72,9 @@ public boolean onIgnitedLocationChanged(Location location) {
 } 
 </code></pre>
 
-<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn't matter if the location is too coarse? Well...yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I'll explain in a bit when accuracy is taken into account.</p>
+<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn&rsquo;t matter if the location is too coarse? Well&hellip;yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I&rsquo;ll explain in a bit when accuracy is taken into account.</p>
 
-<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don't want our users to wait too much before they can get some results, but we'd like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn't move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let's jump for a second at the end of this callback:</p>
+<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don&rsquo;t want our users to wait too much before they can get some results, but we&rsquo;d like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn&rsquo;t move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let&rsquo;s jump for a second at the end of this callback:</p>
 
 <pre><code>    ...
     return requestMoreLocationUpdates(newLocation);
@@ -96,9 +96,9 @@ private boolean isOldLocation(Location location) {
 }
 </code></pre>
 
-<p>Let's assume that the location isn't either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I'd like to point out something here: in our specific use case, the app doesn't need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you're using searches for results in an area centered around user's location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by "stopping" I don't actually mean that location updates won't be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
+<p>Let&rsquo;s assume that the location isn&rsquo;t either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I&rsquo;d like to point out something here: in our specific use case, the app doesn&rsquo;t need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you&rsquo;re using searches for results in an area centered around user&rsquo;s location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by &ldquo;stopping&rdquo; I don&rsquo;t actually mean that location updates won&rsquo;t be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
 
-<p>If the last location isn't either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won't be null.</p>
+<p>If the last location isn&rsquo;t either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won&rsquo;t be null.</p>
 
 <pre><code>...
 
@@ -122,7 +122,7 @@ private boolean isOldLocation(Location location) {
 ...
 </code></pre>
 
-<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn't differ too much from the old one, it means that the old location wasn't that bad and the app doesn't need to do anything special (note: it doesn't matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
+<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn&rsquo;t differ too much from the old one, it means that the old location wasn&rsquo;t that bad and the app doesn&rsquo;t need to do anything special (note: it doesn&rsquo;t matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
 
 <p><img src="images/nearby_results_reload.jpg"></p>
 

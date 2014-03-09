@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: webview | Octodroid]]></title>
+  <link href="http://stefanodacchille.github.io/blog/categories/webview/atom.xml" rel="self"/>
+  <link href="http://stefanodacchille.github.io/"/>
+  <updated>2014-03-09T21:15:26+01:00</updated>
+  <id>http://stefanodacchille.github.io/</id>
+  <author>
+    <name><![CDATA[Stefano Dacchille]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Android Webview Explorations]]></title>
+    <link href="http://stefanodacchille.github.io/blog/2014/02/23/android-webview-explorations/"/>
+    <updated>2014-02-23T12:55:15+01:00</updated>
+    <id>http://stefanodacchille.github.io/blog/2014/02/23/android-webview-explorations</id>
+    <content type="html"><![CDATA[<p>In the last few weeks I&rsquo;ve been playing around with <code>WebView</code>s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don&rsquo;t know what I&rsquo;m talking about &ndash; after all, the API has mostly remained untouched apart some nice additions, more about this in a bit &ndash; a couple of useful links by the Google folks are <a href="https://developers.google.com/chrome/mobile/docs/webview/overview">this</a> and <a href="http://developer.android.com/guide/webapps/migrating.html">this</a>.</p>
+
+<p><strong>Disclaimer</strong>: with this post I don&rsquo;t intend to describe all the differences in the API, I just want to highlight some of the problems/solutions I experienced/found by developing an application that uses the <code>WebView</code> API extensively.</p>
+
+<h2>Differences in the API implementation</h2>
+
+<h3>Hit test result</h3>
+
+<p>I discovered this class only recently and found it immensely useful. In the application I&rsquo;m currently working on, a user can go to a different page in her website by either clicking on a link in the <code>WebView</code>, or by clicking on a native list item. These actions have different side effects, in the latter case the app must explicitly request to load a new url but not in the former, otherwise the same page will be loaded twice. The method <a href="https://developer.android.com/reference/android/webkit/WebView.html#getHitTestResult()"><code>WebView.getHitTestResult()</code></a> returns a <a href="https://developer.android.com/reference/android/webkit/WebView.HitTestResult.html"><code>HitTestResult</code></a> object that contains type and url, the type can be used to discover the type of element that has been clicked, it&rsquo;ll be <a href="https://developer.android.com/reference/android/webkit/WebView.HitTestResult.html#SRC_ANCHOR_TYPE"><code>WebView.HitTestResult.SRC_ANCHOR_TYPE</code></a> in case of a HTML <code>a</code> tag with a http  <code>src</code> attribute. The legacy API will return a <a href="http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/4.3.1_r1/android/webkit/WebViewClassic.java#7723"><code>null</code> result</a> if no supported element in the <code>WebView</code> was hit, while the new Chromium-based will always return a <a href="http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/4.4.2_r1/com/android/webview/chromium/WebViewChromium.java#872">non-<code>null</code> result</a>.</p>
+
+<h3>WebView history</h3>
+
+<p><code>WebView</code> keeps track of all visited urls in a data structure called <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html"><code>WebBackForwardList</code></a>, this can be retrieved by calling <a href="https://developer.android.com/reference/android/webkit/WebView.html#copyBackForwardList()"><code>WebView.copyBackForwardList()</code></a> method, as the method name clearly states it returns a copy of the <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html"><code>WebBackForwardList</code></a> maintained by the <code>WebView</code>. In the app I&rsquo;m currently working on, after calling <a href="https://developer.android.com/reference/android/webkit/WebView.html#goBack()"><code>WebView.goBack()</code></a> the app needs to retrieve the previous page url: this can be easily done by calling <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html#getCurrentItem()"><code>WebBackForwardList.getCurrentItem()</code></a>. The legacy implementation will return the  page displayed <em>before</em> going back, while the new implemetation will return the page that will be displayed <em>after</em> going back (I didn&rsquo;t go too deep into why that happens though).</p>
+
+<h3>Javascript links</h3>
+
+<p>The third one is a little bit more obscure: if a page contains a link like <code>&lt;a href="javascript:;"&gt;...&lt;/a&gt;</code> &ndash; which is a quite common thing to do if one wants an element to be correctly rendered as a link, without actually linking to any resource &ndash; the Chromium-based implementation will invoke the <a href="https://developer.android.com/reference/android/webkit/WebViewClient.html#onPageFinished(android.webkit.WebView,%20java.lang.String)"><code>WebViewClient.onPageFinished()</code></a> callback the first time that element is clicked. Not sure about what is happening here, but it&rsquo;s good to be aware of it because if the app is injecting some Javascript when the page finished loading, it could potentially inject it twice and cause some unexpected behaviour (keep reading if you want to know a way to make sure this doesn&rsquo;t happen).</p>
+
+<h2>API additions</h2>
+
+<ul>
+<li><p><a href="https://developers.google.com/chrome-developer-tools/docs/remote-debugging">Remote debugging</a>: pretty sweet, if you work with <code>WebView</code>s a lot you&rsquo;ll love it. The linked resource explains everything in great detail, so I won&rsquo;t say anything. Just try it.</p></li>
+<li><p><a href="https://developer.android.com/reference/android/webkit/WebView.html#evaluateJavascript(java.lang.String,%20android.webkit.ValueCallback%3Cjava.lang.String%3E)"><code>WebView.evaluateJavascript()</code></a>: this method it makes it straightforward to get a result back from injected Javascript, just supply a <a href="https://developer.android.com/reference/android/webkit/ValueCallback.html"><code>ValueCallback</code></a> when the method is invoked. Something similar can be achieved with the legacy implementation too, but it requires a bit more boilerplate.</p></li>
+</ul>
+
+
+<h2>Keep your code sane, encapsulate those API differences</h2>
+
+<p>It is not uncommon to have your code cluttered with <code>if</code> statements when dealing with different API implementations. A way to avoid it that I find myself using a lot, is to create an adapter interface that hides those differences. In this case, the one I ended up writing looks roughly like this:</p>
+
+<p>```java
+public interface IWebViewCompatibility {
+  void injectWebView(WebView webView);
+  void evaluateJavascript(String script, ValueCallbackAdapter callback);
+  boolean httpLinkHit();
+  String getPreviousPageUrl();</p>
+
+<p>  // Adapter interface for legacy WebView API
+  public static interface ValueCallbackAdapter {</p>
+
+<pre><code>void evaluateResult(String value);
+String javascriptInterfaceMethodName();
+</code></pre>
+
+<p>  }
+}
+```</p>
+
+<p>If the application uses some sort of dependency injection framework &ndash; i.e. <a href="https://github.com/square/dagger">Dagger</a> &ndash; we&rsquo;ll have to write only one <code>if</code> statement, when the adapter class is instantiated before being injected:</p>
+
+<p>```java
+@Module(injects = WebViewFragment.class)
+public class WebViewModule {
+  &hellip;
+  @Provides @Singleton
+  public IWebViewCompatibility provideWebViewCompatibility() {</p>
+
+<pre><code>return SUPPORTS_KITKAT ? new ChromiumWebViewCompatibility()
+  : new LegacyWebViewCompatibility();
+</code></pre>
+
+<p>  }
+}
+```</p>
+
+<p>That said, let&rsquo;s have a look at how we can get back the result of the evaluation of a piece of Javascript on legacy API. We can leverage the <a href="https://developer.android.com/reference/android/webkit/JavascriptInterface.html"><code>JavascriptInterface</code></a> mechanism to add a helper interface to the page that will receive the result of an injected Javascript (my advice: be sure to do this before anything is loaded in the <code>WebView</code>, otherwise the content needs to be reloaded in order for the interface to be added to the page). Now let&rsquo;s implement the legacy adapter interface:</p>
+
+<p>```java
+public class LegacyWebViewCompatibility implements IWebViewCompatibility {
+  private WebView webView;
+  private ValueCallbackAdapter callback;</p>
+
+<p>  @Override public void injectWebView(WebView webView) {</p>
+
+<pre><code>this.webView = webView;
+this.webView.addJavascriptInterface(new LegacyCallbackInterfaceHelper(), NAME);
+</code></pre>
+
+<p>  }</p>
+
+<p>  @Override
+  public void evaluateJavascript(final String script, ValueCallbackAdapter callback) {</p>
+
+<pre><code>this.callback = callback;
+if (callback != null) {
+  String js = String.format("javascript:{var res=%s;%s.%s(res);};void(0);", script, NAME,
+    callback.javascriptInterfaceMethodName());
+  webView.loadUrl(js);
+} else {
+  webView.loadUrl("javascript:{" + script + "};void(0);"));
+}
+</code></pre>
+
+<p>}
+&hellip;
+  class LegacyCallbackInterfaceHelper {</p>
+
+<pre><code>static final String NAME = "legacyAndroidCallbackInterfaceHelper";
+
+@JavascriptInterface @SuppressWarnings("unused") // Called from js
+  public void jimdoDefined(String result) {
+    ((Activity) webView.getContext()).runOnUiThread(new Runnable() {
+      @Override public void run() {
+        LegacyWebViewCompatibilityDelegate.this.callback.evaluateResult(result);
+      }
+  });
+}
+</code></pre>
+
+<p>  }
+}
+<code>``
+As you can see there's a bit more boilerplate to write, but we managed to achieve the same result. One thing to notice here is that the callback should be run on the main thread - the [</code>JavascriptInterface<code>][ji] method runs on a</code>WebView` thread &ndash; otherwise you&rsquo;ll get a nice little warning if you at the logs.</p>
+
+<p>At this point, here&rsquo;s how we can use this to check if a piece of Javascript has already been injected and avoid to inject it twice:</p>
+
+<p>```java
+javascriptInjector.injectFunction(screen, &ldquo;typeof jimdo === \&lsquo;undefined\&rsquo;&rdquo;,
+  new WebViewCompatibilityDelegate.ValueCallbackAdapter() {</p>
+
+<p>  @Override public void evaluateResult(String jimdoUndefined) {</p>
+
+<pre><code>if (Boolean.valueOf(jimdoUndefined)) {
+  javascriptInjector.injectScript(screen, "my_script.js", null);
+}
+</code></pre>
+
+<p>  }</p>
+
+<p>  @Override public String javascriptInterfaceMethodName() {</p>
+
+<pre><code>// This corresponds to LegacyCallbackInterfaceHelper.jimdoDefined()
+return "jimdoDefined";
+</code></pre>
+
+<p>  }
+});
+```</p>
+
+<p>First, the app injects a Javascript function that checks if a variable created by the script is already defined, then depending on the returned result the script is injected or not.</p>
+
+<h2>Soundtrack:</h2>
+
+<iframe width="660" height="60" src="http://stefanodacchille.github.io//www.mixcloud.com/widget/iframe/?feed=http%3A%2F%2Fwww.mixcloud.com%2Fdarkfloor%2Fmantis-radio-150-objekt%2F&amp;mini=1&amp;embed_type=widget_standard&amp;embed_uuid=7b156b59-156d-4204-84bc-1a674fc22a50&amp;hide_tracklist=1&amp;replace=0&amp;hide_cover=1&amp;light=1" frameborder="0"></iframe>
+
+
+<div style="clear: both; height: 3px; width: 652px;"></div>
+
+
+<p style="display: block; font-size: 11px; font-family: 'Open Sans', Helvetica, Arial, sans-serif; margin: 0px; padding: 3px 4px; color: rgb(153, 153, 153); width: 652px;"><a href="http://www.mixcloud.com/darkfloor/mantis-radio-150-objekt/?utm_source=widget&amp;amp;utm_medium=web&amp;amp;utm_campaign=base_links&amp;amp;utm_term=resource_link" target="_blank" style="color:#808080; font-weight:bold;">Mantis Radio 150 + Objekt</a><span> by </span><a href="http://www.mixcloud.com/darkfloor/?utm_source=widget&amp;amp;utm_medium=web&amp;amp;utm_campaign=base_links&amp;amp;utm_term=profile_link" target="_blank" style="color:#808080; font-weight:bold;">Darkfloor.</a><span> on </span><a href="http://www.mixcloud.com/?utm_source=widget&amp;utm_medium=web&amp;utm_campaign=base_links&amp;utm_term=homepage_link" target="_blank" style="color:#808080; font-weight:bold;"> Mixcloud</a></p>
+
+
+<div style="clear: both; height: 3px; width: 652px;"></div>
+
+
+
+]]></content>
+  </entry>
+  
+</feed>

@@ -7,7 +7,7 @@
 	<meta name="author" content="Stefano Dacchille">
 
 	
-	<meta name="description" content="It&#8217;s quite common to invite users to rate an app on Google Play at some point, on one hand it&#8217;s good to know that your users are happy &hellip;">
+	<meta name="description" content="It&rsquo;s quite common to invite users to rate an app on Google Play at some point, on one hand it&rsquo;s good to know that your users are happy &hellip;">
 	
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -79,55 +79,98 @@
 	
 	<div id="content" class="inner"><article class="post">
 	<h2 class="title">Deal With the Unforeseen</h2>
-	<div class="entry-content"><p>It&#8217;s quite common to invite users to rate an app on Google Play at some point, on one hand it&#8217;s good to know that your users are happy and on the other it&#8217;s a good way to attract new users. It&#8217;s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don&#8217;t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he&#8217;s not going to be too happy about it. How can we make sure that this doesn&#8217;t happen?</p>
+	<div class="entry-content"><p>It&rsquo;s quite common to invite users to rate an app on Google Play at some point, on one hand it&rsquo;s good to know that your users are happy and on the other it&rsquo;s a good way to attract new users. It&rsquo;s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don&rsquo;t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he&rsquo;s not going to be too happy about it. How can we make sure that this doesn&rsquo;t happen?</p>
 
 <p>When an uncaught exception is thrown, the <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html#uncaughtException(java.lang.Thread,">uncaughtException</a> method of the default <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> for that Thread is called. Good news is, you can supply your own <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> using the <a href="https://developer.android.com/reference/java/lang/Thread.html#setDefaultUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)">setDefaultUncaughtExceptionHandler</a> setter (this is what <a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDYQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Facra%2F&amp;ei=kAwBUezwL8_IsgbIvYH4Dg&amp;usg=AFQjCNF1L9fawVNYyKuqqIa7q22TBcL08w&amp;sig2=_FrQnihkSMcsqGUV5XXp1A&amp;bvm=bv.41524429,d.Yms">ACRA</a> and I suppose other libraries like <a href="https://www.crittercism.com/">Crittercism</a> or <a href="https://www.bugsense.com/">BugSense</a> do under the hood). Here is a little snippet of what we do in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype app</a>:</p>
 
-<pre><code>public class CustomUncaughtExceptionHandlerProxy implements Thread.UncaughtExceptionHandler {
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">CustomUncaughtExceptionHandlerProxy</span> <span class="kd">implements</span> <span class="n">Thread</span><span class="o">.</span><span class="na">UncaughtExceptionHandler</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="kd">static</span> <span class="n">CustomUncaughtExceptionHandlerProxy</span> <span class="n">proxy</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">boolean</span> <span class="n">enabled</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">Thread</span><span class="o">.</span><span class="na">UncaughtExceptionHandler</span> <span class="n">customUncaughtExceptionHandler</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="nf">CustomUncaughtExceptionHandlerProxy</span><span class="o">(</span><span class="n">CustomApplication</span> <span class="n">application</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">enabled</span> <span class="o">=</span> <span class="o">!</span><span class="n">application</span><span class="o">.</span><span class="na">inDevMode</span><span class="o">();</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">enabled</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="c1">// Save a reference to the current default handler.</span>
+</span><span class='line'>            <span class="n">customUncaughtExceptionHandler</span> <span class="o">=</span> <span class="n">Thread</span><span class="o">.</span><span class="na">getDefaultUncaughtExceptionHandler</span><span class="o">();</span>
+</span><span class='line'>            <span class="c1">// Set our custom handler as the default one, so that it&#39;s first notified when something ugly happens.</span>
+</span><span class='line'>            <span class="n">Thread</span><span class="o">.</span><span class="na">setDefaultUncaughtExceptionHandler</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">initialize</span><span class="o">(</span><span class="n">CustomApplication</span> <span class="n">application</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">proxy</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">proxy</span> <span class="o">=</span> <span class="k">new</span> <span class="n">CustomUncaughtExceptionHandlerProxy</span><span class="o">(</span><span class="n">application</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="n">CustomUncaughtExceptionHandlerProxy</span> <span class="nf">getInstance</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">proxy</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">uncaughtException</span><span class="o">(</span><span class="n">Thread</span> <span class="n">thread</span><span class="o">,</span> <span class="n">Throwable</span> <span class="n">ex</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">enabled</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="k">if</span> <span class="o">(!</span><span class="n">preferences</span><span class="o">.</span><span class="na">rateAppDialogAlreadyShown</span><span class="o">())</span> <span class="o">{</span>
+</span><span class='line'>                <span class="c1">// reset count only if the &#39;rate app&#39; dialog hasn&#39;t been already shown.</span>
+</span><span class='line'>                <span class="n">preferences</span><span class="o">.</span><span class="na">resetShowRateAppDialogCountdown</span><span class="o">();</span>
+</span><span class='line'>            <span class="o">}</span>
+</span><span class='line'>            <span class="c1">// Let the default uncaught exception handler do its job.</span>
+</span><span class='line'>            <span class="n">customUncaughtExceptionHandler</span><span class="o">.</span><span class="na">uncaughtException</span><span class="o">(</span><span class="n">thread</span><span class="o">,</span> <span class="n">ex</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">Thread</span><span class="o">.</span><span class="na">getDefaultUncaughtExceptionHandler</span><span class="o">().</span><span class="na">uncaughtException</span><span class="o">(</span><span class="n">thread</span><span class="o">,</span> <span class="n">ex</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
 
-    private static CustomUncaughtExceptionHandlerProxy proxy;
 
-    private final boolean enabled;
-
-    private Thread.UncaughtExceptionHandler customUncaughtExceptionHandler;
-
-    private CustomUncaughtExceptionHandlerProxy(CustomApplication application) {
-        enabled = !application.inDevMode();
-        if (enabled) {
-            // Save a reference to the current default handler.
-            customUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
-            // Set our custom handler as the default one, so that it's first notified when something ugly happens.
-            Thread.setDefaultUncaughtExceptionHandler(this);
-        }
-    }
-
-    public static void initialize(CustomApplication application) {
-        if (proxy == null) {
-            proxy = new CustomUncaughtExceptionHandlerProxy(application);
-        }
-    }
-
-    public static CustomUncaughtExceptionHandlerProxy getInstance() {
-        return proxy;
-    }
-
-    @Override
-    public void uncaughtException(Thread thread, Throwable ex) {
-        if (enabled) {
-            if (!preferences.rateAppDialogAlreadyShown()) {
-                // reset count only if the 'rate app' dialog hasn't been already shown.
-                preferences.resetShowRateAppDialogCountdown();
-            }
-            // Let the default uncaught exception handler do its job.
-            customUncaughtExceptionHandler.uncaughtException(thread, ex);
-        } else {
-            Thread.getDefaultUncaughtExceptionHandler().uncaughtException(thread, ex);
-        }
-    }
-}
-</code></pre>
-
-<p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it&#8217;s pretty straightforward but here&#8217;s a little explanation of how it works. Let&#8217;s say you want to show a &#8220;Rate App&#8221; dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>
+<p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it&rsquo;s pretty straightforward but here&rsquo;s a little explanation of how it works. Let&rsquo;s say you want to show a &ldquo;Rate App&rdquo; dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>
 </div>
 
 
@@ -171,7 +214,7 @@
 
 
 </div>
-	<footer id="footer" class="inner">Copyright &copy; 2013
+	<footer id="footer" class="inner">Copyright &copy; 2014
 
     Stefano Dacchille
 

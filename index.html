@@ -7,7 +7,7 @@
 	<meta name="author" content="Stefano Dacchille">
 
 	
-	<meta name="description" content="It&#8217;s quite common to invite users to rate an app on Google Play at some point, on one hand it&#8217;s good to know that your users are happy &hellip;">
+	<meta name="description" content="In the last few weeks I&rsquo;ve been playing around with WebViews a lot and found out a few interesting differences (not necesserely documented) &hellip;">
 	
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 
@@ -83,60 +83,347 @@
     <article class="post">
 	<h2 class="title">
 		
+		<a href="/blog/2014/02/23/android-webview-explorations/">
+		
+			Android Webview Explorations</a>
+	</h2>
+	<div class="entry-content">
+		<p>In the last few weeks I&rsquo;ve been playing around with <code>WebView</code>s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don&rsquo;t know what I&rsquo;m talking about &ndash; after all, the API has mostly remained untouched apart some nice additions, more about this in a bit &ndash; a couple of useful links by the Google folks are <a href="https://developers.google.com/chrome/mobile/docs/webview/overview">this</a> and <a href="http://developer.android.com/guide/webapps/migrating.html">this</a>.</p>
+
+<p><strong>Disclaimer</strong>: with this post I don&rsquo;t intend to describe all the differences in the API, I just want to highlight some of the problems/solutions I experienced/found by developing an application that uses the <code>WebView</code> API extensively.</p>
+
+<h2>Differences in the API implementation</h2>
+
+<h3>Hit test result</h3>
+
+<p>I discovered this class only recently and found it immensely useful. In the application I&rsquo;m currently working on, a user can go to a different page in her website by either clicking on a link in the <code>WebView</code>, or by clicking on a native list item. These actions have different side effects, in the latter case the app must explicitly request to load a new url but not in the former, otherwise the same page will be loaded twice. The method <a href="https://developer.android.com/reference/android/webkit/WebView.html#getHitTestResult()"><code>WebView.getHitTestResult()</code></a> returns a <a href="https://developer.android.com/reference/android/webkit/WebView.HitTestResult.html"><code>HitTestResult</code></a> object that contains type and url, the type can be used to discover the type of element that has been clicked, it&rsquo;ll be <a href="https://developer.android.com/reference/android/webkit/WebView.HitTestResult.html#SRC_ANCHOR_TYPE"><code>WebView.HitTestResult.SRC_ANCHOR_TYPE</code></a> in case of a HTML <code>a</code> tag with a http  <code>src</code> attribute. The legacy API will return a <a href="http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/4.3.1_r1/android/webkit/WebViewClassic.java#7723"><code>null</code> result</a> if no supported element in the <code>WebView</code> was hit, while the new Chromium-based will always return a <a href="http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/4.4.2_r1/com/android/webview/chromium/WebViewChromium.java#872">non-<code>null</code> result</a>.</p>
+
+<h3>WebView history</h3>
+
+<p><code>WebView</code> keeps track of all visited urls in a data structure called <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html"><code>WebBackForwardList</code></a>, this can be retrieved by calling <a href="https://developer.android.com/reference/android/webkit/WebView.html#copyBackForwardList()"><code>WebView.copyBackForwardList()</code></a> method, as the method name clearly states it returns a copy of the <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html"><code>WebBackForwardList</code></a> maintained by the <code>WebView</code>. In the app I&rsquo;m currently working on, after calling <a href="https://developer.android.com/reference/android/webkit/WebView.html#goBack()"><code>WebView.goBack()</code></a> the app needs to retrieve the previous page url: this can be easily done by calling <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html#getCurrentItem()"><code>WebBackForwardList.getCurrentItem()</code></a>. The legacy implementation will return the  page displayed <em>before</em> going back, while the new implemetation will return the page that will be displayed <em>after</em> going back (I didn&rsquo;t go too deep into why that happens though).</p>
+
+<h3>Javascript links</h3>
+
+<p>The third one is a little bit more obscure: if a page contains a link like <code>&lt;a href="javascript:;"&gt;...&lt;/a&gt;</code> &ndash; which is a quite common thing to do if one wants an element to be correctly rendered as a link, without actually linking to any resource &ndash; the Chromium-based implementation will invoke the <a href="https://developer.android.com/reference/android/webkit/WebViewClient.html#onPageFinished(android.webkit.WebView,%20java.lang.String)"><code>WebViewClient.onPageFinished()</code></a> callback the first time that element is clicked. Not sure about what is happening here, but it&rsquo;s good to be aware of it because if the app is injecting some Javascript when the page finished loading, it could potentially inject it twice and cause some unexpected behaviour (keep reading if you want to know a way to make sure this doesn&rsquo;t happen).</p>
+
+<h2>API additions</h2>
+
+<ul>
+<li><p><a href="https://developers.google.com/chrome-developer-tools/docs/remote-debugging">Remote debugging</a>: pretty sweet, if you work with <code>WebView</code>s a lot you&rsquo;ll love it. The linked resource explains everything in great detail, so I won&rsquo;t say anything. Just try it.</p></li>
+<li><p><a href="https://developer.android.com/reference/android/webkit/WebView.html#evaluateJavascript(java.lang.String,%20android.webkit.ValueCallback%3Cjava.lang.String%3E)"><code>WebView.evaluateJavascript()</code></a>: this method it makes it straightforward to get a result back from injected Javascript, just supply a <a href="https://developer.android.com/reference/android/webkit/ValueCallback.html"><code>ValueCallback</code></a> when the method is invoked. Something similar can be achieved with the legacy implementation too, but it requires a bit more boilerplate.</p></li>
+</ul>
+
+
+<h2>Keep your code sane, encapsulate those API differences</h2>
+
+<p>It is not uncommon to have your code cluttered with <code>if</code> statements when dealing with different API implementations. A way to avoid it that I find myself using a lot, is to create an adapter interface that hides those differences. In this case, the one I ended up writing looks roughly like this:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">IWebViewCompatibility</span> <span class="o">{</span>
+</span><span class='line'>  <span class="kt">void</span> <span class="nf">injectWebView</span><span class="o">(</span><span class="n">WebView</span> <span class="n">webView</span><span class="o">);</span>
+</span><span class='line'>  <span class="kt">void</span> <span class="nf">evaluateJavascript</span><span class="o">(</span><span class="n">String</span> <span class="n">script</span><span class="o">,</span> <span class="n">ValueCallbackAdapter</span> <span class="n">callback</span><span class="o">);</span>
+</span><span class='line'>  <span class="kt">boolean</span> <span class="nf">httpLinkHit</span><span class="o">();</span>
+</span><span class='line'>  <span class="n">String</span> <span class="nf">getPreviousPageUrl</span><span class="o">();</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="c1">// Adapter interface for legacy WebView API</span>
+</span><span class='line'>  <span class="kd">public</span> <span class="kd">static</span> <span class="kd">interface</span> <span class="nc">ValueCallbackAdapter</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kt">void</span> <span class="nf">evaluateResult</span><span class="o">(</span><span class="n">String</span> <span class="n">value</span><span class="o">);</span>
+</span><span class='line'>    <span class="n">String</span> <span class="nf">javascriptInterfaceMethodName</span><span class="o">();</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>If the application uses some sort of dependency injection framework &ndash; i.e. <a href="https://github.com/square/dagger">Dagger</a> &ndash; we&rsquo;ll have to write only one <code>if</code> statement, when the adapter class is instantiated before being injected:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="nd">@Module</span><span class="o">(</span><span class="n">injects</span> <span class="o">=</span> <span class="n">WebViewFragment</span><span class="o">.</span><span class="na">class</span><span class="o">)</span>
+</span><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">WebViewModule</span> <span class="o">{</span>
+</span><span class='line'>  <span class="o">...</span>
+</span><span class='line'>  <span class="nd">@Provides</span> <span class="nd">@Singleton</span>
+</span><span class='line'>  <span class="kd">public</span> <span class="n">IWebViewCompatibility</span> <span class="nf">provideWebViewCompatibility</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">return</span> <span class="n">SUPPORTS_KITKAT</span> <span class="o">?</span> <span class="k">new</span> <span class="n">ChromiumWebViewCompatibility</span><span class="o">()</span>
+</span><span class='line'>      <span class="o">:</span> <span class="k">new</span> <span class="n">LegacyWebViewCompatibility</span><span class="o">();</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>That said, let&rsquo;s have a look at how we can get back the result of the evaluation of a piece of Javascript on legacy API. We can leverage the <a href="https://developer.android.com/reference/android/webkit/JavascriptInterface.html"><code>JavascriptInterface</code></a> mechanism to add a helper interface to the page that will receive the result of an injected Javascript (my advice: be sure to do this before anything is loaded in the <code>WebView</code>, otherwise the content needs to be reloaded in order for the interface to be added to the page). Now let&rsquo;s implement the legacy adapter interface:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">LegacyWebViewCompatibility</span> <span class="kd">implements</span> <span class="n">IWebViewCompatibility</span> <span class="o">{</span>
+</span><span class='line'>  <span class="kd">private</span> <span class="n">WebView</span> <span class="n">webView</span><span class="o">;</span>
+</span><span class='line'>  <span class="kd">private</span> <span class="n">ValueCallbackAdapter</span> <span class="n">callback</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="n">injectWebView</span><span class="o">(</span><span class="n">WebView</span> <span class="n">webView</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">this</span><span class="o">.</span><span class="na">webView</span> <span class="o">=</span> <span class="n">webView</span><span class="o">;</span>
+</span><span class='line'>    <span class="k">this</span><span class="o">.</span><span class="na">webView</span><span class="o">.</span><span class="na">addJavascriptInterface</span><span class="o">(</span><span class="k">new</span> <span class="n">LegacyCallbackInterfaceHelper</span><span class="o">(),</span> <span class="n">NAME</span><span class="o">);</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nd">@Override</span>
+</span><span class='line'>  <span class="kd">public</span> <span class="kt">void</span> <span class="nf">evaluateJavascript</span><span class="o">(</span><span class="kd">final</span> <span class="n">String</span> <span class="n">script</span><span class="o">,</span> <span class="n">ValueCallbackAdapter</span> <span class="n">callback</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">this</span><span class="o">.</span><span class="na">callback</span> <span class="o">=</span> <span class="n">callback</span><span class="o">;</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">callback</span> <span class="o">!=</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>      <span class="n">String</span> <span class="n">js</span> <span class="o">=</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">&quot;javascript:{var res=%s;%s.%s(res);};void(0);&quot;</span><span class="o">,</span> <span class="n">script</span><span class="o">,</span> <span class="n">NAME</span><span class="o">,</span>
+</span><span class='line'>        <span class="n">callback</span><span class="o">.</span><span class="na">javascriptInterfaceMethodName</span><span class="o">());</span>
+</span><span class='line'>      <span class="n">webView</span><span class="o">.</span><span class="na">loadUrl</span><span class="o">(</span><span class="n">js</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>      <span class="n">webView</span><span class="o">.</span><span class="na">loadUrl</span><span class="o">(</span><span class="s">&quot;javascript:{&quot;</span> <span class="o">+</span> <span class="n">script</span> <span class="o">+</span> <span class="s">&quot;};void(0);&quot;</span><span class="o">));</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span><span class='line'><span class="o">...</span>
+</span><span class='line'>  <span class="kd">class</span> <span class="nc">LegacyCallbackInterfaceHelper</span> <span class="o">{</span>
+</span><span class='line'>    <span class="kd">static</span> <span class="kd">final</span> <span class="n">String</span> <span class="n">NAME</span> <span class="o">=</span> <span class="s">&quot;legacyAndroidCallbackInterfaceHelper&quot;</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@JavascriptInterface</span> <span class="nd">@SuppressWarnings</span><span class="o">(</span><span class="s">&quot;unused&quot;</span><span class="o">)</span> <span class="c1">// Called from js</span>
+</span><span class='line'>      <span class="kd">public</span> <span class="kt">void</span> <span class="nf">jimdoDefined</span><span class="o">(</span><span class="n">String</span> <span class="n">result</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="o">((</span><span class="n">Activity</span><span class="o">)</span> <span class="n">webView</span><span class="o">.</span><span class="na">getContext</span><span class="o">()).</span><span class="na">runOnUiThread</span><span class="o">(</span><span class="k">new</span> <span class="n">Runnable</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>          <span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="n">run</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">LegacyWebViewCompatibilityDelegate</span><span class="o">.</span><span class="na">this</span><span class="o">.</span><span class="na">callback</span><span class="o">.</span><span class="na">evaluateResult</span><span class="o">(</span><span class="n">result</span><span class="o">);</span>
+</span><span class='line'>          <span class="o">}</span>
+</span><span class='line'>      <span class="o">});</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>As you can see there&rsquo;s a bit more boilerplate to write, but we managed to achieve the same result. One thing to notice here is that the callback should be run on the main thread &ndash; the <a href="https://developer.android.com/reference/android/webkit/JavascriptInterface.html"><code>JavascriptInterface</code></a> method runs on a <code>WebView</code> thread &ndash; otherwise you&rsquo;ll get a nice little warning if you at the logs.</p>
+
+<p>At this point, here&rsquo;s how we can use this to check if a piece of Javascript has already been injected and avoid to inject it twice:</p>
+
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="n">javascriptInjector</span><span class="o">.</span><span class="na">injectFunction</span><span class="o">(</span><span class="n">screen</span><span class="o">,</span> <span class="s">&quot;typeof jimdo === \&#39;undefined\&#39;&quot;</span><span class="o">,</span>
+</span><span class='line'>  <span class="k">new</span> <span class="n">WebViewCompatibilityDelegate</span><span class="o">.</span><span class="na">ValueCallbackAdapter</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nd">@Override</span> <span class="kd">public</span> <span class="kt">void</span> <span class="n">evaluateResult</span><span class="o">(</span><span class="n">String</span> <span class="n">jimdoUndefined</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>    <span class="k">if</span> <span class="o">(</span><span class="n">Boolean</span><span class="o">.</span><span class="na">valueOf</span><span class="o">(</span><span class="n">jimdoUndefined</span><span class="o">))</span> <span class="o">{</span>
+</span><span class='line'>      <span class="n">javascriptInjector</span><span class="o">.</span><span class="na">injectScript</span><span class="o">(</span><span class="n">screen</span><span class="o">,</span> <span class="s">&quot;my_script.js&quot;</span><span class="o">,</span> <span class="kc">null</span><span class="o">);</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>  <span class="nd">@Override</span> <span class="kd">public</span> <span class="n">String</span> <span class="n">javascriptInterfaceMethodName</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>    <span class="c1">// This corresponds to LegacyCallbackInterfaceHelper.jimdoDefined()</span>
+</span><span class='line'>    <span class="k">return</span> <span class="s">&quot;jimdoDefined&quot;</span><span class="o">;</span>
+</span><span class='line'>  <span class="o">}</span>
+</span><span class='line'><span class="o">});</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>First, the app injects a Javascript function that checks if a variable created by the script is already defined, then depending on the returned result the script is injected or not.</p>
+
+<h2>Soundtrack:</h2>
+
+<iframe width="660" height="60" src="//www.mixcloud.com/widget/iframe/?feed=http%3A%2F%2Fwww.mixcloud.com%2Fdarkfloor%2Fmantis-radio-150-objekt%2F&amp;mini=1&amp;embed_type=widget_standard&amp;embed_uuid=7b156b59-156d-4204-84bc-1a674fc22a50&amp;hide_tracklist=1&amp;replace=0&amp;hide_cover=1&amp;light=1" frameborder="0"></iframe>
+
+
+<div style="clear: both; height: 3px; width: 652px;"></div>
+
+
+<p style="display: block; font-size: 11px; font-family: 'Open Sans', Helvetica, Arial, sans-serif; margin: 0px; padding: 3px 4px; color: rgb(153, 153, 153); width: 652px;"><a href="http://www.mixcloud.com/darkfloor/mantis-radio-150-objekt/?utm_source=widget&amp;amp;utm_medium=web&amp;amp;utm_campaign=base_links&amp;amp;utm_term=resource_link" target="_blank" style="color:#808080; font-weight:bold;">Mantis Radio 150 + Objekt</a><span> by </span><a href="http://www.mixcloud.com/darkfloor/?utm_source=widget&amp;amp;utm_medium=web&amp;amp;utm_campaign=base_links&amp;amp;utm_term=profile_link" target="_blank" style="color:#808080; font-weight:bold;">Darkfloor.</a><span> on </span><a href="http://www.mixcloud.com/?utm_source=widget&amp;utm_medium=web&amp;utm_campaign=base_links&amp;utm_term=homepage_link" target="_blank" style="color:#808080; font-weight:bold;"> Mixcloud</a></p>
+
+
+<div style="clear: both; height: 3px; width: 652px;"></div>
+
+
+
+
+		
+		
+	</div>
+
+
+<div class="meta">
+	<div class="date">
+
+
+
+
+
+
+
+
+  
+
+
+<time datetime="2014-02-23T12:55:15+01:00" pubdate data-updated="true">Feb 23<span>rd</span>, 2014</time></div>
+	<div class="tags">
+
+
+	<a class='category' href='/blog/categories/androiddev/'>androiddev</a>, <a class='category' href='/blog/categories/chromium/'>chromium</a>, <a class='category' href='/blog/categories/kitkat/'>kitkat</a>, <a class='category' href='/blog/categories/webview/'>webview</a>
+
+
+</div>
+	
+</div></article>
+
+
+    <article class="post">
+	<h2 class="title">
+		
 		<a href="/blog/2013/01/24/deal-with-the-unforeseen/">
 		
 			Deal With the Unforeseen</a>
 	</h2>
 	<div class="entry-content">
-		<p>It&#8217;s quite common to invite users to rate an app on Google Play at some point, on one hand it&#8217;s good to know that your users are happy and on the other it&#8217;s a good way to attract new users. It&#8217;s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don&#8217;t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he&#8217;s not going to be too happy about it. How can we make sure that this doesn&#8217;t happen?</p>
+		<p>It&rsquo;s quite common to invite users to rate an app on Google Play at some point, on one hand it&rsquo;s good to know that your users are happy and on the other it&rsquo;s a good way to attract new users. It&rsquo;s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don&rsquo;t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he&rsquo;s not going to be too happy about it. How can we make sure that this doesn&rsquo;t happen?</p>
 
 <p>When an uncaught exception is thrown, the <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html#uncaughtException(java.lang.Thread,">uncaughtException</a> method of the default <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> for that Thread is called. Good news is, you can supply your own <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> using the <a href="https://developer.android.com/reference/java/lang/Thread.html#setDefaultUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)">setDefaultUncaughtExceptionHandler</a> setter (this is what <a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDYQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Facra%2F&amp;ei=kAwBUezwL8_IsgbIvYH4Dg&amp;usg=AFQjCNF1L9fawVNYyKuqqIa7q22TBcL08w&amp;sig2=_FrQnihkSMcsqGUV5XXp1A&amp;bvm=bv.41524429,d.Yms">ACRA</a> and I suppose other libraries like <a href="https://www.crittercism.com/">Crittercism</a> or <a href="https://www.bugsense.com/">BugSense</a> do under the hood). Here is a little snippet of what we do in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype app</a>:</p>
 
-<pre><code>public class CustomUncaughtExceptionHandlerProxy implements Thread.UncaughtExceptionHandler {
+<figure class='code'><figcaption><span></span></figcaption><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+<span class='line-number'>30</span>
+<span class='line-number'>31</span>
+<span class='line-number'>32</span>
+<span class='line-number'>33</span>
+<span class='line-number'>34</span>
+<span class='line-number'>35</span>
+<span class='line-number'>36</span>
+<span class='line-number'>37</span>
+<span class='line-number'>38</span>
+<span class='line-number'>39</span>
+<span class='line-number'>40</span>
+<span class='line-number'>41</span>
+<span class='line-number'>42</span>
+</pre></td><td class='code'><pre><code class='java'><span class='line'><span class="kd">public</span> <span class="kd">class</span> <span class="nc">CustomUncaughtExceptionHandlerProxy</span> <span class="kd">implements</span> <span class="n">Thread</span><span class="o">.</span><span class="na">UncaughtExceptionHandler</span> <span class="o">{</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="kd">static</span> <span class="n">CustomUncaughtExceptionHandlerProxy</span> <span class="n">proxy</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="kd">final</span> <span class="kt">boolean</span> <span class="n">enabled</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="n">Thread</span><span class="o">.</span><span class="na">UncaughtExceptionHandler</span> <span class="n">customUncaughtExceptionHandler</span><span class="o">;</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">private</span> <span class="nf">CustomUncaughtExceptionHandlerProxy</span><span class="o">(</span><span class="n">CustomApplication</span> <span class="n">application</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="n">enabled</span> <span class="o">=</span> <span class="o">!</span><span class="n">application</span><span class="o">.</span><span class="na">inDevMode</span><span class="o">();</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">enabled</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="c1">// Save a reference to the current default handler.</span>
+</span><span class='line'>            <span class="n">customUncaughtExceptionHandler</span> <span class="o">=</span> <span class="n">Thread</span><span class="o">.</span><span class="na">getDefaultUncaughtExceptionHandler</span><span class="o">();</span>
+</span><span class='line'>            <span class="c1">// Set our custom handler as the default one, so that it&#39;s first notified when something ugly happens.</span>
+</span><span class='line'>            <span class="n">Thread</span><span class="o">.</span><span class="na">setDefaultUncaughtExceptionHandler</span><span class="o">(</span><span class="k">this</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="kt">void</span> <span class="nf">initialize</span><span class="o">(</span><span class="n">CustomApplication</span> <span class="n">application</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">proxy</span> <span class="o">==</span> <span class="kc">null</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">proxy</span> <span class="o">=</span> <span class="k">new</span> <span class="n">CustomUncaughtExceptionHandlerProxy</span><span class="o">(</span><span class="n">application</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="kd">public</span> <span class="kd">static</span> <span class="n">CustomUncaughtExceptionHandlerProxy</span> <span class="nf">getInstance</span><span class="o">()</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">return</span> <span class="n">proxy</span><span class="o">;</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'>
+</span><span class='line'>    <span class="nd">@Override</span>
+</span><span class='line'>    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">uncaughtException</span><span class="o">(</span><span class="n">Thread</span> <span class="n">thread</span><span class="o">,</span> <span class="n">Throwable</span> <span class="n">ex</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>        <span class="k">if</span> <span class="o">(</span><span class="n">enabled</span><span class="o">)</span> <span class="o">{</span>
+</span><span class='line'>            <span class="k">if</span> <span class="o">(!</span><span class="n">preferences</span><span class="o">.</span><span class="na">rateAppDialogAlreadyShown</span><span class="o">())</span> <span class="o">{</span>
+</span><span class='line'>                <span class="c1">// reset count only if the &#39;rate app&#39; dialog hasn&#39;t been already shown.</span>
+</span><span class='line'>                <span class="n">preferences</span><span class="o">.</span><span class="na">resetShowRateAppDialogCountdown</span><span class="o">();</span>
+</span><span class='line'>            <span class="o">}</span>
+</span><span class='line'>            <span class="c1">// Let the default uncaught exception handler do its job.</span>
+</span><span class='line'>            <span class="n">customUncaughtExceptionHandler</span><span class="o">.</span><span class="na">uncaughtException</span><span class="o">(</span><span class="n">thread</span><span class="o">,</span> <span class="n">ex</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+</span><span class='line'>            <span class="n">Thread</span><span class="o">.</span><span class="na">getDefaultUncaughtExceptionHandler</span><span class="o">().</span><span class="na">uncaughtException</span><span class="o">(</span><span class="n">thread</span><span class="o">,</span> <span class="n">ex</span><span class="o">);</span>
+</span><span class='line'>        <span class="o">}</span>
+</span><span class='line'>    <span class="o">}</span>
+</span><span class='line'><span class="o">}</span>
+</span></code></pre></td></tr></table></div></figure>
 
-    private static CustomUncaughtExceptionHandlerProxy proxy;
 
-    private final boolean enabled;
-
-    private Thread.UncaughtExceptionHandler customUncaughtExceptionHandler;
-
-    private CustomUncaughtExceptionHandlerProxy(CustomApplication application) {
-        enabled = !application.inDevMode();
-        if (enabled) {
-            // Save a reference to the current default handler.
-            customUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
-            // Set our custom handler as the default one, so that it's first notified when something ugly happens.
-            Thread.setDefaultUncaughtExceptionHandler(this);
-        }
-    }
-
-    public static void initialize(CustomApplication application) {
-        if (proxy == null) {
-            proxy = new CustomUncaughtExceptionHandlerProxy(application);
-        }
-    }
-
-    public static CustomUncaughtExceptionHandlerProxy getInstance() {
-        return proxy;
-    }
-
-    @Override
-    public void uncaughtException(Thread thread, Throwable ex) {
-        if (enabled) {
-            if (!preferences.rateAppDialogAlreadyShown()) {
-                // reset count only if the 'rate app' dialog hasn't been already shown.
-                preferences.resetShowRateAppDialogCountdown();
-            }
-            // Let the default uncaught exception handler do its job.
-            customUncaughtExceptionHandler.uncaughtException(thread, ex);
-        } else {
-            Thread.getDefaultUncaughtExceptionHandler().uncaughtException(thread, ex);
-        }
-    }
-}
-</code></pre>
-
-<p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it&#8217;s pretty straightforward but here&#8217;s a little explanation of how it works. Let&#8217;s say you want to show a &#8220;Rate App&#8221; dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>
+<p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it&rsquo;s pretty straightforward but here&rsquo;s a little explanation of how it works. Let&rsquo;s say you want to show a &ldquo;Rate App&rdquo; dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>
 
 		
 		
@@ -176,9 +463,9 @@
 			Location on Android&#8230; The Qype Way</a>
 	</h2>
 	<div class="entry-content">
-		<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it&#8217;s possible to include it in an already existing application. This time I&#8217;ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application.</p>
+		<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it&rsquo;s possible to include it in an already existing application. This time I&rsquo;ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application.</p>
 
-<p>A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user&#8217;s location, and it needs to know it as quickly as possible - nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
+<p>A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user&rsquo;s location, and it needs to know it as quickly as possible &ndash; nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
 
 <ol>
 <li>a good trade off between quickness and accuracy is achieved.</li>
@@ -186,7 +473,7 @@
 </ol>
 
 
-<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> - I&#8217;ll go back to this in a bit - and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
+<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> &ndash; I&rsquo;ll go back to this in a bit &ndash; and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
 
 <p>So what happens when a new location is received? As you already know from the previous post, <code>IgnitedLocationManager</code> invokes the <code>onIgnitedLocationChanged()</code> callback in the current <code>IgnitedActivity</code>. Since we want our logic to be shared across all out location-aware activities, each of them has a reference to an instance of the <code>QypeLocationManager</code> and it invokes a callback on this object each time a new location is returned:</p>
 
@@ -196,7 +483,7 @@ public boolean onIgnitedLocationChanged(Location location) {
 }
 </code></pre>
 
-<p>This callback has got two locations as parameters: the current location and the location used for the last search. I&#8217;ll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it&#8217;s the first time the current Activity is making a request - in this case the Activity is probably being created for the first time - and, if that&#8217;s the case, it checks if the current location is not null and if it&#8217;s &#8220;good enough&#8221; or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
+<p>This callback has got two locations as parameters: the current location and the location used for the last search. I&rsquo;ll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it&rsquo;s the first time the current Activity is making a request &ndash; in this case the Activity is probably being created for the first time &ndash; and, if that&rsquo;s the case, it checks if the current location is not null and if it&rsquo;s &ldquo;good enough&rdquo; or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
 
 <pre><code>public boolean onNewLocation(final QypeLocationAwareActivity context, Location newLocation,
         Location lastSearchedLocation) {
@@ -230,9 +517,9 @@ public boolean onIgnitedLocationChanged(Location location) {
 } 
 </code></pre>
 
-<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn&#8217;t matter if the location is too coarse? Well&#8230;yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I&#8217;ll explain in a bit when accuracy is taken into account.</p>
+<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn&rsquo;t matter if the location is too coarse? Well&hellip;yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I&rsquo;ll explain in a bit when accuracy is taken into account.</p>
 
-<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don&#8217;t want our users to wait too much before they can get some results, but we&#8217;d like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn&#8217;t move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let&#8217;s jump for a second at the end of this callback:</p>
+<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don&rsquo;t want our users to wait too much before they can get some results, but we&rsquo;d like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn&rsquo;t move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let&rsquo;s jump for a second at the end of this callback:</p>
 
 <pre><code>    ...
     return requestMoreLocationUpdates(newLocation);
@@ -254,9 +541,9 @@ private boolean isOldLocation(Location location) {
 }
 </code></pre>
 
-<p>Let&#8217;s assume that the location isn&#8217;t either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I&#8217;d like to point out something here: in our specific use case, the app doesn&#8217;t need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you&#8217;re using searches for results in an area centered around user&#8217;s location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by &#8220;stopping&#8221; I don&#8217;t actually mean that location updates won&#8217;t be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
+<p>Let&rsquo;s assume that the location isn&rsquo;t either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I&rsquo;d like to point out something here: in our specific use case, the app doesn&rsquo;t need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you&rsquo;re using searches for results in an area centered around user&rsquo;s location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by &ldquo;stopping&rdquo; I don&rsquo;t actually mean that location updates won&rsquo;t be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
 
-<p>If the last location isn&#8217;t either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won&#8217;t be null.</p>
+<p>If the last location isn&rsquo;t either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won&rsquo;t be null.</p>
 
 <pre><code>...
 
@@ -280,7 +567,7 @@ private boolean isOldLocation(Location location) {
 ...
 </code></pre>
 
-<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn&#8217;t differ too much from the old one, it means that the old location wasn&#8217;t that bad and the app doesn&#8217;t need to do anything special (note: it doesn&#8217;t matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
+<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn&rsquo;t differ too much from the old one, it means that the old location wasn&rsquo;t that bad and the app doesn&rsquo;t need to do anything special (note: it doesn&rsquo;t matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
 
 <p><img src="images/nearby_results_reload.jpg"></p>
 
@@ -359,13 +646,13 @@ public void handleMessage(Message msg) {
 			Ignition v0.1 - the Ignited Way of Doing Location</a>
 	</h2>
 	<div class="entry-content">
-		<p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I&#8217;d like to write about here is the module I focused on, that is the ignition-location module.</p>
+		<p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I&rsquo;d like to write about here is the module I focused on, that is the ignition-location module.</p>
 
-<p>Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 - Cupcake - API level 3. It wasn&#8217;t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools.</p>
+<p>Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 &ndash; Cupcake &ndash; API level 3. It wasn&rsquo;t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools.</p>
 
-<p>It&#8217;s a bit weird that on Android I always worked on location-aware applications, and sadly if you have to deal with location your life is not that simple. I was literally thrilled when I watched <a href="http://www.google.com/events/io/2011/sessions/android-protips-advanced-topics-for-expert-android-app-developers.html">Reto Meier&#8217;s talk on the last Google I/O</a>, read his blog posts - on the <a href="http://android-developers.blogspot.com/2011/06/deep-dive-into-location.html">Android Developers Blog</a>, and on his personal blog (<a href="http://blog.radioactiveyak.com/2011/06/how-to-build-location-based-apps-that.html">1</a>, <a href="http://blog.radioactiveyak.com/2011/06/deep-dive-into-location-part-2-being.html">2</a>), and had a look at his <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project - because he showcased some really cool techniques and gave solutions to a lot of issues that I personally experienced. One issue about the sample project is that it&#8217;s not intented to be used as an Android library, so there is no easy way to integrate and all that code, and it&#8217;s a lot of code (but fair enough, that project wasn&#8217;t intented to be an Android library). So I started to think how that code could be reused.</p>
+<p>It&rsquo;s a bit weird that on Android I always worked on location-aware applications, and sadly if you have to deal with location your life is not that simple. I was literally thrilled when I watched <a href="http://www.google.com/events/io/2011/sessions/android-protips-advanced-topics-for-expert-android-app-developers.html">Reto Meier&rsquo;s talk on the last Google I/O</a>, read his blog posts &ndash; on the <a href="http://android-developers.blogspot.com/2011/06/deep-dive-into-location.html">Android Developers Blog</a>, and on his personal blog (<a href="http://blog.radioactiveyak.com/2011/06/how-to-build-location-based-apps-that.html">1</a>, <a href="http://blog.radioactiveyak.com/2011/06/deep-dive-into-location-part-2-being.html">2</a>), and had a look at his <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project &ndash; because he showcased some really cool techniques and gave solutions to a lot of issues that I personally experienced. One issue about the sample project is that it&rsquo;s not intented to be used as an Android library, so there is no easy way to integrate and all that code, and it&rsquo;s a lot of code (but fair enough, that project wasn&rsquo;t intented to be an Android library). So I started to think how that code could be reused.</p>
 
-<p>At that time I was working on integrating Analytics in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype application</a>(<a href="http://prezi.com/swcxu2ynsio-/implementing-analytics-with-aspectj/">here</a>&#8217;s a prezi of a barcamp session I did during the last DroidCon in London) using <a href="http://en.wikipedia.org/wiki/AspectJ">AspectJ</a>, and I really liked its unintrusiveness. That&#8217;s when I thought: it would be awesome if I wouldn&#8217;t had to be worried about enabling/disabling location updates, battery consumption and other details while I&#8217;m developing a location-aware application, I just want to know the most recent known location and I don&#8217;t care about all those things! In other words, the logic that handles location should be a separate concern with respect to the logic of the application (i.e.: getting the best places nearby, the nearby checked-in friends etc.).</p>
+<p>At that time I was working on integrating Analytics in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype application</a>(<a href="http://prezi.com/swcxu2ynsio-/implementing-analytics-with-aspectj/">here</a>&rsquo;s a prezi of a barcamp session I did during the last DroidCon in London) using <a href="http://en.wikipedia.org/wiki/AspectJ">AspectJ</a>, and I really liked its unintrusiveness. That&rsquo;s when I thought: it would be awesome if I wouldn&rsquo;t had to be worried about enabling/disabling location updates, battery consumption and other details while I&rsquo;m developing a location-aware application, I just want to know the most recent known location and I don&rsquo;t care about all those things! In other words, the logic that handles location should be a separate concern with respect to the logic of the application (i.e.: getting the best places nearby, the nearby checked-in friends etc.).</p>
 
 <p>After spending several months adapting the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project and adding a couple of features so that it could be used as an Android library, here is the final result:</p>
 
@@ -400,7 +687,7 @@ public class IgnitedLocationSampleActivity extends MapActivity {
 
 <p>}</p>
 
-<p>Et voilà ! That&#8217;s all the code you have to write in your location-aware Activity! Under the hood the ignition-location library will:</p>
+<p>Et voilà ! That&rsquo;s all the code you have to write in your location-aware Activity! Under the hood the ignition-location library will:</p>
 
 <ul>
 <li>enable/disable location updates</li>
@@ -431,52 +718,46 @@ without the need for you to do anything else apart from adding the <code>@Ignite
    <artifactId>ignition-location</artifactId>
    <version>0.1</version>
    <type>apklib</type>
-   <exclusions></p>
-
-<pre><code> &lt;exclusion&gt;
-   &lt;groupId&gt;com.google.guava&lt;/groupId&gt;
-   &lt;artifactId&gt;guava-collections&lt;/artifactId&gt;
- &lt;/exclusion&gt;
-</code></pre>
-
-<p>   </exclusions>
+   <exclusions>
+     <exclusion>
+       <groupId>com.google.guava</groupId>
+       <artifactId>guava-collections</artifactId>
+     </exclusion>
+   </exclusions>
  </dependency></p></li>
 <li><p>add the aspectj-maven-plugin to your POM file, adding the ignition-location library to the aspect path</p>
 
 <p> <plugin>
-   <groupId>org.codehaus.mojo</groupId></p>
-
-<pre><code> &lt;artifactId&gt;aspectj-maven-plugin&lt;/artifactId&gt;
- &lt;configuration&gt;
-   &lt;aspectLibraries&gt;
-     &lt;aspectLibrary&gt;
-       &lt;groupId&gt;com.github.ignition&lt;/groupId&gt;
-       &lt;artifactId&gt;ignition-location&lt;/artifactId&gt;
-       &lt;type&gt;apklib&lt;/type&gt;
-     &lt;/aspectLibrary&gt;
-   &lt;/aspectLibraries&gt;
-   &lt;source&gt;1.6&lt;/source&gt;
- &lt;/configuration&gt;
- &lt;executions&gt;
-   &lt;execution&gt;
-   &lt;!-- phase need to be before compile, or the build will fail. More info here: http://stackoverflow.com/questions/2610633/maven-compile-aspectj-project-containing-java-1-6-source --&gt;
-   &lt;phase&gt;process-sources&lt;/phase&gt;
-   &lt;goals&gt;
-     &lt;goal&gt;compile&lt;/goal&gt;
-   &lt;/goals&gt;
- &lt;/execution&gt;
-</code></pre>
-
-<p>   </executions>
+   <groupId>org.codehaus.mojo</groupId>
+     <artifactId>aspectj-maven-plugin</artifactId>
+     <configuration>
+       <aspectLibraries>
+         <aspectLibrary>
+           <groupId>com.github.ignition</groupId>
+           <artifactId>ignition-location</artifactId>
+           <type>apklib</type>
+         </aspectLibrary>
+       </aspectLibraries>
+       <source>1.6</source>
+     </configuration>
+     <executions>
+       <execution>
+       <!-- phase need to be before compile, or the build will fail. More info here: http://stackoverflow.com/questions/2610633/maven-compile-aspectj-project-containing-java-1-6-source -->
+       <phase>process-sources</phase>
+       <goals>
+         <goal>compile</goal>
+       </goals>
+     </execution>
+   </executions>
  </plugin></p></li>
 </ol>
 
 
-<p>One last good thing about it is that it&#8217;s open source and on <a href="https://github.com/mttkay/ignition">github</a>! So fork it and help us make it better.</p>
+<p>One last good thing about it is that it&rsquo;s open source and on <a href="https://github.com/mttkay/ignition">github</a>! So fork it and help us make it better.</p>
 
 <p>NOTE:</p>
 
-<p>If you are wondering if the ignition-location magic will slow your application down, the simple answer is: no. Reflection is not used, AspectJ&#8217;s <a href="http://stackoverflow.com/questions/7646097/what-is-aspectj-context-binding">Context binding</a> is used instead. That means that all the magic is happening at compile time. Isn&#8217;t that cool?</p>
+<p>If you are wondering if the ignition-location magic will slow your application down, the simple answer is: no. Reflection is not used, AspectJ&rsquo;s <a href="http://stackoverflow.com/questions/7646097/what-is-aspectj-context-binding">Context binding</a> is used instead. That means that all the magic is happening at compile time. Isn&rsquo;t that cool?</p>
 
 		
 		
@@ -512,7 +793,7 @@ without the need for you to do anything else apart from adding the <code>@Ignite
     
     <div class="center"><a href="/blog/archives">Blog Archives</a></div>
 </nav></div>
-	<footer id="footer" class="inner">Copyright &copy; 2013
+	<footer id="footer" class="inner">Copyright &copy; 2014
 
     Stefano Dacchille
 
