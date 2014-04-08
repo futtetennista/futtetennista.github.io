@@ -4,7 +4,7 @@
   <title><![CDATA[Category: testing | Octodroid]]></title>
   <link href="http://stefanodacchille.github.io/blog/categories/testing/atom.xml" rel="self"/>
   <link href="http://stefanodacchille.github.io/"/>
-  <updated>2014-04-08T17:37:01+02:00</updated>
+  <updated>2014-04-08T17:40:33+02:00</updated>
   <id>http://stefanodacchille.github.io/</id>
   <author>
     <name><![CDATA[Stefano Dacchille]]></name>
@@ -14,7 +14,7 @@
 
   
   <entry>
-    <title type="html"><![CDATA[Wait for it...a deep dive in Espresso's idling resources]]></title>
+    <title type="html"><![CDATA[Wait for it…a deep dive in Espresso's idling resources]]></title>
     <link href="http://stefanodacchille.github.io/blog/2014/04/05/wait-for-it/"/>
     <updated>2014-04-05T18:42:29+02:00</updated>
     <id>http://stefanodacchille.github.io/blog/2014/04/05/wait-for-it</id>
