@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: espresso | Octodroid]]></title>
+  <link href="http://stefanodacchille.github.io/blog/categories/espresso/atom.xml" rel="self"/>
+  <link href="http://stefanodacchille.github.io/"/>
+  <updated>2014-04-08T17:37:01+02:00</updated>
+  <id>http://stefanodacchille.github.io/</id>
+  <author>
+    <name><![CDATA[Stefano Dacchille]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Wait for it...a deep dive in Espresso's idling resources]]></title>
+    <link href="http://stefanodacchille.github.io/blog/2014/04/05/wait-for-it/"/>
+    <updated>2014-04-05T18:42:29+02:00</updated>
+    <id>http://stefanodacchille.github.io/blog/2014/04/05/wait-for-it</id>
+    <content type="html"><![CDATA[<p>Recently I invested a decent amount of time in making our functional tests less clunky, especially when there are async computations involved. We started using <a href="https://code.google.com/p/android-test-kit/">Espresso</a> a few days after it was released and never looked back. In this blog post I&rsquo;d like to focus on how you can tell Espresso to wait for an async computation to finish before performing any actions on a <code>View</code>, and a few gotchas I learned. Espresso introduces the concept of <a href="https://android-test-kit.googlecode.com/git/docs/javadocs/apidocs/index.html"><code>IdlingResource</code></a>, a simple interface that</p>
+
+<blockquote><p>Represents a resource of an application under test which can cause asynchronous background work to happen during test execution</p></blockquote>
+
+<p>The interface defines three methods:</p>
+
+<ul>
+<li><code>getName()</code>: must return a non-null string that identifies an idling resource. Morover, as the docs state:</li>
+</ul>
+
+
+<blockquote><p>it is used for logging and <em>idempotency</em> of registration</p></blockquote>
+
+<ul>
+<li><code>isIdleNow()</code>: returns the current idle state of the idling resource. If it returns <code>true</code>, the <code>onTransitionToIdle()</code> method on the registered <code>ResourceCallback</code> must have been previously called.</li>
+<li><code>registerIdleTransitionCallback(IdlingResource.ResourceCallback callback)</code>: normally this method is used to store a reference to the callback to notify it of a change in the idle state.</li>
+</ul>
+
+
+<h2>Idling resource registration</h2>
+
+<p>Registering an idling resource is really simple: just call <code>Espresso.registerIdlingResource(myIdlingResource)</code>. This call is idempotent, meaning that</p>
+
+<blockquote><p>it can be applied multiple times without changing the result beyond the initial application.</p></blockquote>
+
+<p>This way consequent calls to <code>Espresso.registerIdlingResource(myIdlingResource)</code> for an idling resource with the same name won&rsquo;t have any effect (Espresso will simply log a warning). Generally this is no big deal, but it becomes an issue if an idling resource has a dependency to the current <code>Context</code>. For example, the application under test can have a <code>WebView</code> and the tests need to wait for a page to be fully loaded. If idempotence is not taken into account and an idling resource with a reference to a <code>WebView</code> instance is registered &ndash; for example in the <code>setUp()</code> method of a test class &ndash; bad things will happen. First, subsequent tests will rely on a wrong referenced component in idling resource to be checked and will probably fail, and second the first <code>Context</code> is leaked since we&rsquo;re holding a strong reference to it. The solution to that is to have an <code>ActivityLifecycleIdlingResource</code> and inject and clear the reference to a component when appropriate.
+```java
+abstract class ActivityLifecycleIdlingResource<T> implements IdlingResource {
+  private T component;</p>
+
+<p>  void inject(T component) {</p>
+
+<pre><code>this.component = component;
+</code></pre>
+
+<p>  }</p>
+
+<p>  void clear() {</p>
+
+<pre><code>this.component = null;
+</code></pre>
+
+<p>  }
+}
+```</p>
+
+<p>Another &ndash; probably less error-prone &ndash; solution would be to have an <code>Espresso.unregisterIdlingResource(myIdlingResource)</code> API, there is already a <a href="https://code.google.com/p/android-test-kit/issues/detail?id=65">feature request</a> to add it. As for registering idling resources that are needed in all tests, I ended up registering them in the <code>callApplicationOnCreate(app)</code> method of a custom <code>InstrumentationTestRunner</code>, this way I am sure the registration happens only once.</p>
+
+<h2>Implementing an idling resource for a thread pool executor</h2>
+
+<p>There can be <a href="http://www.slideshare.net/andersgoransson/efficient-android-threading">multiple</a> <a href="http://mttkay.github.io/blog/2013/08/25/functional-reactive-programming-on-android-with-rxjava/">reasons</a> why you&rsquo;d want your application to not use the built-in Android components that handle async operations, in this case you&rsquo;d need to define an idling resource that checks if the executor(s) used by the application are idle. Looking at the Espresso source code, with a small refactoring to the <a href="https://code.google.com/p/android-test-kit/source/browse/espresso/lib/src/main/java/com/google/android/apps/common/testing/ui/espresso/base/AsyncTaskPoolMonitor.java"><code>AsyncTaskPoolMonitor</code></a> class (Espresso uses it to check if there is some tasks running on the <code>AsyncTask</code> thread pool executor) a general <a href="https://gist.github.com/stefanodacchille/9995163#file-threadpoolidlingresource-java"><code>ThreadPoolIdlingResource</code></a> can be implemented.</p>
+
+<h2>Soundtrack:</h2>
+
+<iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/141161837&amp;color=ff5500&amp;auto_play=false&amp;hide_related=false&amp;show_artwork=true"></iframe>
+
+
+
+]]></content>
+  </entry>
+  
+</feed>
