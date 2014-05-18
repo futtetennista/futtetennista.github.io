@@ -4,7 +4,7 @@
   <title><![CDATA[Octodroid]]></title>
   <link href="http://stefanodacchille.github.io/atom.xml" rel="self"/>
   <link href="http://stefanodacchille.github.io/"/>
-  <updated>2014-04-08T17:40:33+02:00</updated>
+  <updated>2014-05-18T10:06:33+02:00</updated>
   <id>http://stefanodacchille.github.io/</id>
   <author>
     <name><![CDATA[Stefano Dacchille]]></name>
@@ -18,7 +18,9 @@
     <link href="http://stefanodacchille.github.io/blog/2014/04/05/wait-for-it/"/>
     <updated>2014-04-05T18:42:29+02:00</updated>
     <id>http://stefanodacchille.github.io/blog/2014/04/05/wait-for-it</id>
-    <content type="html"><![CDATA[<p>Recently I invested a decent amount of time in making our functional tests less clunky, especially when there are async computations involved. We started using <a href="https://code.google.com/p/android-test-kit/">Espresso</a> a few days after it was released and never looked back. In this blog post I&rsquo;d like to focus on how you can tell Espresso to wait for an async computation to finish before performing any actions on a <code>View</code>, and a few gotchas I learned. Espresso introduces the concept of <a href="https://android-test-kit.googlecode.com/git/docs/javadocs/apidocs/index.html"><code>IdlingResource</code></a>, a simple interface that</p>
+    <content type="html"><![CDATA[<h3>A new (better) version of this post is available on the <a href="http://dev.jimdo.com/2014/05/09/wait-for-it-a-deep-dive-into-espresso-s-idling-resources/">Jimdo Dev Blog</a>.</h3>
+
+<p>Recently I invested a decent amount of time in making our functional tests less clunky, especially when there are async computations involved. We started using <a href="https://code.google.com/p/android-test-kit/">Espresso</a> a few days after it was released and never looked back. In this blog post I&rsquo;d like to focus on how you can tell Espresso to wait for an async computation to finish before performing any actions on a <code>View</code>, and a few gotchas I learned. Espresso introduces the concept of <a href="https://android-test-kit.googlecode.com/git/docs/javadocs/apidocs/index.html"><code>IdlingResource</code></a>, a simple interface that</p>
 
 <blockquote><p>Represents a resource of an application under test which can cause asynchronous background work to happen during test execution</p></blockquote>
 
