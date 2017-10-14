@@ -2,7 +2,7 @@ ARG GHC_VERSION=8.0.2
 
 FROM haskell:$GHC_VERSION
 
-ARG SITE_NAME="futtetennismo"
+ARG SITE_NAME
 
 # https://unix.stackexchange.com/questions/87745/what-does-lc-all-c-do
 ENV LANG=C.UTF-8 \
