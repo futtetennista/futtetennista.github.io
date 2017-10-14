@@ -22,4 +22,4 @@ WORKDIR home/$SITE_NAME
 # --host is important: hakyll uses 127.0.0.1 by default but that
 # does not play well with docker
 # ENTRYPOINT ["stack", "exec", "site", "watch"] #, "-- --host=0.0.0.0"]
-ENTRYPOINT ["/bin/bash"]
+ENTRYPOINT ["bash"]
