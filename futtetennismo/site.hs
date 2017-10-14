@@ -1,8 +1,8 @@
 --------------------------------------------------------------------------------
 {-# LANGUAGE OverloadedStrings #-}
-import           Data.Monoid (mappend)
-import           Hakyll
-
+import Data.Monoid (mappend)
+import Hakyll
+import qualified Data.Set as Set
 
 --------------------------------------------------------------------------------
 main :: IO ()
@@ -23,7 +23,7 @@ main = hakyll $ do
 
     match "posts/*" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler
+        compile $ pandocCompilerWith defaultHakyllReaderOptions{ readerExtensions = Set.insert (Ext_literate_haskell) (readerExtensions defaultHakyllReaderOptions) } defaultHakyllWriterOptions
             >>= loadAndApplyTemplate "templates/post.html"    postCtx
             >>= loadAndApplyTemplate "templates/default.html" postCtx
             >>= relativizeUrls
