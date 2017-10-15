@@ -93,9 +93,11 @@ Let's not focus on the types - again not important - GHCI is telling us
 the value of `ebf` after evaluation. We'd like to force this evaluation *before*
 the first time the Bloom filter is used, namely when it is created.
 
-One important note about using GHCI for these kind of tasks: **always** explicitly
-specify type annotations for bindings that need to be forced, otherwise the
-interpreter will infer the most general type and won't force the evaluation of the term.
+
+#### Beware GHCI
+In GHCI  we **always** need to explicitly specify type annotations for bindings
+that need to be forced, otherwise the interpreter will infer the most general
+type and won't force the evaluation of the term.
 This is related to ["the dreaded monomorphism restriction"](https://wiki.haskell.org/Monomorphism_restriction).
 
 
@@ -130,7 +132,7 @@ The membership test took still 19 seconds, as we expected. So what's happening
 here? Now it's probably a good point to introduce some terminology that will
 help us out understanding what's happening and how to go forward.
 
-## Normal form (NF) and weak head normal form (WHNF)
+## NF and WHNF
 
 A reducible expression (or redex) is an expression that can be evaluated until
 a value is obtained, i.e. `let x = 1 + 6` is a redex since it can be evaluated
@@ -205,9 +207,8 @@ functions like `foldr'` use). The first function we need to change is
 and to `\pair -> let bfilt = mkBFilt pair in Right bfilt` if we massage the lambda
 a bit. Here `bfilt` needs to be evaluated so again the easiest thing to do
 is to add a bang pattern: `\pair -> let !bfilt = mkBFilt pair in Right bfilt`.
-A quick note for all the eta-reduce freaks out there (I put myself in the
-category and I made the following mistake myself): beware that the
-following code is not equlivalent to what we just did and **won't** work:
+A quick note for about point-free style: adding strictness is a bummer in that
+respect. Let's have a look at the following code
 
 ```haskell
 -- file: BloomFilter/BloomFilter.hs
@@ -218,9 +219,9 @@ mkFromList' errRate xs =
     mkBFilt' (bits, numHashes) =
       let !bfilt =  B.fromList (doubleHash numHashes) bits xsin bfilt
 ```
-Notice that `(Right . mkFilt')` is equivalent to `\pair -> Right (mkFilt' pair)`
-and it will be evaluated lazily. Are we done yet? We're almost  but not quite
-there yet. Let's have a look at the type of `ebf'` again: `Either String (B.IBloom Int)`.
+By eta-expanding `(Right . mkFilt')` we obtain `\pair -> Right (mkFilt' pair)` that
+is a function that will be evaluated lazily. Are we done yet? Almost.
+Let's have a look at the type of `ebf'` again: `Either String (B.IBloom Int)`.
 What's `IBloom` (the 'I' stays for "immutable")? Here's how it's defined:
 
 ```haskell
@@ -282,7 +283,7 @@ use in our code.
 ## Wrapping up
 
 1. There are multiple ways we can use to introduce strictness in Haskell code:
-   `seq`, the BangPatterns` extension or the functions in the `Control.DeepSeq`
+   `seq`, the `BangPatterns` extension or the functions in the `Control.DeepSeq`
    module
 2. Using GHCI and leveraging the `:print` command and the `+s` flag can help us
    understanding how our code is evaluated while developing
