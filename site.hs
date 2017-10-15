@@ -72,4 +72,14 @@ postCtx :: Context String
 postCtx =
     dateField "date" "%B %e, %Y"
     <> teaserField "teaser" "content"
+    <> mapContext (trim . take 160 . stripTags) (teaserField "teaser-short" "content")
     <> defaultContext
+  where
+    trim xs =
+      map snd . filter trim' $ zip [0..] xs
+      where
+        trim' (ix, x)
+          | ix == 0 || ix == (length xs - 1) =
+              x `notElem` [' ' , '\n', '\t']
+          | otherwise =
+              True
