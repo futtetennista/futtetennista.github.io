@@ -4,8 +4,9 @@
 
   <!-- Metadata. -->
   <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog"/>
-  <meta name="description" content="Hakyll - A Static Site Generator in Haskell."/>
-
+  <title>$if(title)$ $title$ $else$ Futtetennismo $endif$</title>
+  <meta name="description" content="$if(teaser)$ $teaser$ $else$ Futtennismo $endif$">
+  <link rel="canonical" href="$url$">
 
   <!-- Stylesheets. -->
   <link rel="stylesheet" href="/lib/materialize/css/materialize.min.css">

@@ -3,9 +3,6 @@ title: Migrating from lazy IO to Conduit
 tags: [haskell]
 ---
 
-Migrating from lazy IO to Conduit
-===
-
 \ignore{
 https://wiki.haskell.org/Literate_programming
 
