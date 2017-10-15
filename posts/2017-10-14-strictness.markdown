@@ -1,5 +1,7 @@
 ---
 title: Being lazy with consciousness
+excerpt: Learnings in dealing with lazy evaluation
+tags: haskell
 ---
 
 Lazy evaluation sometimes makes it trickier to really understand how a piece of

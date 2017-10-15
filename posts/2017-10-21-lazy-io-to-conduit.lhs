@@ -1,5 +1,7 @@
 ---
 title: Migrating from lazy IO to Conduit
+excerpt: Learnings from a migrating some code using lazy IO to conduit
+tags: haskell
 ---
 
 Migrating from lazy IO to Conduit

@@ -8,51 +8,45 @@
   <body>
 
     <header class="site-header">
+      <nav class="nav-extended {{ site.header-color }}">
         $partial("partials/navbar.html")$
 
         <div class="nav-content">
           <ul class="tabs tabs-transparent">
+            <li class="tab">
+              <a class="active" href="#tab-main">main</a>
+            </li>
             <li class="tab">
               <a href="#tab-about">about</a>
             </li>
             <li class="tab">
               <a href="#tab-yours-truly">yours truly</a>
             </li>
-            <li class="tab">
-              <a class="active" href="#tab-main">main</a>
-            </li>
           </ul>
         </div>
       </nav>
     </header>
 
-    <div id="main">
-      <div id="header">
-        <a href="/">
-          <!-- <img src="/images/lambda.png" alt="lambda" /> -->
-          Futtetennismo
-        </a>
-      </div>
-
-      <div id="content">
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
         $body$
       </div>
-
-      $partial("partials/footer.html")$
     </div>
 
-     <!-- scrolltop button -->
+    $partial("partials/footer.html")$
+
+    <!-- scrolltop button -->
     <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button"><i class="mdi mdi-arrow-up-bold small white-text"></i></button>
 
     <!-- jquery -->
-    <script type="text/javascript" src="./lib/jquery-min.js"></script>
+    <script type="text/javascript" src="/lib/jquery-min.js"></script>
     <!-- materialize -->
-    <script src="./lib/materialize/js/materialize.min.js"></script>
+    <script src="/lib/materialize/js/materialize.min.js"></script>
     <!-- <\!-- Material ScrollTop plugin -\-> -->
-    <!-- <script src="{{ '/lib/material-scrolltop/material-scrolltop.js' | prepend: site.baseurl }}"></script> -->
-    <!-- <\!-- main -\-> -->
-    <!-- <script src="{{ '/js/init.js' | prepend: site.baseurl }}"></script> -->
-    <!-- <script src="{{ '/js/main.js' | prepend: site.baseurl }}"></script> -->
+    <script src="/lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="/js/init.js"></script>
+    <script src="/js/main.js"></script>
 
   </body>
 

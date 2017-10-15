@@ -1,21 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Data.Monoid (mappend)
+import Data.Monoid ((<>))
 import Hakyll
 import qualified Data.Set as Set
 import Hakyll.Web.Sass (sassCompiler)
 
 main :: IO ()
 main = hakyll $ do
-    match "images/*" $ do
+    match (fromGlob "images/**" .||. fromGlob "js/**" .||. fromGlob "lib/**") $ do
       route   idRoute
       compile copyFileCompiler
 
-    match "lib/**" $ do
-      route   idRoute
-      compile copyFileCompiler
-
-    match "css/*.scss" $ do
+    match "css/*.scss"$ do
       route $ setExtension "css"
       let
         compressCssItem = fmap compressCss
@@ -60,9 +56,10 @@ main = hakyll $ do
           posts <- recentFirst =<< loadAll "posts/*"
           let
             indexCtx =
-              listField "posts" postCtx (return posts) `mappend`
-              constField "title" "Home"                `mappend`
-              defaultContext
+              listField "posts" postCtx (return posts)
+              <> field "title" (return . show . itemBody)
+              <> field "excerpt" (return . show . itemBody)
+              <> defaultContext
 
           getResourceBody
             >>= applyAsTemplate indexCtx
