@@ -26,13 +26,13 @@ main = hakyll $ do
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
       >>= relativizeUrls
 
-    match "posts/*" $ do
-        route $ setExtension "html"
-        compile $ pandocCompiler
-        -- compile $ pandocCompilerWith defaultHakyllReaderOptions{ readerExtensions = Set.insert (Ext_literate_haskell) (readerExtensions defaultHakyllReaderOptions) } defaultHakyllWriterOptions
-            >>= loadAndApplyTemplate "templates/post.html"    postCtx
-            >>= loadAndApplyTemplate "templates/default.html" postCtx
-            >>= relativizeUrls
+  match "posts/*" $ do
+    route $ setExtension "html"
+    compile $ pandocCompiler
+      >>= saveSnapshot "content"
+      >>= loadAndApplyTemplate "templates/post.html" postCtx
+      >>= loadAndApplyTemplate "templates/default.html" postCtx
+      >>= relativizeUrls
 
   -- create ["archive.html"] $ do
   --     route idRoute
@@ -70,5 +70,6 @@ main = hakyll $ do
 
 postCtx :: Context String
 postCtx =
-    dateField "date" "%B %e, %Y" `mappend`
-    defaultContext
+    dateField "date" "%B %e, %Y"
+    <> teaserField "teaser" "content"
+    <> defaultContext
