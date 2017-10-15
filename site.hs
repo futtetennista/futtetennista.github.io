@@ -59,6 +59,8 @@ main = hakyll $ do
               listField "posts" postCtx (return posts)
               <> field "title" (return . show . itemBody)
               <> field "excerpt" (return . show . itemBody)
+              -- <> field "categories" (return . show . itemBody)
+              -- <> field "tags" (return . show . itemBody)
               <> defaultContext
 
           getResourceBody
