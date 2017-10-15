@@ -1,7 +1,6 @@
 ---
 title: Migrating from lazy IO to Conduit
-excerpt: Learnings from a migrating some code using lazy IO to conduit
-tags: haskell
+tags: [haskell]
 ---
 
 Migrating from lazy IO to Conduit
@@ -9,8 +8,7 @@ Migrating from lazy IO to Conduit
 
 \ignore{
 https://wiki.haskell.org/Literate_programming
-}
-\ignore{
+
 > -- HIDDEN
 > {-# LANGUAGE FlexibleContexts #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -21,10 +19,11 @@ https://wiki.haskell.org/Literate_programming
 > import qualified Data.Set as Set
 > import Control.Concurrent.STM
 > import Control.Monad.State
+
 }
 
 Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it's not desirable (or even possible) to use strict IO, mostly for memory efficiency reasons. This is the kind of problems that streaming libraries like [conduit](https://hackage.haskell.org/package/conduit) or [pipes]("https://hackage.haskell.org/package/pipes") are designed to solve. In this post I want to show how I refactored a piece of code that uses lazy IO to use the conduit library (for those not familiar with it, please read this [conduit tutorial](https://haskell-lang.org/library/conduit) first).
-
+<!--more-->
 The example is based on the URL checker developed in chapter 28 of Real World Haskell: the URL checker parses some command line arguments - input files containing the urls to be checked and the number of worker threads that will concurrently check those urls - creates a `Job` that extracts all the well-formed urls, a `Task` for each url that needs to be checked and puts it in a job queue that worker threads poll to get new urls to check until the job queue is empty. After all urls are checked the URL checker prints out some statistics about those URLs. The types are the following
 
 > data Task = Done | Check URL
