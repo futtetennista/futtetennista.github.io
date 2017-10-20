@@ -2,7 +2,6 @@
 title: Migrating from lazy IO to Conduit
 author: futtetennista
 tags: lazy+io, conduit, real+world+haskell
-categories: software+development, haskell
 ---
 
 \ignore{
@@ -22,8 +21,10 @@ https://wiki.haskell.org/Literate_programming
 }
 
 Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it's not desirable (or even possible) to use strict IO, mostly for memory efficiency reasons. This is the kind of problems that streaming libraries like [conduit](https://hackage.haskell.org/package/conduit) or [pipes]("https://hackage.haskell.org/package/pipes") are designed to solve. In this post I want to show how I refactored a piece of code that uses lazy IO to use the conduit library (for those not familiar with it, please read this [conduit tutorial](https://haskell-lang.org/library/conduit) first).
+
 <!--more-->
-The example is based on the URL checker developed in chapter 28 of Real World Haskell: the URL checker parses some command line arguments - input files containing the urls to be checked and the number of worker threads that will concurrently check those urls - creates a `Job` that extracts all the well-formed urls, a `Task` for each url that needs to be checked and puts it in a job queue that worker threads poll to get new urls to check until the job queue is empty. After all urls are checked the URL checker prints out some statistics about those URLs. The types are the following:
+
+I enjoyed reading Real World Haskell and I am convinced that is still a must-read for people who want to learn and work proficiently with Haskell, but it's true that a lot changed in these last few years and new libraries or best practices have been developed so some code could be updated. This post intends to be the first of a series of posts that will take a piece of code from the book and rewrites it using more modern idioms. This time the code is taken from chapter 28: it implements a URL checker that parses some command line arguments - a list of text files containing the urls to be checked and a number representing the amount of worker threads that will concurrently check those urls - creates a `Job` that extracts all the well-formed urls, a `Task` for each url that needs to be checked and puts it in a job queue that worker threads poll to get new urls to check. The program waits until all urls are checked and prints out some statistics about those URLs. Let's start by having a look a the typess:
 
 > data Task = Done | Check URL
 
