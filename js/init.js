@@ -1,15 +1,15 @@
 
 /* Material scrolltop */
 
-$(document).ready(function() {
-  $('body').materialScrollTop({
-    revealElement: 'header',
-    revealPosition: 'bottom',
-    onScrollEnd: function() {
-      console.log('Scrolling End');
-    }
-  });
-});
+// $(document).ready(function() {
+//   $('body').materialScrollTop({
+//     revealElement: 'header',
+//     revealPosition: 'bottom',
+//     onScrollEnd: function() {
+//       console.log('Scrolling End');
+//     }
+//   });
+// });
 
 
 /* Materialize */
@@ -49,6 +49,3 @@ $(".button-collapse").sideNav({
 $(".button-collapse").off("click").sideNav();
 // Initialize collapsible (uncomment the line below if you use the dropdown variation)
 //$('.collapsible').collapsible();
-
-
-
