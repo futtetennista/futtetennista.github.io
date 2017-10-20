@@ -1,15 +1,15 @@
 
 /* Material scrolltop */
 
-// $(document).ready(function() {
-//   $('body').materialScrollTop({
-//     revealElement: 'header',
-//     revealPosition: 'bottom',
-//     onScrollEnd: function() {
-//       console.log('Scrolling End');
-//     }
-//   });
-// });
+$(document).ready(function() {
+  $('body').materialScrollTop({
+    revealElement: 'header',
+    revealPosition: 'bottom',
+    onScrollEnd: function() {
+      console.log('Scrolling End');
+    }
+  });
+});
 
 
 /* Materialize */

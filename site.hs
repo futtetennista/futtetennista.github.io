@@ -13,12 +13,18 @@ main = hakyll $ do
   match "css/*.scss"$ do
     route $ setExtension "css"
     let
-      compressCssItem = fmap compressCss
+      compressCssItem =
+        fmap compressCss
+
+      -- scssOptions =
+      --   maybe (error "Unexpected! .scss files should be valid")
+      --         id
+      --         (selectFileType sassDefConfig ".scss")
     compile (compressCssItem <$> sassCompiler)
 
-  match "css/*" $ do
-    route   idRoute
-    compile compressCssCompiler
+  -- match "css/*" $ do
+  --   route   idRoute
+  --   compile compressCssCompiler
 
   match (fromList ["about.rts", "contact.markdown"]) $ do
     route   $ setExtension "html"
