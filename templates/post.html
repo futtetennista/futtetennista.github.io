@@ -7,9 +7,11 @@
       <p class="grey-text">
         <i class="mdi mdi-calendar"></i>&nbsp;
         Posted on $date$
-        &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
-        $if(author)$ by $author$ $endif$
-        &nbsp;&nbsp;<i class="mdi mdi-label"></i>&nbsp;
+        $if(author)$
+          &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
+          by $author$
+        $endif$
+
         <!-- {% if page.categories %}<span class="capitalize">{{ page.categories }}</span>{% else %}unknown{% endif %} -->
         <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
       </p>
@@ -17,12 +19,10 @@
       <div class="post-header">
         <h1 class="post-title">$title$</h1>
 
-        <!-- {% if page.tags %} -->
-        <!--   <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i> -->
-        <!--   {% for tag in page.tags %} -->
-        <!--   <div class="chip">{{ tag }}</div> -->
-        <!--   {% endfor %} -->
-        <!-- {% endif %} -->
+        $if(tags)$
+          <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+          <div class="chip">$tags$</div>
+        $endif$
       </div>
 
       <article class="post-content">

@@ -20,12 +20,30 @@ main = hakyll $ do
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
       >>= relativizeUrls
 
+  tags <- buildTags "posts/*" (fromCapture "tags/*.html")
+
+  tagsRules tags $ \tag pattern -> do
+    let title = "Posts tagged \"" ++ tag ++ "\""
+    route idRoute
+    compile $ do
+      posts <- recentFirst =<< loadAll pattern
+      let
+        ctx =
+          constField "title" title
+          <> listField "posts" postCtx (return posts)
+          <> defaultContext
+
+      makeItem ""
+        >>= loadAndApplyTemplate "templates/tag.html" ctx
+        >>= loadAndApplyTemplate "templates/default.html" ctx
+        >>= relativizeUrls
+
   match "posts/*" $ do
     route $ setExtension "html"
     compile $ pandocCompiler
       >>= saveSnapshot "content"
-      >>= loadAndApplyTemplate "templates/post.html" postCtx
-      >>= loadAndApplyTemplate "templates/default.html" postCtx
+      >>= loadAndApplyTemplate "templates/post.html" (postCtxWithTags tags)
+      >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
       >>= relativizeUrls
 
   -- create ["archive.html"] $ do
@@ -62,10 +80,15 @@ main = hakyll $ do
     compile templateBodyCompiler
 
 
+postCtxWithTags :: Tags -> Context String
+postCtxWithTags tags =
+  tagsField "tags" tags <> postCtx
+
 postCtx :: Context String
 postCtx =
     dateField "date" "%B %e, %Y"
     <> teaserField "teaser" "content"
+    -- create a short version of the teaser. Strip out HTML tags and trim.
     <> mapContext (trim . take 160 . stripTags) (teaserField "teaser-short" "content")
     <> defaultContext
   where

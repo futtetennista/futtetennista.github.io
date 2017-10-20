@@ -1,7 +1,7 @@
 ---
 title: Being lazy with consciousness
-tags: haskell
-categories: "learnings"
+author: futtetennista
+tags: strictness, ghci
 ---
 
 Lazy evaluation sometimes makes it trickier to really understand how a piece of
