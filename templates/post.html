@@ -12,8 +12,10 @@
           by $author$
         $endif$
 
-        <!-- {% if page.categories %}<span class="capitalize">{{ page.categories }}</span>{% else %}unknown{% endif %} -->
-        <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        $if(categories)$
+          <span class="capitalize">$categories$</span>
+          <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        $endif$
       </p>
 
       <div class="post-header">

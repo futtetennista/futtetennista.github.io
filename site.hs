@@ -20,36 +20,28 @@ main = hakyll $ do
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
       >>= relativizeUrls
 
-  tags <- buildTags "posts/*" (fromCapture "tags/*.html")
+  tags <- buildTags "posts/**" (fromCapture "tags/*.html")
+  createTagsRules tags
+                  (\xs -> "Posts tagged \"" ++ xs ++ "\"")
+                  "templates/tag.html"
 
-  tagsRules tags $ \tag pattern -> do
-    let title = "Posts tagged \"" ++ tag ++ "\""
-    route idRoute
-    compile $ do
-      posts <- recentFirst =<< loadAll pattern
-      let
-        ctx =
-          constField "title" title
-          <> listField "posts" postCtx (return posts)
-          <> defaultContext
+  categories <- buildCategories "posts/**" (fromCapture "categories/*.html")
+  createTagsRules categories
+                  (\xs -> "Posts categorised as \"" ++ xs ++ "\"")
+                  "templates/category.html"
 
-      makeItem ""
-        >>= loadAndApplyTemplate "templates/tag.html" ctx
-        >>= loadAndApplyTemplate "templates/default.html" ctx
-        >>= relativizeUrls
-
-  match "posts/*" $ do
+  match "posts/**" $ do
     route $ setExtension "html"
     compile $ pandocCompiler
       >>= saveSnapshot "content"
-      >>= loadAndApplyTemplate "templates/post.html" (postCtxWithTags tags)
-      >>= loadAndApplyTemplate "templates/default.html" (postCtxWithTags tags)
+      >>= loadAndApplyTemplate "templates/post.html" (ctxWithTags tags categories postCtx)
+      >>= loadAndApplyTemplate "templates/default.html" (ctxWithTags tags categories postCtx)
       >>= relativizeUrls
 
   -- create ["archive.html"] $ do
   --     route idRoute
   --     compile $ do
-  --         posts <- recentFirst =<< loadAll "posts/*"
+  --         posts <- recentFirst =<< loadAll "posts/**"
   --         let archiveCtx =
   --                 listField "posts" postCtx (return posts) `mappend`
   --                 constField "title" "Archives"            `mappend`
@@ -64,7 +56,7 @@ main = hakyll $ do
   match "index.html" $ do
     route idRoute
     compile $ do
-      posts <- recentFirst =<< loadAll "posts/*"
+      posts <- recentFirst =<< loadAll "posts/**"
       let
         indexCtx =
           listField "posts" postCtx (return posts)
@@ -80,9 +72,12 @@ main = hakyll $ do
     compile templateBodyCompiler
 
 
-postCtxWithTags :: Tags -> Context String
-postCtxWithTags tags =
-  tagsField "tags" tags <> postCtx
+ctxWithTags :: Tags -> Tags -> Context String -> Context String
+ctxWithTags tags categories ctx =
+  tagsField "tags" tags
+  <> tagsField "categories" categories
+  <> ctx
+
 
 postCtx :: Context String
 postCtx =
@@ -100,3 +95,21 @@ postCtx =
               x `notElem` [' ' , '\n', '\t']
           | otherwise =
               True
+
+
+createTagsRules :: Tags -> (String -> String) -> Identifier -> Rules ()
+createTagsRules tags mkTitle template =
+  tagsRules tags $ \tag pattern -> do
+    route idRoute
+    compile $ do
+      posts <- recentFirst =<< loadAll pattern
+      let
+        ctx =
+          constField "title" (mkTitle tag)
+          <> listField "posts" postCtx (return posts)
+          <> defaultContext
+
+      makeItem ""
+        >>= loadAndApplyTemplate template ctx
+        >>= loadAndApplyTemplate "templates/default.html" ctx
+        >>= relativizeUrls
