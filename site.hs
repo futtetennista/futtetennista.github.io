@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Hakyll
 import Data.Monoid ((<>))
+import Data.List (stripPrefix)
 import qualified Data.Set as Set
 import Hakyll.Web.Sass (sassCompiler)
 
@@ -15,8 +16,14 @@ main = hakyllWith hakyllConfig $ do
     route $ setExtension "css"
     compile (fmap compressCss <$> sassCompiler)
 
-  match (fromList ["about.markdown", "contact.markdown", "imprint.markdown"]) $ do
-    route   $ setExtension "html"
+  match (fromList [ "pages/about.markdown"
+                  , "pages/contact.markdown"
+                  , "pages/imprint.markdown"
+                  ]) $ do
+    route $
+      customRoute (maybe (error "Expected pages to be in 'pages' folder")
+                         id . stripPrefix "pages/" . toFilePath)
+      `composeRoutes` setExtension "html"
     compile $ pandocCompiler
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
       >>= relativizeUrls
@@ -53,8 +60,8 @@ main = hakyllWith hakyllConfig $ do
   --             >>= relativizeUrls
 
 
-  match "index.html" $ do
-    route idRoute
+  match "pages/index.html" $ do
+    route (constRoute "index.html")
     compile $ do
       posts <- recentFirst =<< loadAll "posts/**"
       let
@@ -79,6 +86,22 @@ main = hakyllWith hakyllConfig $ do
           postCtx <> bodyField "description"
       posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/**" "content"
       renderAtom futtetennismoFeedConfiguration feedCtx posts
+
+  -- create ["sitemap.xml"] $ do
+  --   route   idRoute
+  --   compile $ do
+  --     posts <- recentFirst =<< loadAll "posts/**"
+  --     pages <- loadAll "pages/*"
+  --     let
+  --       allPosts = (return (pages ++ posts))
+  --       sitemapCtx =
+  --         mconcat [ listField "entries" defaultContext (return (posts ++ pages))
+  --                 , constField "host" host
+  --                 , defaultContext
+  --                 ]
+  --     makeItem ""
+  --       >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
+  --       >>= cleanIndexHtmls
 
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
