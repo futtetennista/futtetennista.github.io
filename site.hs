@@ -70,6 +70,15 @@ main = hakyll $ do
   match (fromGlob "partials/*" .||. fromGlob "templates/*") $
     compile templateBodyCompiler
 
+  create ["feed.xml"] $ do
+    route idRoute
+    compile $ do
+      let
+        feedCtx =
+          postCtx <> bodyField "description"
+      posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/**" "content"
+      renderAtom futtetennismoFeedConfiguration feedCtx posts
+
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
 ctxWithTags ctx =
@@ -110,3 +119,13 @@ createTagsRules tags mkTitle =
         >>= loadAndApplyTemplate "templates/tag.html" ctx
         >>= loadAndApplyTemplate "templates/default.html" ctx
         >>= relativizeUrls
+
+
+futtetennismoFeedConfiguration :: FeedConfiguration
+futtetennismoFeedConfiguration =
+  FeedConfiguration { feedTitle       = "Futtetennismo"
+                    , feedDescription = ""
+                    , feedAuthorName  = "futtetennista"
+                    , feedAuthorEmail = "futtetennista@gmail.com"
+                    , feedRoot        = "https://futtetennismo.io"
+                    }
