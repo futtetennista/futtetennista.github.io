@@ -17,6 +17,7 @@ jobs:
           apt-get update
           # make needed for hlibsass, ssh to push to github
           apt-get --yes install make ssh
+          eval "$(ssh-agent -s)"
           stack install hakyll
       # Save work until here in case `stack build` fails
       - save_cache:
@@ -32,9 +33,6 @@ jobs:
             - ~/futtetennismo/.stack-work
             - /root/.stack/
           key: stack-work-full-{{ checksum "futtetennismo.cabal" }}
-      - add-ssh-keys:
-          fingerprints:
-            - "7c:88:b5:87:0f:9d:a9:ed:c8:fb:4d:2e:cc:59:0a:43"
       - deploy:
           name: Deploy master to Github Pages
           command: |
