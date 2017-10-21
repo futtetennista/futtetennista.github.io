@@ -15,8 +15,8 @@ jobs:
           # Install Hakyll
           # update otherwise `make` won't be found
           apt-get update
-          # needed for hlibsass
-          apt-get install make
+          # make needed for hlibsass, ssh to push to github
+          apt-get --yes install make ssh
           stack install hakyll
       # Save work until here in case `stack build` fails
       - save_cache:
@@ -44,6 +44,6 @@ jobs:
             cp -a _site/. .
             #  Commit
             git add --all
-            git commit -m "New release (`date '+%F %T %Z'`)"
+            git commit -m "[`date '+%F %T %Z'`] New release"
             # Push
             git push origin master:master
