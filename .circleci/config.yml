@@ -1,0 +1,34 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/futtetennismo
+    docker:
+      - image: haskell:8.0.2
+    branches:
+      only:
+        - source
+    steps:
+      - checkout
+      - restore_cache:
+          key: deps-{{ checksum "futtetennismo.cabal" }}
+      - run: |
+          stack install hakyll
+          stack build
+          git submodule init
+          git submodule update
+          cd _site/ && git checkout master
+          stack exec site build
+      - save_cache:
+          paths:
+            - ~/.stack-work
+          key: deps-{{ checksum "futtetennismo.cabal" }}
+      - deploy:
+          name: Deploy Master to Github Pages
+          command: |
+            git config --global user.email circleci@circleci
+            git config --global user.name CircleCI
+            cd _site/
+            git status
+            git add --all
+            git commit -m "Update (`date '+%F %T %Z'`) [ci skip]"
+            git push origin master
