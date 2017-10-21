@@ -6,15 +6,15 @@
 
 // All import font can be found in `_sass/_lib.scss`
 
-$google-fonts: 'Source+Code+Pro', 'Raleway', 'Source+Sans+Pro';
+$google-fonts: 'Roboto', 'Source+Code+Pro', 'Source+Sans+Pro';
 
-$base-font-family: 'Raleway', 'Delius', Helvetica, Arial, sans-serif;
+$base-font-family: 'Open Sans', 'Raleway', Helvetica, Arial, sans-serif;
 $code-font-family: "DejaVu Sans Mono", "Monospace", 'Source Code Pro';
 
 $site-title-font: "DejaVu Sans Mono", 'Source Code Pro';
-$post-title-font: 'Delius';
-$head-font: 'Raleway';              // post h2 and h4
-$list-link-font: 'Delius';          // home page
+$post-title-font: 'Roboto';
+$head-font: 'Roboto';              // post h2 and h4
+$list-link-font: 'Roboto';          // home page
 
 $base-font-size:   1rem;
 $small-font-size:  $base-font-size * 0.875;
