@@ -10,31 +10,40 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: deps-{{ checksum "futtetennismo.cabal" }}
+          key: stack-work-
       - run: |
-          # update because `make` won't be found otherwise
+          # Install Hakyll
+          # update otherwise `make` won't be found
           apt-get update
           # needed for hlibsass
           apt-get install make
           stack install hakyll
+      # Save work until here in case `stack build` fails
       - save_cache:
           paths:
-            - ~/.stack-work
-          key: deps-{{ checksum "futtetennismo.cabal" }}
+            - ~/futtetennismo/.stack-work
+            - /root/.stack/
+          key: stack-work-hakyll-{{ checksum "futtetennismo.cabal" }}
       - run:
+          name: Build site executable
           command: stack build
+      - save_cache:
+          paths:
+            - ~/futtetennismo/.stack-work
+            - /root/.stack/
+          key: stack-work-full-{{ checksum "futtetennismo.cabal" }}
       - deploy:
           name: Deploy master to Github Pages
           command: |
+            git config --global user.email circleci@circleci
+            git config --global user.name CircleCI
             # Build new files
             stack exec site rebuild
-            git checkout -b master --track origin/master
+            git checkout master
             # Overwrite existing files with new files
             cp -a _site/. .
             #  Commit
             git add --all
             git commit -m "New release (`date '+%F %T %Z'`)"
             # Push
-            git config --global user.email circleci@circleci
-            git config --global user.name CircleCI
             git push origin master:master
