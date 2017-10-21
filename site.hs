@@ -73,22 +73,6 @@ main = hakyllWith hakyllConfig $ do
       posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/**" "content"
       renderAtom futtetennismoFeedConfiguration feedCtx posts
 
-  -- create ["sitemap.xml"] $ do
-  --   route   idRoute
-  --   compile $ do
-  --     posts <- recentFirst =<< loadAll "posts/**"
-  --     pages <- loadAll "pages/*"
-  --     let
-  --       allPosts = (return (pages ++ posts))
-  --       sitemapCtx =
-  --         mconcat [ listField "entries" defaultContext (return (posts ++ pages))
-  --                 , constField "host" host
-  --                 , defaultContext
-  --                 ]
-  --     makeItem ""
-  --       >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
-  --       >>= cleanIndexHtmls
-
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
 ctxWithTags ctx =
