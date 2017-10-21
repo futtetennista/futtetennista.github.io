@@ -14,7 +14,7 @@ main = hakyll $ do
     route $ setExtension "css"
     compile (fmap compressCss <$> sassCompiler)
 
-  match (fromList ["about.rts", "contact.markdown"]) $ do
+  match (fromList ["about.markdown", "contact.markdown", "imprint.markdown"]) $ do
     route   $ setExtension "html"
     compile $ pandocCompiler
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
