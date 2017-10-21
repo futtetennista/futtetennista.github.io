@@ -12,22 +12,22 @@ jobs:
       - restore_cache:
           key: deps-{{ checksum "futtetennismo.cabal" }}
       - run: |
-          # needed for hlibsass
+          # update because `make` won't be found otherwise
           apt-get update
+          # needed for hlibsass
           apt-get install make
           stack install hakyll
-          stack build
       - save_cache:
           paths:
             - ~/.stack-work
           key: deps-{{ checksum "futtetennismo.cabal" }}
+      - run:
+          command: stack build
       - deploy:
           name: Deploy master to Github Pages
           command: |
             # Build new files
             stack exec site rebuild
-            # Get previous files
-            git fetch --all
             git checkout -b master --track origin/master
             # Overwrite existing files with new files
             cp -a _site/. .
