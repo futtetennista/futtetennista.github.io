@@ -103,7 +103,7 @@ If the last location isn't either precise or fresh enough, at some point in the 
 
 The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn't differ too much from the old one, it means that the old location wasn't that bad and the app doesn't need to do anything special (note: it doesn't matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.
 
-{% img images/nearby_results_reload.jpg %}
+![Qype Android app nearby results reload](../../images/nearby_results_reload.jpg)
 
 The last piece of the puzzle is the `QypeNewLocationHandler` class, which is just a simple implementation of a Handler that takes advantage of delayed messages to show/hide the reload view.
 
