@@ -12,6 +12,9 @@ jobs:
       - restore_cache:
           key: deps-{{ checksum "futtetennismo.cabal" }}
       - run: |
+          # needed for hlibsass
+          apt-get update
+          apt-get install make
           stack install hakyll
           stack build
       - save_cache:
