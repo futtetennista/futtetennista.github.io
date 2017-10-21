@@ -3,9 +3,7 @@
 // ---
 @charset "utf-8";
 
-
-// All import font can be found in `_sass/_lib.scss`
-
+// fonts
 $google-fonts: 'Roboto', 'Source+Code+Pro', 'Source+Sans+Pro';
 
 $base-font-family: 'Open Sans', 'Raleway', Helvetica, Arial, sans-serif;
@@ -13,8 +11,9 @@ $code-font-family: "DejaVu Sans Mono", "Monospace", 'Source Code Pro';
 
 $site-title-font: "DejaVu Sans Mono", 'Source Code Pro';
 $post-title-font: 'Roboto';
-$head-font: 'Roboto';              // post h2 and h4
-$list-link-font: 'Roboto';          // home page
+// post h2 and h4
+$head-font: 'Roboto';
+$list-link-font: 'Roboto';
 
 $base-font-size:   1rem;
 $small-font-size:  $base-font-size * 0.875;

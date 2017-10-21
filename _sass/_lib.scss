@@ -4,21 +4,6 @@
     @import url('https://fonts.googleapis.com/css?family=' + $font);
 }
 
-@font-face {
-    font-family: 'Delius';
-    src: url('../lib/font/Delius/Delius-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-}
-
-@font-face {
-    font-family: 'Delius_Swash_Caps';
-    src: url('../lib/font/Delius_Swash_Caps/DeliusSwashCaps-Regular.ttf') format('truetype');
-    font-weight: normal;
-    font-style: normal;
-}
-
-
 // Material scrolltop
 
 .material-scrolltop {
