@@ -21,21 +21,20 @@ main = hakyll $ do
       >>= relativizeUrls
 
   tags <- buildTags "posts/**" (fromCapture "tags/*.html")
-  createTagsRules tags
-                  (\xs -> "Posts tagged \"" ++ xs ++ "\"")
-                  "templates/tag.html"
+  createTagsRules tags (\xs -> "Posts tagged \"" ++ xs ++ "\"")
 
   categories <- buildCategories "posts/**" (fromCapture "categories/*.html")
-  createTagsRules categories
-                  (\xs -> "Posts categorised as \"" ++ xs ++ "\"")
-                  "templates/category.html"
+  createTagsRules categories (\xs -> "Posts categorised as \"" ++ xs ++ "\"")
 
   match "posts/**" $ do
     route $ setExtension "html"
+    let
+      namedTags =
+        [("tags", tags), ("categories", categories)]
     compile $ pandocCompiler
       >>= saveSnapshot "content"
-      >>= loadAndApplyTemplate "templates/post.html" (ctxWithTags tags categories postCtx)
-      >>= loadAndApplyTemplate "templates/default.html" (ctxWithTags tags categories postCtx)
+      >>= loadAndApplyTemplate "templates/post.html" (ctxWithTags postCtx namedTags)
+      >>= loadAndApplyTemplate "templates/default.html" (ctxWithTags postCtx namedTags)
       >>= relativizeUrls
 
   -- create ["archive.html"] $ do
@@ -72,11 +71,9 @@ main = hakyll $ do
     compile templateBodyCompiler
 
 
-ctxWithTags :: Tags -> Tags -> Context String -> Context String
-ctxWithTags tags categories ctx =
-  tagsField "tags" tags
-  <> tagsField "categories" categories
-  <> ctx
+ctxWithTags :: Context String -> [(String, Tags)] -> Context String
+ctxWithTags ctx =
+  foldr (\(name, tags) baseCtx -> tagsField name tags <> baseCtx) ctx
 
 
 postCtx :: Context String
@@ -97,8 +94,8 @@ postCtx =
               True
 
 
-createTagsRules :: Tags -> (String -> String) -> Identifier -> Rules ()
-createTagsRules tags mkTitle template =
+createTagsRules :: Tags -> (String -> String) -> Rules ()
+createTagsRules tags mkTitle =
   tagsRules tags $ \tag pattern -> do
     route idRoute
     compile $ do
@@ -110,6 +107,6 @@ createTagsRules tags mkTitle template =
           <> defaultContext
 
       makeItem ""
-        >>= loadAndApplyTemplate template ctx
+        >>= loadAndApplyTemplate "templates/tag.html" ctx
         >>= loadAndApplyTemplate "templates/default.html" ctx
         >>= relativizeUrls

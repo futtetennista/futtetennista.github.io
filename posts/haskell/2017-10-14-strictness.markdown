@@ -19,9 +19,7 @@ latest experience doing that.
 We'll be using the Bloom filter implemented in chapter 26 of Real World Haskell
 as an example, the version contained in the book creates the filter lazily:
 our goal will be to create a strict version of that particular piece of code.
-
 <!--more-->
-
 In a nutshell, a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) is a
 probabilistic data structure that consists of several hash functions and a bit
 array whose API allows only insertion and membership querying. The latter API
