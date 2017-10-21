@@ -8,14 +8,24 @@
           <i class="mdi mdi-send right"></i>
         </button>
 
+        <div class="right">
+          $if(tags)$
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">$tags$</div>
+            $endif$
+        </div>
+
+
         <div id=".$path$" class="modal modal-fixed-footer">
           <div class="modal-content">
             <h4>$title$</h4>
             <p>$teaser$</p>
-            $if(tags)$
-              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
-              <div class="chip">$tags$</div>
-            $endif$
+            <div>
+              $if(tags)$
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">$tags$</div>
+              $endif$
+            </div>
           </div>
           <div class="modal-footer">
             <a href="$url$" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
