@@ -4,6 +4,7 @@ import Data.Monoid ((<>))
 import qualified Data.Set as Set
 import Hakyll.Web.Sass (sassCompiler)
 
+
 main :: IO ()
 main = hakyll $ do
   match (fromGlob "images/**" .||. fromGlob "js/**" .||. fromGlob "lib/**") $ do
