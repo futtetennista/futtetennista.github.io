@@ -6,7 +6,7 @@ import Hakyll.Web.Sass (sassCompiler)
 
 
 main :: IO ()
-main = hakyll $ do
+main = hakyllWith hakyllConfig $ do
   match (fromGlob "images/**" .||. fromGlob "js/**" .||. fromGlob "lib/**") $ do
     route   idRoute
     compile copyFileCompiler
@@ -130,3 +130,8 @@ futtetennismoFeedConfiguration =
                     , feedAuthorEmail = "futtetennista@gmail.com"
                     , feedRoot        = "https://futtetennismo.io"
                     }
+
+
+hakyllConfig :: Configuration
+hakyllConfig =
+  defaultConfiguration{ previewHost = "0.0.0.0" }
