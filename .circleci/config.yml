@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: ~/futtetennismo
     docker:
-      - image: haskell:8.0.2
+      - image: futtetennista/hakyll:0.1.0
     branches:
       only:
         - source
@@ -11,20 +11,6 @@ jobs:
       - checkout
       - restore_cache:
           key: stack-work-
-      - run: |
-          # Install Hakyll
-          # update otherwise `make` won't be found
-          apt-get update
-          # make needed for hlibsass, ssh to push to github
-          apt-get --yes install make ssh
-          eval "$(ssh-agent -s)"
-          stack install hakyll
-      # Save work until here in case `stack build` fails
-      - save_cache:
-          paths:
-            - ~/futtetennismo/.stack-work
-            - /root/.stack/
-          key: stack-work-hakyll-{{ checksum "futtetennismo.cabal" }}
       - run:
           name: Build site executable
           command: stack build
@@ -32,15 +18,15 @@ jobs:
           paths:
             - ~/futtetennismo/.stack-work
             - /root/.stack/
-          key: stack-work-full-{{ checksum "futtetennismo.cabal" }}
+          key: stack-work-{{ checksum "futtetennismo.cabal" }}
       - deploy:
           name: Deploy master to Github Pages
           command: |
             git config --global user.email circleci@circleci
             git config --global user.name CircleCI
-            # Build new files
             stack exec site rebuild
             git checkout master
+            git pull --rebase
             # Overwrite existing files with new files
             cp -a _site/. .
             #  Commit
