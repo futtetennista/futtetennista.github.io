@@ -1,7 +1,7 @@
 ---
 title: Migrating from lazy IO to Conduit
 author: futtetennista
-tags: lazy+io, conduit, real+world+haskell
+tags: lazy+io, conduit, real+world+haskell, haskell
 ---
 
 \ignore{

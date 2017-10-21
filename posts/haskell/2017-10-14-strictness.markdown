@@ -1,7 +1,7 @@
 ---
 title: Being lazy with consciousness
 author: futtetennista
-tags: lazy+evaluation, ghci
+tags: lazy+evaluation, ghci, haskell
 ---
 
 Lazy evaluation sometimes makes it trickier to really understand how a piece of

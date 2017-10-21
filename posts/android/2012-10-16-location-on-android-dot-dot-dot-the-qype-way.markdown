@@ -1,5 +1,6 @@
 ---
 title: "Location on Android...the Qype way"
+author: futtetennista
 tags: android, location, qype, legacy
 ---
 

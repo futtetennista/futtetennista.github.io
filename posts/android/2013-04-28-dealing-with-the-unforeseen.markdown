@@ -1,5 +1,6 @@
 ---
 title: "Dealing with the unforeseen"
+author: futtetennista
 tags: android, legacy
 ---
 

@@ -1,5 +1,6 @@
 ---
 title: "Wait for it…a deep dive in Espresso's idling resources"
+author: futtetennista
 tags: android, espresso, testing, legacy
 ---
 

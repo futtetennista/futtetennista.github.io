@@ -11,8 +11,9 @@
           &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
           by $author$
         $endif$
-
+        &nbsp;
         $if(categories)$
+          <i class="mdi mdi-folder"></i>&nbsp;
           <span class="capitalize">$categories$</span>
           <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
         $endif$
