@@ -10,7 +10,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: stack-work-
+          key: v1-stack-{{ checksum "futtetennismo.cabal" }}
       - run:
           name: Build site executable
           command: stack build
@@ -18,19 +18,19 @@ jobs:
           paths:
             - ~/futtetennismo/.stack-work
             - /root/.stack/
-          key: stack-work-{{ checksum "futtetennismo.cabal" }}
+          key: v1-stack-work-{{ checksum "futtetennismo.cabal" }}
       - deploy:
           name: Deploy master to Github Pages
           command: |
             git config --global user.email circleci@circleci
             git config --global user.name CircleCI
             stack exec site rebuild
-            git checkout master
-            git pull --rebase
+            # git checkout master
+            # git pull --rebase
             # Overwrite existing files with new files
             cp -a _site/. .
             #  Commit
-            git add --all
-            git commit -m "[`date '+%F %T %Z'`] New release"
+            # git add --all
+            # git commit -m "[`date '+%F %T %Z'`] New release"
             # Push
-            git push origin master:master
+            # git push origin master:master
