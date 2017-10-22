@@ -10,7 +10,9 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: v1-stack-{{ checksum "futtetennismo.cabal" }}
+          keys:
+            - v1-stack-{{ checksum "futtetennismo.cabal" }}
+            - stack-work-
       - run:
           name: Build site executable
           command: stack build
