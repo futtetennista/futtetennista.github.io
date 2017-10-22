@@ -25,6 +25,7 @@ main = hakyllWith hakyllConfig $ do
                          id . stripPrefix "pages/" . toFilePath)
       `composeRoutes` setExtension "html"
     compile $ pandocCompiler
+      >>= loadAndApplyTemplate "templates/page.html" defaultContext
       >>= loadAndApplyTemplate "templates/default.html" defaultContext
       >>= relativizeUrls
 
