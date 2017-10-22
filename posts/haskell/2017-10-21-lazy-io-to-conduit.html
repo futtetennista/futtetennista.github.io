@@ -1,0 +1,316 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <!-- MUST in hex format, may the same as header-color. This color is for android chrome browser. -->
+  <meta name="theme-color" content="#5c6bc0">
+
+  <!-- <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> -->
+
+  <!-- Metadata. -->
+  <!-- TODO: favicon -->
+  <!-- <link rel="shortcut icon" href="{{ '/favicon.ico' | prepend: site.baseurl | prepend: site.url }}"> -->
+  <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
+  <title>Migrating from lazy IO to Conduit</title>
+  <meta name="description" content="Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it’s not">
+  <link rel="canonical" href="../../posts/haskell/2017-10-21-lazy-io-to-conduit.html">
+  <!-- TODO: rss feeds -->
+  <!-- <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ "/feed.xml" | prepend: site.baseurl | prepend: site.url }}" /> -->
+
+  <!-- Stylesheets. -->
+  <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link media="all" rel="stylesheet" type="text/css" href="../../lib/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="../../lib/material-scrolltop/material-scrolltop.css">
+
+  <noscript>
+  <div class="notice-warning noscript">You don't have javascript enabled. Good luck! :(</div>
+</noscript>
+
+<!--[if IE]>
+  <div class="notice-warning">Oh, you are using Internet Explorer! Good luck... :(</div>
+<![endif]-->
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+      <nav class="nav-extended indigo lighten-1">
+        <div class="nav-wrapper">
+  <span class="site-title">Futtetennismo</span>
+  <a href="#" data-activates="mobile-navbar" class="button-collapse">
+    <i class="mdi mdi-menu white-text"></i>
+  </a>
+
+  <ul id="nav-mobile" class="right hide-on-med-and-down">
+    <li>
+      <a href="../../" class="white-text">
+        <i class="mdi mdi-home left indigo-text text-lighten-3"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="white-text">
+        <i class="mdi mdi-account-circle left indigo-text text-lighten-3"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="white-text">
+        <i class="mdi mdi-rss left indigo-text text-lighten-3"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+
+  <ul class="side-nav" id="mobile-navbar">
+    <li>
+      <a href="../../" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-home left green-text"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-account-circle left blue-text"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-rss left red-text"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+</div>
+
+      </nav>
+    </header>
+
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
+        <div class="post-ribbon"></div>
+
+<div class="container post-container">
+  <div class="post-page card-panel z-depth-2">
+    <div class="post-section">
+
+      <p class="grey-text">
+        <i class="mdi mdi-calendar"></i>&nbsp;
+        Posted on October 21, 2017
+        
+          &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
+          by futtetennista
+        
+        &nbsp;
+        
+          <i class="mdi mdi-folder"></i>&nbsp;
+          <span class="capitalize"><a href="../../categories/haskell.html">haskell</a></span>
+          <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        
+      </p>
+
+      <div class="post-header">
+        <h1 class="post-title">Migrating from lazy IO to Conduit</h1>
+
+        
+          <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+          <div class="chip"><a href="../../tags/lazy%2Bio.html">lazy+io</a>, <a href="../../tags/conduit.html">conduit</a>, <a href="../../tags/real%2Bworld%2Bhaskell.html">real+world+haskell</a>, <a href="../../tags/haskell.html">haskell</a></div>
+        
+      </div>
+
+      <article class="post-content">
+        
+<p>Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it’s not desirable (or even possible) to use strict IO, mostly for memory efficiency reasons. This is the kind of problems that streaming libraries like <a href="https://hackage.haskell.org/package/conduit">conduit</a> or <a href="https://hackage.haskell.org/package/pipes">pipes</a> are designed to solve. In this post I want to show how I refactored a piece of code that uses lazy IO to use the conduit library (for those not familiar with it, please read this <a href="https://haskell-lang.org/library/conduit">conduit tutorial</a> first). <!--more--> I enjoyed reading Real World Haskell and I am convinced that is still a must-read for people who want to learn and work proficiently with Haskell, but it’s true that a lot changed in these last few years and new libraries or best practices have been developed so some code could be updated. This post intends to be the first of a series of posts that will take a piece of code from the book and rewrites it using more modern idioms. This time the code is taken from chapter 28: it implements a URL checker that parses some command line arguments - a list of text files containing the urls to be checked and a number representing the amount of worker threads that will concurrently check those urls - creates a <code>Job</code> that extracts all the well-formed urls, a <code>Task</code> for each url that needs to be checked and puts it in a job queue that worker threads poll to get new urls to check. The program waits until all urls are checked and prints out some statistics about those URLs. Let’s start by having a look a the typess:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Task</span> <span class="fu">=</span> <span class="dt">Done</span> <span class="fu">|</span> <span class="dt">Check</span> <span class="dt">URL</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">URL</span> <span class="fu">=</span> <span class="dt">Lazy.ByteString</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">JobState</span> <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">JobState</span> {<span class="ot"> linksSeen ::</span> <span class="dt">Set.Set</span> <span class="dt">URL</span>
+<span class="ot">&gt;</span>            ,<span class="ot"> linksFound ::</span> <span class="fu">!</span><span class="dt">Int</span>
+<span class="ot">&gt;</span>            ,<span class="ot"> linkQueue ::</span> <span class="dt">TChan</span> <span class="dt">Task</span>
+<span class="ot">&gt;</span>            }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Job</span> a <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job</span> {<span class="ot"> runJob ::</span> <span class="dt">StateT</span> <span class="dt">JobState</span> <span class="dt">IO</span> a }
+<span class="ot">&gt;</span>   <span class="kw">deriving</span> (<span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadState</span> <span class="dt">JobState</span>, <span class="dt">MonadIO</span>)</code></pre></div>
+<p>The <code>checkUrls</code> function glues together a few things: extracting the urls from the input file, filtering out duplicates, enqueueing the tasks in the job queue and updating the statistics</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> checkURLs f <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   src <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> Lazy.readFile f
+<span class="ot">&gt;</span>   <span class="kw">let</span>
+<span class="ot">&gt;</span>     urls <span class="fu">=</span> extractLinks src
+<span class="ot">&gt;</span>   uniqueUrls <span class="ot">&lt;-</span> filterM seenURI urls
+<span class="ot">&gt;</span>   mapM_ insertURI uniqueUrls
+<span class="ot">&gt;</span>   enqueueTasks uniqueUrls
+<span class="ot">&gt;</span>   updateStats (length urls)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; updateStats ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> updateStats numUrls <span class="fu">=</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksFound <span class="fu">=</span> linksFound s <span class="fu">+</span> numUrls }
+<span class="ot">&gt; seenURI ::</span> <span class="dt">URL</span> <span class="ot">-&gt;</span> <span class="dt">Job</span> <span class="dt">Bool</span>
+<span class="ot">&gt;</span> seenURI url <span class="fu">=</span>
+<span class="ot">&gt;</span>   (not <span class="fu">.</span> Set.member url) <span class="fu">&lt;$&gt;</span> gets linksSeen
+<span class="ot">&gt; insertURI ::</span> <span class="dt">URL</span> <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> insertURI url <span class="fu">=</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksSeen <span class="fu">=</span> Set.insert url (linksSeen s) }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; enqueueTasks ::</span> [<span class="dt">URL</span>] <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> enqueueTasks urls <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   q <span class="ot">&lt;-</span> gets linkQueue
+<span class="ot">&gt;</span>   liftIO <span class="fu">.</span> atomically <span class="fu">$</span> mapM_ (writeTChan q <span class="fu">.</span> <span class="dt">Check</span>) urls</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; extractLinks ::</span> <span class="dt">Lazy.ByteString</span> <span class="ot">-&gt;</span> [<span class="dt">URL</span>]
+<span class="ot">&gt;</span> extractLinks <span class="fu">=</span>
+<span class="ot">&gt;</span>   Lazy.lines <span class="co">-- filtering of invalid urls omitted</span></code></pre></div>
+<p>For the version using conduits we’ll aim to remove everything that relies on lazy IO, using strict <code>ByteString</code>s and conduits. There is just one change needed in the types, namely re-defining the <code>URL</code> type alias</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Task'</span> <span class="fu">=</span> <span class="dt">Done'</span> <span class="fu">|</span> <span class="dt">Check'</span> <span class="dt">URL'</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">URL'</span> <span class="fu">=</span> <span class="dt">Strict.ByteString</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">JobState'</span> <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">JobState'</span> {<span class="ot"> linksSeen' ::</span> <span class="dt">Set.Set</span> <span class="dt">URL'</span>
+<span class="ot">&gt;</span>             ,<span class="ot"> linksFound' ::</span> <span class="fu">!</span><span class="dt">Int</span>
+<span class="ot">&gt;</span>             ,<span class="ot"> linkQueue' ::</span> <span class="dt">TChan</span> <span class="dt">Task'</span>
+<span class="ot">&gt;</span>             }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Job'</span> a <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job'</span> {<span class="ot"> runJob' ::</span> <span class="dt">StateT</span> <span class="dt">JobState'</span> <span class="dt">IO</span> a }
+<span class="ot">&gt;</span>   <span class="kw">deriving</span> (<span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadState</span> <span class="dt">JobState'</span>, <span class="dt">MonadIO</span>)</code></pre></div>
+<p>The <code>checkURL</code> function is - as you might expect - quite different given how the conduit library is designed. In conduit “everything is driven by the downstream” so I found it useful to ask myself this question: what output does the function need to produce? In this case <code>checkURLs</code> needs to do essentially two things: 1) creating and enqueuing <code>Task</code>s to be picked up by worker threads and 2) updating some statistics in <code>JobState</code>. The first shift in thinking is that I found necessary is to think only in terms of pipelines and leave out <code>let</code> bindings. This poses a challenge though: the extracted urls are needed for both 1) and 2) but once they go through 1) urls are transformed into a job and that’s not what 2) expects as an input. I found two to three possible solutions to the problem: changing the signatures of the helper functions so that the input urls are always returned wrapped in a monad (this reminded me of the “fluent” style used for example for builders in languages like Java) to allow the stream to “keep flowing downstream”, using zipped conduits and a mix of the two. The <code>ZipCounduit</code> is a handy type that makes it possible to split the stream into two identical streams that can be consumed by two different downstream conduits: this way both 1) and 2) can get the input data they expect. I’m not entirely sure what’s more idiomatic or elegant or - more importantly - clear though.</p>
+<p>First let’s start with the helper functions (I’ll just write type signatures for their variations in the following snippets), their implementation is the same but the type signature of most of them is slightly different - more on this below</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; extractLinks' ::</span> <span class="dt">Strict.ByteString</span> <span class="ot">-&gt;</span> [<span class="dt">URL'</span>]
+<span class="ot">&gt;</span> extractLinks' <span class="fu">=</span>
+<span class="ot">&gt;</span>   Strict.lines <span class="co">-- filtering of invalid urls omitted</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; updateStats' ::</span> <span class="dt">MonadState</span> <span class="dt">JobState'</span> m <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt;</span> updateStats' numUrls <span class="fu">=</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksFound' <span class="fu">=</span> linksFound' s <span class="fu">+</span> numUrls }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; seenURI' ::</span> <span class="dt">MonadState</span> <span class="dt">JobState'</span> m <span class="ot">=&gt;</span> <span class="dt">URL'</span> <span class="ot">-&gt;</span> m <span class="dt">Bool</span>
+<span class="ot">&gt;</span> seenURI' url <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   (not <span class="fu">.</span> Set.member url) <span class="fu">&lt;$&gt;</span> gets linksSeen'</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; insertURI' ::</span> <span class="dt">MonadState</span> <span class="dt">JobState'</span> m <span class="ot">=&gt;</span> <span class="dt">URL'</span> <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt;</span> insertURI' url <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksSeen' <span class="fu">=</span> Set.insert url (linksSeen' s) }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; enqueueTasks' ::</span> (<span class="dt">MonadState</span> <span class="dt">JobState'</span> m, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> [<span class="dt">URL'</span>] <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt;</span> enqueueTasks' urls <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   queue <span class="ot">&lt;-</span> gets linkQueue'
+<span class="ot">&gt;</span>   liftIO <span class="fu">.</span> atomically <span class="fu">$</span> mapM_ (writeTChan queue <span class="fu">.</span> <span class="dt">Check'</span>) urls</code></pre></div>
+<p>The the first solution - no <code>ZipConduits</code>s involved - looks like this</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs' ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job'</span> ()
+<span class="ot">&gt;</span> checkURLs' fp <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job'</span> <span class="fu">$</span>
+<span class="ot">&gt;</span>     runConduitRes <span class="fu">$</span> sourceFileBS fp
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapC extractLinks'
+<span class="ot">&gt;</span>       <span class="fu">.|</span> filterMCE seenURI'
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapMCE insertURI'
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapMC enqueueTasks'
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapM_C (updateStats' <span class="fu">.</span> length)
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; updateStats' ::</span> <span class="dt">MonadState</span> <span class="dt">JobState'</span> m <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt; insertURI' ::</span> <span class="dt">MonadState</span> <span class="dt">JobState'</span> m <span class="ot">=&gt;</span> <span class="dt">URL'</span> <span class="ot">-&gt;</span> <span class="dt">URL'</span> ()
+<span class="ot">&gt; enqueueTasks' ::</span> (<span class="dt">MonadState</span> <span class="dt">JobState'</span> m, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> [<span class="dt">URL'</span>] <span class="ot">-&gt;</span> m [<span class="dt">URL'</span>]</code></pre></div>
+<p>The second solution uses two <code>ZipConduit</code>s</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs' ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job'</span> ()
+<span class="ot">&gt;</span> checkURLs' fp <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job'</span> <span class="fu">$</span>
+<span class="ot">&gt;</span>     runConduitRes <span class="fu">$</span> sourceFileBS fp
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapC extractLinks'
+<span class="ot">&gt;</span>       <span class="fu">.|</span> setupJob
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;     setupJob ::</span> <span class="dt">Consumer</span> [<span class="dt">URL'</span>] (<span class="dt">ResourceT</span> (<span class="dt">StateT</span> <span class="dt">JobState'</span> <span class="dt">IO</span>)) ()
+<span class="ot">&gt;</span>     setupJob <span class="fu">=</span>
+<span class="ot">&gt;</span>       getZipConduit <span class="fu">$</span>
+<span class="ot">&gt;</span>         <span class="dt">ZipConduit</span> insertAndEnqueue
+<span class="ot">&gt;</span>         <span class="fu">*&gt;</span> <span class="dt">ZipConduit</span> (mapM_C (updateStats' <span class="fu">.</span> length))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;     insertAndEnqueue ::</span> <span class="dt">Consumer</span> [<span class="dt">URL'</span>] (<span class="dt">ResourceT</span> (<span class="dt">StateT</span> <span class="dt">JobState'</span> <span class="dt">IO</span>)) ()
+<span class="ot">&gt;</span>     insertAndEnqueue <span class="fu">=</span>
+<span class="ot">&gt;</span>       filterMCE seenURI' <span class="fu">.|</span> (getZipConduit <span class="fu">$</span>
+<span class="ot">&gt;</span>                                <span class="dt">ZipConduit</span> (mapM_CE insertURI')
+<span class="ot">&gt;</span>                                <span class="fu">&lt;*</span> <span class="dt">ZipConduit</span> (mapM_C enqueueTasks'))</code></pre></div>
+<p>Finally the third solution uses one <code>ZipConduits</code>s and modifies <code>insertURI'</code> to return a <code>URL'</code> so that the stream can “keep flowing down”</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs' ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job'</span> ()
+<span class="ot">&gt;</span> checkURLs' fp <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job'</span> <span class="fu">$</span>
+<span class="ot">&gt;</span>     runConduitRes <span class="fu">$</span> sourceFileBS fp
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapC extractLinks'
+<span class="ot">&gt;</span>       <span class="fu">.|</span> setupJob
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;     setupJob ::</span> <span class="dt">Consumer</span> [<span class="dt">URL'</span>] (<span class="dt">ResourceT</span> (<span class="dt">StateT</span> <span class="dt">JobState'</span> <span class="dt">IO</span>)) ()
+<span class="ot">&gt;</span>     setupJob <span class="fu">=</span>
+<span class="ot">&gt;</span>       getZipConduit <span class="fu">$</span>
+<span class="ot">&gt;</span>         <span class="dt">ZipConduit</span> (filterMCE seenURI'
+<span class="ot">&gt;</span>                       <span class="fu">.|</span> mapM_CE insertURI'
+<span class="ot">&gt;</span>                       <span class="fu">.|</span> mapM_C enqueueTasks')
+<span class="ot">&gt;</span>         <span class="fu">*&gt;</span> <span class="dt">ZipConduit</span> (mapM_C (updateStats' <span class="fu">.</span> length))
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; insertURI' ::</span> <span class="dt">MonadState</span> <span class="dt">JobState'</span> m <span class="ot">=&gt;</span> <span class="dt">URL'</span> <span class="ot">-&gt;</span> <span class="dt">URL'</span> ()</code></pre></div>
+<p>The type signatures of most of this helper functions is slightly different - namely it’s more general: why is this needed? If the type signature of <code>updateStats'</code> was <code>updateStats' :: Int -&gt; Job' ()</code> the compiler would complain with the following error: <code>Couldn't match type ‘Job’ with ‘ResourceT (StateT JobState IO)’</code>. It took me a bit to fix this and make the compiler happy, again I’m not entirely sure that’s the best way of solving the issue but it works. My first try was - following compiler errors - to make <code>Job</code> an instance of <code>MonadThrow</code>, <code>MonadBase</code> but I stopped before implementing an instance for <code>MonadBaseControl</code> since it couldn’t be derived atomatically and I was under the impression that it was too much of a hassle giving that <code>Job'</code> is just a <code>newtype</code> wrapper for <code>StateT</code>, which is already an instance of <code>MonadBaseControl</code>. If I could take the <code>StateT</code> transformer and then just wrap it in a <code>Job'</code> constructor then that would do the job…and that’s made possible by modifying the type signatures of those functions. Actually if I had just type inference do its job it’d have inferred the types correctly, but I’m used to write type signatures first and then write an implementation and that bit me this time.</p>
+<p>To check that all this works as expected, let’s try it out in GHCI</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ queue <span class="ot">&lt;- newTChanIO ::</span> <span class="dt">IO</span> <span class="dt">TChan</span> <span class="dt">Task'</span>
+<span class="ot">queue ::</span> <span class="dt">TChan</span> <span class="dt">Task'</span>
+ƛ <span class="kw">let</span> job <span class="fu">=</span> checkURLs' <span class="st">&quot;urls.txt&quot;</span> <span class="co">-- urls.txt contains a list of urls</span>
+<span class="ot">job ::</span> <span class="dt">Job'</span> ()
+ƛ st <span class="ot">&lt;-</span> execStateT (runJob' job) (<span class="dt">JobState'</span> Set.empty <span class="dv">0</span> queue)
+<span class="ot">st ::</span> <span class="dt">JobState'</span>
+ƛ <span class="fu">:</span>m <span class="fu">+</span><span class="dt">Control.Exception</span>
+ƛ assert (linksFound' st <span class="fu">&gt;</span> <span class="dv">0</span>) (<span class="st">&quot;Found &quot;</span> <span class="fu">++</span> linksFound' st <span class="fu">++</span> <span class="st">&quot; links&quot;</span>)
+<span class="st">&quot;Found 2 links&quot;</span>
+ƛ assert (linksSeen' st <span class="fu">&gt;</span> <span class="dv">0</span>) (<span class="st">&quot;Seen &quot;</span> <span class="fu">++</span> linksSeen' st <span class="fu">++</span> <span class="st">&quot; links&quot;</span>)
+<span class="st">&quot;Seen 3 links&quot;</span>
+ƛ emptyQueue <span class="ot">&lt;-</span> atomically <span class="fu">$</span> isEmptyTChan queue
+<span class="ot">emptyQueue ::</span> <span class="dt">Bool</span>
+ƛ assert (not emptyQueue) <span class="st">&quot;Queue not empty&quot;</span>
+<span class="st">&quot;Queue not empty&quot;</span></code></pre></div>
+<h2 id="wrapping-up">Wrapping up</h2>
+<p>In this post I shown how to refactor a piece of code using lazy IO to use the conduit library to write a little program that reads data from files efficiently when it comes to memory usage, illustrated some of the challenges I faced while doing that and explained some of possible solutions I found.</p>
+      </article>
+
+      
+      </div>
+    </div>
+
+    <footer class="page-footer indigo lighten-1">
+
+  <div class="footer-copyright">
+
+    <div class="container">
+      © 2017 <a class="red-text text-accent-1" href="../../about.html">futtetennista</a>, under
+      <a class="red-text text-accent-1" href="https://creativecommons.org/licenses/by-sa/4.0/"> CC BY-SA 4.0</a>.&nbsp;
+      Site proudly generated by <a class="red-text text-accent-1" href="http://jaspervdj.be/hakyll">Hakyll</a>,&nbsp;
+      original Jekyll theme by <a class="red-text text-accent-1" href="https://github.com/mumuxme/materialize-jekyll">mumuxme</a>.
+    </div>
+
+  </div>
+
+</footer>
+
+
+    <!-- scrolltop button -->
+    <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button">
+      <i class="mdi mdi-arrow-up-bold small white-text"></i>
+    </button>
+
+    <!-- jquery -->
+    <script type="text/javascript" src="../../lib/jquery-min.js"></script>
+    <!-- materialize -->
+    <script src="../../lib/materialize/js/materialize.min.js"></script>
+    <!-- <\!-- Material ScrollTop plugin -\-> -->
+    <script src="../../lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="../../js/init.js"></script>
+    <script src="../../js/main.js"></script>
+
+  </body>
+
+</html>

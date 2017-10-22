@@ -1,0 +1,699 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title>Futtetennismo</title>
+    <link href="https://futtetennismo.io/feed.xml" rel="self" />
+    <link href="https://futtetennismo.io" />
+    <id>https://futtetennismo.io/feed.xml</id>
+    <author>
+        <name>futtetennista</name>
+        <email>futtetennista@gmail.com</email>
+    </author>
+    <updated>2017-10-21T00:00:00Z</updated>
+    <entry>
+    <title>Migrating from lazy IO to Conduit</title>
+    <link href="https://futtetennismo.io/posts/haskell/2017-10-21-lazy-io-to-conduit.html" />
+    <id>https://futtetennismo.io/posts/haskell/2017-10-21-lazy-io-to-conduit.html</id>
+    <published>2017-10-21T00:00:00Z</published>
+    <updated>2017-10-21T00:00:00Z</updated>
+    <summary type="html"><![CDATA[
+<p>Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it’s not desirable (or even possible) to use strict IO, mostly for memory efficiency reasons. This is the kind of problems that streaming libraries like <a href="https://hackage.haskell.org/package/conduit">conduit</a> or <a href="https://hackage.haskell.org/package/pipes">pipes</a> are designed to solve. In this post I want to show how I refactored a piece of code that uses lazy IO to use the conduit library (for those not familiar with it, please read this <a href="https://haskell-lang.org/library/conduit">conduit tutorial</a> first). <!--more--> I enjoyed reading Real World Haskell and I am convinced that is still a must-read for people who want to learn and work proficiently with Haskell, but it’s true that a lot changed in these last few years and new libraries or best practices have been developed so some code could be updated. This post intends to be the first of a series of posts that will take a piece of code from the book and rewrites it using more modern idioms. This time the code is taken from chapter 28: it implements a URL checker that parses some command line arguments - a list of text files containing the urls to be checked and a number representing the amount of worker threads that will concurrently check those urls - creates a <code>Job</code> that extracts all the well-formed urls, a <code>Task</code> for each url that needs to be checked and puts it in a job queue that worker threads poll to get new urls to check. The program waits until all urls are checked and prints out some statistics about those URLs. Let’s start by having a look a the typess:</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Task</span> <span class="fu">=</span> <span class="dt">Done</span> <span class="fu">|</span> <span class="dt">Check</span> <span class="dt">URL</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">URL</span> <span class="fu">=</span> <span class="dt">Lazy.ByteString</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">JobState</span> <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">JobState</span> {<span class="ot"> linksSeen ::</span> <span class="dt">Set.Set</span> <span class="dt">URL</span>
+<span class="ot">&gt;</span>            ,<span class="ot"> linksFound ::</span> <span class="fu">!</span><span class="dt">Int</span>
+<span class="ot">&gt;</span>            ,<span class="ot"> linkQueue ::</span> <span class="dt">TChan</span> <span class="dt">Task</span>
+<span class="ot">&gt;</span>            }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Job</span> a <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job</span> {<span class="ot"> runJob ::</span> <span class="dt">StateT</span> <span class="dt">JobState</span> <span class="dt">IO</span> a }
+<span class="ot">&gt;</span>   <span class="kw">deriving</span> (<span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadState</span> <span class="dt">JobState</span>, <span class="dt">MonadIO</span>)</code></pre></div>
+<p>The <code>checkUrls</code> function glues together a few things: extracting the urls from the input file, filtering out duplicates, enqueueing the tasks in the job queue and updating the statistics</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> checkURLs f <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   src <span class="ot">&lt;-</span> liftIO <span class="fu">$</span> Lazy.readFile f
+<span class="ot">&gt;</span>   <span class="kw">let</span>
+<span class="ot">&gt;</span>     urls <span class="fu">=</span> extractLinks src
+<span class="ot">&gt;</span>   uniqueUrls <span class="ot">&lt;-</span> filterM seenURI urls
+<span class="ot">&gt;</span>   mapM_ insertURI uniqueUrls
+<span class="ot">&gt;</span>   enqueueTasks uniqueUrls
+<span class="ot">&gt;</span>   updateStats (length urls)</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; updateStats ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> updateStats numUrls <span class="fu">=</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksFound <span class="fu">=</span> linksFound s <span class="fu">+</span> numUrls }
+<span class="ot">&gt; seenURI ::</span> <span class="dt">URL</span> <span class="ot">-&gt;</span> <span class="dt">Job</span> <span class="dt">Bool</span>
+<span class="ot">&gt;</span> seenURI url <span class="fu">=</span>
+<span class="ot">&gt;</span>   (not <span class="fu">.</span> Set.member url) <span class="fu">&lt;$&gt;</span> gets linksSeen
+<span class="ot">&gt; insertURI ::</span> <span class="dt">URL</span> <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> insertURI url <span class="fu">=</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksSeen <span class="fu">=</span> Set.insert url (linksSeen s) }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; enqueueTasks ::</span> [<span class="dt">URL</span>] <span class="ot">-&gt;</span> <span class="dt">Job</span> ()
+<span class="ot">&gt;</span> enqueueTasks urls <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   q <span class="ot">&lt;-</span> gets linkQueue
+<span class="ot">&gt;</span>   liftIO <span class="fu">.</span> atomically <span class="fu">$</span> mapM_ (writeTChan q <span class="fu">.</span> <span class="dt">Check</span>) urls</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; extractLinks ::</span> <span class="dt">Lazy.ByteString</span> <span class="ot">-&gt;</span> [<span class="dt">URL</span>]
+<span class="ot">&gt;</span> extractLinks <span class="fu">=</span>
+<span class="ot">&gt;</span>   Lazy.lines <span class="co">-- filtering of invalid urls omitted</span></code></pre></div>
+<p>For the version using conduits we’ll aim to remove everything that relies on lazy IO, using strict <code>ByteString</code>s and conduits. There is just one change needed in the types, namely re-defining the <code>URL</code> type alias</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">Task&#39;</span> <span class="fu">=</span> <span class="dt">Done&#39;</span> <span class="fu">|</span> <span class="dt">Check&#39;</span> <span class="dt">URL&#39;</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">type</span> <span class="dt">URL&#39;</span> <span class="fu">=</span> <span class="dt">Strict.ByteString</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">data</span> <span class="dt">JobState&#39;</span> <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">JobState&#39;</span> {<span class="ot"> linksSeen&#39; ::</span> <span class="dt">Set.Set</span> <span class="dt">URL&#39;</span>
+<span class="ot">&gt;</span>             ,<span class="ot"> linksFound&#39; ::</span> <span class="fu">!</span><span class="dt">Int</span>
+<span class="ot">&gt;</span>             ,<span class="ot"> linkQueue&#39; ::</span> <span class="dt">TChan</span> <span class="dt">Task&#39;</span>
+<span class="ot">&gt;</span>             }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;</span> <span class="kw">newtype</span> <span class="dt">Job&#39;</span> a <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job&#39;</span> {<span class="ot"> runJob&#39; ::</span> <span class="dt">StateT</span> <span class="dt">JobState&#39;</span> <span class="dt">IO</span> a }
+<span class="ot">&gt;</span>   <span class="kw">deriving</span> (<span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span>, <span class="dt">MonadIO</span>)</code></pre></div>
+<p>The <code>checkURL</code> function is - as you might expect - quite different given how the conduit library is designed. In conduit “everything is driven by the downstream” so I found it useful to ask myself this question: what output does the function need to produce? In this case <code>checkURLs</code> needs to do essentially two things: 1) creating and enqueuing <code>Task</code>s to be picked up by worker threads and 2) updating some statistics in <code>JobState</code>. The first shift in thinking is that I found necessary is to think only in terms of pipelines and leave out <code>let</code> bindings. This poses a challenge though: the extracted urls are needed for both 1) and 2) but once they go through 1) urls are transformed into a job and that’s not what 2) expects as an input. I found two to three possible solutions to the problem: changing the signatures of the helper functions so that the input urls are always returned wrapped in a monad (this reminded me of the “fluent” style used for example for builders in languages like Java) to allow the stream to “keep flowing downstream”, using zipped conduits and a mix of the two. The <code>ZipCounduit</code> is a handy type that makes it possible to split the stream into two identical streams that can be consumed by two different downstream conduits: this way both 1) and 2) can get the input data they expect. I’m not entirely sure what’s more idiomatic or elegant or - more importantly - clear though.</p>
+<p>First let’s start with the helper functions (I’ll just write type signatures for their variations in the following snippets), their implementation is the same but the type signature of most of them is slightly different - more on this below</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; extractLinks&#39; ::</span> <span class="dt">Strict.ByteString</span> <span class="ot">-&gt;</span> [<span class="dt">URL&#39;</span>]
+<span class="ot">&gt;</span> extractLinks&#39; <span class="fu">=</span>
+<span class="ot">&gt;</span>   Strict.lines <span class="co">-- filtering of invalid urls omitted</span></code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; updateStats&#39; ::</span> <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt;</span> updateStats&#39; numUrls <span class="fu">=</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksFound&#39; <span class="fu">=</span> linksFound&#39; s <span class="fu">+</span> numUrls }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; seenURI&#39; ::</span> <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m <span class="ot">=&gt;</span> <span class="dt">URL&#39;</span> <span class="ot">-&gt;</span> m <span class="dt">Bool</span>
+<span class="ot">&gt;</span> seenURI&#39; url <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   (not <span class="fu">.</span> Set.member url) <span class="fu">&lt;$&gt;</span> gets linksSeen&#39;</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; insertURI&#39; ::</span> <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m <span class="ot">=&gt;</span> <span class="dt">URL&#39;</span> <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt;</span> insertURI&#39; url <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   modify <span class="fu">$</span> \s <span class="ot">-&gt;</span> s { linksSeen&#39; <span class="fu">=</span> Set.insert url (linksSeen&#39; s) }</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; enqueueTasks&#39; ::</span> (<span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> [<span class="dt">URL&#39;</span>] <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt;</span> enqueueTasks&#39; urls <span class="fu">=</span> <span class="kw">do</span>
+<span class="ot">&gt;</span>   queue <span class="ot">&lt;-</span> gets linkQueue&#39;
+<span class="ot">&gt;</span>   liftIO <span class="fu">.</span> atomically <span class="fu">$</span> mapM_ (writeTChan queue <span class="fu">.</span> <span class="dt">Check&#39;</span>) urls</code></pre></div>
+<p>The the first solution - no <code>ZipConduits</code>s involved - looks like this</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs&#39; ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job&#39;</span> ()
+<span class="ot">&gt;</span> checkURLs&#39; fp <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job&#39;</span> <span class="fu">$</span>
+<span class="ot">&gt;</span>     runConduitRes <span class="fu">$</span> sourceFileBS fp
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapC extractLinks&#39;
+<span class="ot">&gt;</span>       <span class="fu">.|</span> filterMCE seenURI&#39;
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapMCE insertURI&#39;
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapMC enqueueTasks&#39;
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapM_C (updateStats&#39; <span class="fu">.</span> length)
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; updateStats&#39; ::</span> <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> m ()
+<span class="ot">&gt; insertURI&#39; ::</span> <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m <span class="ot">=&gt;</span> <span class="dt">URL&#39;</span> <span class="ot">-&gt;</span> <span class="dt">URL&#39;</span> ()
+<span class="ot">&gt; enqueueTasks&#39; ::</span> (<span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m, <span class="dt">MonadIO</span> m) <span class="ot">=&gt;</span> [<span class="dt">URL&#39;</span>] <span class="ot">-&gt;</span> m [<span class="dt">URL&#39;</span>]</code></pre></div>
+<p>The second solution uses two <code>ZipConduit</code>s</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs&#39; ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job&#39;</span> ()
+<span class="ot">&gt;</span> checkURLs&#39; fp <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job&#39;</span> <span class="fu">$</span>
+<span class="ot">&gt;</span>     runConduitRes <span class="fu">$</span> sourceFileBS fp
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapC extractLinks&#39;
+<span class="ot">&gt;</span>       <span class="fu">.|</span> setupJob
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;     setupJob ::</span> <span class="dt">Consumer</span> [<span class="dt">URL&#39;</span>] (<span class="dt">ResourceT</span> (<span class="dt">StateT</span> <span class="dt">JobState&#39;</span> <span class="dt">IO</span>)) ()
+<span class="ot">&gt;</span>     setupJob <span class="fu">=</span>
+<span class="ot">&gt;</span>       getZipConduit <span class="fu">$</span>
+<span class="ot">&gt;</span>         <span class="dt">ZipConduit</span> insertAndEnqueue
+<span class="ot">&gt;</span>         <span class="fu">*&gt;</span> <span class="dt">ZipConduit</span> (mapM_C (updateStats&#39; <span class="fu">.</span> length))</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt;     insertAndEnqueue ::</span> <span class="dt">Consumer</span> [<span class="dt">URL&#39;</span>] (<span class="dt">ResourceT</span> (<span class="dt">StateT</span> <span class="dt">JobState&#39;</span> <span class="dt">IO</span>)) ()
+<span class="ot">&gt;</span>     insertAndEnqueue <span class="fu">=</span>
+<span class="ot">&gt;</span>       filterMCE seenURI&#39; <span class="fu">.|</span> (getZipConduit <span class="fu">$</span>
+<span class="ot">&gt;</span>                                <span class="dt">ZipConduit</span> (mapM_CE insertURI&#39;)
+<span class="ot">&gt;</span>                                <span class="fu">&lt;*</span> <span class="dt">ZipConduit</span> (mapM_C enqueueTasks&#39;))</code></pre></div>
+<p>Finally the third solution uses one <code>ZipConduits</code>s and modifies <code>insertURI'</code> to return a <code>URL'</code> so that the stream can “keep flowing down”</p>
+<div class="sourceCode"><pre class="sourceCode literate literatehaskell"><code class="sourceCode literatehaskell"><span class="ot">&gt; checkURLs&#39; ::</span> FilePath <span class="ot">-&gt;</span> <span class="dt">Job&#39;</span> ()
+<span class="ot">&gt;</span> checkURLs&#39; fp <span class="fu">=</span>
+<span class="ot">&gt;</span>   <span class="dt">Job&#39;</span> <span class="fu">$</span>
+<span class="ot">&gt;</span>     runConduitRes <span class="fu">$</span> sourceFileBS fp
+<span class="ot">&gt;</span>       <span class="fu">.|</span> mapC extractLinks&#39;
+<span class="ot">&gt;</span>       <span class="fu">.|</span> setupJob
+<span class="ot">&gt;</span>   <span class="kw">where</span>
+<span class="ot">&gt;     setupJob ::</span> <span class="dt">Consumer</span> [<span class="dt">URL&#39;</span>] (<span class="dt">ResourceT</span> (<span class="dt">StateT</span> <span class="dt">JobState&#39;</span> <span class="dt">IO</span>)) ()
+<span class="ot">&gt;</span>     setupJob <span class="fu">=</span>
+<span class="ot">&gt;</span>       getZipConduit <span class="fu">$</span>
+<span class="ot">&gt;</span>         <span class="dt">ZipConduit</span> (filterMCE seenURI&#39;
+<span class="ot">&gt;</span>                       <span class="fu">.|</span> mapM_CE insertURI&#39;
+<span class="ot">&gt;</span>                       <span class="fu">.|</span> mapM_C enqueueTasks&#39;)
+<span class="ot">&gt;</span>         <span class="fu">*&gt;</span> <span class="dt">ZipConduit</span> (mapM_C (updateStats&#39; <span class="fu">.</span> length))
+<span class="ot">&gt;</span> 
+<span class="ot">&gt; insertURI&#39; ::</span> <span class="dt">MonadState</span> <span class="dt">JobState&#39;</span> m <span class="ot">=&gt;</span> <span class="dt">URL&#39;</span> <span class="ot">-&gt;</span> <span class="dt">URL&#39;</span> ()</code></pre></div>
+<p>The type signatures of most of this helper functions is slightly different - namely it’s more general: why is this needed? If the type signature of <code>updateStats'</code> was <code>updateStats' :: Int -&gt; Job' ()</code> the compiler would complain with the following error: <code>Couldn't match type ‘Job’ with ‘ResourceT (StateT JobState IO)’</code>. It took me a bit to fix this and make the compiler happy, again I’m not entirely sure that’s the best way of solving the issue but it works. My first try was - following compiler errors - to make <code>Job</code> an instance of <code>MonadThrow</code>, <code>MonadBase</code> but I stopped before implementing an instance for <code>MonadBaseControl</code> since it couldn’t be derived atomatically and I was under the impression that it was too much of a hassle giving that <code>Job'</code> is just a <code>newtype</code> wrapper for <code>StateT</code>, which is already an instance of <code>MonadBaseControl</code>. If I could take the <code>StateT</code> transformer and then just wrap it in a <code>Job'</code> constructor then that would do the job…and that’s made possible by modifying the type signatures of those functions. Actually if I had just type inference do its job it’d have inferred the types correctly, but I’m used to write type signatures first and then write an implementation and that bit me this time.</p>
+<p>To check that all this works as expected, let’s try it out in GHCI</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ queue <span class="ot">&lt;- newTChanIO ::</span> <span class="dt">IO</span> <span class="dt">TChan</span> <span class="dt">Task&#39;</span>
+<span class="ot">queue ::</span> <span class="dt">TChan</span> <span class="dt">Task&#39;</span>
+ƛ <span class="kw">let</span> job <span class="fu">=</span> checkURLs&#39; <span class="st">&quot;urls.txt&quot;</span> <span class="co">-- urls.txt contains a list of urls</span>
+<span class="ot">job ::</span> <span class="dt">Job&#39;</span> ()
+ƛ st <span class="ot">&lt;-</span> execStateT (runJob&#39; job) (<span class="dt">JobState&#39;</span> Set.empty <span class="dv">0</span> queue)
+<span class="ot">st ::</span> <span class="dt">JobState&#39;</span>
+ƛ <span class="fu">:</span>m <span class="fu">+</span><span class="dt">Control.Exception</span>
+ƛ assert (linksFound&#39; st <span class="fu">&gt;</span> <span class="dv">0</span>) (<span class="st">&quot;Found &quot;</span> <span class="fu">++</span> linksFound&#39; st <span class="fu">++</span> <span class="st">&quot; links&quot;</span>)
+<span class="st">&quot;Found 2 links&quot;</span>
+ƛ assert (linksSeen&#39; st <span class="fu">&gt;</span> <span class="dv">0</span>) (<span class="st">&quot;Seen &quot;</span> <span class="fu">++</span> linksSeen&#39; st <span class="fu">++</span> <span class="st">&quot; links&quot;</span>)
+<span class="st">&quot;Seen 3 links&quot;</span>
+ƛ emptyQueue <span class="ot">&lt;-</span> atomically <span class="fu">$</span> isEmptyTChan queue
+<span class="ot">emptyQueue ::</span> <span class="dt">Bool</span>
+ƛ assert (not emptyQueue) <span class="st">&quot;Queue not empty&quot;</span>
+<span class="st">&quot;Queue not empty&quot;</span></code></pre></div>
+<h2 id="wrapping-up">Wrapping up</h2>
+<p>In this post I shown how to refactor a piece of code using lazy IO to use the conduit library to write a little program that reads data from files efficiently when it comes to memory usage, illustrated some of the challenges I faced while doing that and explained some of possible solutions I found.</p>]]></summary>
+</entry>
+<entry>
+    <title>Being lazy with consciousness</title>
+    <link href="https://futtetennismo.io/posts/haskell/2017-10-14-strictness.html" />
+    <id>https://futtetennismo.io/posts/haskell/2017-10-14-strictness.html</id>
+    <published>2017-10-14T00:00:00Z</published>
+    <updated>2017-10-14T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Lazy evaluation sometimes makes it trickier to really understand how a piece of code for folks used to languages with strict semantics (as I am). Sometimes introducing strictness is necessary to avoid space leaks and to make memory allocations more predictable in certain parts of our code. The usual suggestion is to “carefully sprinkle strict evaluation” in our code; one of the classic examples of memory leak is using <code>foldl</code> to sum a list of ints, with the result that instead of returning a result using constant space, it ends up taking an outrageous amount of memory before returning a result because thunks pile up (this behaviour is known as space leak). Most of the times I personally find it tricky to add strictness to a piece of Haskell code, so I’d like to share my latest experience doing that.</p>
+<p>We’ll be using the Bloom filter implemented in chapter 26 of Real World Haskell as an example, the version contained in the book creates the filter lazily: our goal will be to create a strict version of that particular piece of code. <!--more--> In a nutshell, a <a href="https://en.wikipedia.org/wiki/Bloom_filter">Bloom filter</a> is a probabilistic data structure that consists of several hash functions and a bit array whose API allows only insertion and membership querying. The latter API might return false positives with an expected error rate decided when the filter is instantiated. Here’s a function that builds a Bloom filter lazily:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- file: BloomFilter/BloomFilter.hs</span>
+
+<span class="kw">import </span><span class="dt">BloomFilter.Immutable</span> <span class="kw">as</span> <span class="dt">B</span> (<span class="dt">IBloom</span>, fromList)
+<span class="kw">import </span><span class="dt">BloomFilter.Hash</span> (<span class="dt">Hashable</span>, doubleHash)
+<span class="kw">import </span><span class="dt">Data.List</span> (genericLength)
+<span class="kw">import </span><span class="dt">Data.Either</span> (either)
+
+<span class="ot">mkFromList ::</span> <span class="dt">Hashable</span> a <span class="ot">=&gt;</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> a)
+mkFromList errRate xs <span class="fu">=</span>
+  either <span class="dt">Left</span> (<span class="dt">Right</span> <span class="fu">.</span> mkBFilt) <span class="fu">$</span> suggestSizing (genericLength xs) errRate
+  <span class="kw">where</span>
+    mkBFilt (bits, numHashes) <span class="fu">=</span>
+      B.fromList (doubleHash numHashes) bits xs</code></pre></div>
+<p>The function <code>suggestSizing</code> provides the optimal size of the underlying array and the number of hashes to generate given the length of the input list and the desired rate of false positives, but it’s not important for the topic of this article. Let’s try this code out in GHCI:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="fu">:</span>set <span class="fu">+</span>s <span class="co">-- to print timing/memory stats after each evaluation</span>
+ƛ <span class="fu">:</span>load <span class="dt">BloomFilter.BloomFilter</span>
+ƛ <span class="kw">let</span> ebf <span class="fu">=</span> mkFromList <span class="fl">0.01</span> ([<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span><span class="fu">^</span><span class="dv">6</span>]<span class="ot"> ::</span> [<span class="dt">Int</span>])
+<span class="ot">ebf ::</span> <span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> <span class="dt">Int</span>)
+(<span class="fl">0.01</span> secs, <span class="dv">4658656</span> bytes)</code></pre></div>
+<p>The fact that <code>ebf</code> has not been fully evaluated should be clear since the evaluation took almost no time, but let’s ask GHCI for help:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="fu">:</span>print ebf <span class="co">-- prints a value without forcing its computation</span>
+ebf <span class="fu">=</span> (<span class="ot">_t2::</span><span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> <span class="dt">Int</span>))</code></pre></div>
+<p>GHCI is telling us that <code>ebf</code> is a thunk <code>_ts</code> of type <code>Either String (B.IBloom Int)</code>. If we’re still not convinced that <code>ebf</code> is not evaluated we can ask it if an element is contained in the Bloom filter:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ either (const <span class="dt">False</span>) (<span class="dv">1</span> <span class="ot">`B.elem`</span>) ebf
+<span class="dt">True</span>
+<span class="ot">it ::</span> <span class="dt">Bool</span>
+(<span class="fl">19.44</span> secs, <span class="dv">13818404512</span> bytes)
+ƛ either (const <span class="dt">False</span>) (<span class="dv">11</span> <span class="ot">`B.elem`</span>) ebf
+<span class="dt">True</span>
+<span class="ot">it ::</span> <span class="dt">Bool</span>
+(<span class="fl">0.01</span> secs, <span class="dv">3118248</span> bytes)</code></pre></div>
+<p>From the timing/memory information should be pretty clear now that the evaluation was forced when we explicitly asked for a membership test. That expected given Haskell’s non-strict semantic. If we ask GHCI to give us information about <code>ebf</code> we can see that now it gives us a different answer:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="fu">:</span>print ebf
+ebf <span class="fu">=</span> <span class="dt">Right</span>
+        (<span class="dt">B.IB</span>
+           (<span class="ot">_t3::</span><span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Word32</span>])
+           (<span class="dt">Data.Array.Base.UArray</span>
+              (<span class="dt">GHC.Word.W32</span><span class="fu">#</span> <span class="dv">0</span>) (<span class="dt">GHC.Word.W32</span><span class="fu">#</span> <span class="dv">9592954</span>) <span class="dv">9592955</span>
+              (<span class="ot">_t4::</span>ghc<span class="fu">-</span>prim<span class="fu">-</span><span class="fl">0.5</span><span class="fu">.</span><span class="fl">0.0</span><span class="fu">:</span><span class="dt">GHC.Prim.ByteArray</span><span class="fu">#</span>)))</code></pre></div>
+<p>Let’s not focus on the types - again not important - GHCI is telling us the value of <code>ebf</code> after evaluation. We’d like to force this evaluation <em>before</em> the first time the Bloom filter is used, namely when it is created.</p>
+<h4 id="beware-ghci">Beware GHCI</h4>
+<p>In GHCI we <strong>always</strong> need to explicitly specify type annotations for bindings that need to be forced, otherwise the interpreter will infer the most general type and won’t force the evaluation of the term. This is related to <a href="https://wiki.haskell.org/Monomorphism_restriction">“the dreaded monomorphism restriction”</a>.</p>
+<h2 id="tools-of-the-job">Tools of the job</h2>
+<p>There are various ways of forcing evaluation in Haskell, the main ones are: <code>seq</code>, <code>deepseq</code>, <code>rnf</code> (the last two can be found in the <code>Control.DeepSeq</code> module and require the argument to be an instance of the <code>NFData</code> type class) or the handy <code>BangPatterns</code> extension, which is syntactic sugar for <code>seq</code>. As a first try, let’s force the evaluation of <code>ebf</code> using bang patters and see what happens:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="fu">:</span>set <span class="fu">-</span><span class="dt">XBangPatterns</span>
+ƛ <span class="kw">let</span> <span class="fu">!</span>ebf&#39; <span class="fu">=</span> mkFromList <span class="fl">0.01</span> ([<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span><span class="fu">^</span><span class="dv">6</span>]<span class="ot"> ::</span> [<span class="dt">Int</span>])
+<span class="ot">ebf&#39; ::</span> <span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> <span class="dt">Int</span>)
+(<span class="fl">0.34</span> secs, <span class="dv">197720920</span> bytes)
+ƛ <span class="fu">:</span>print ebf&#39;
+ebf&#39; <span class="fu">=</span> <span class="dt">Right</span> (<span class="ot">_t5::</span><span class="dt">B.IBloom</span> <span class="dt">Int</span>)</code></pre></div>
+<p>That did something, specifically it evaluated <code>ebf'</code> a bit so that now we already know that the construction of the Bloom filter succeeded but did we manage to instantiate it? By carefully reading the output of GHCI it should be clear that we’re not quite there yet but let’s again double check:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ either (const <span class="dt">False</span>) (<span class="dv">11</span> <span class="ot">`B.elem`</span>) ebf&#39;
+<span class="dt">True</span>
+<span class="ot">it ::</span> <span class="dt">Bool</span>
+(<span class="fl">19.02</span> secs, <span class="dv">13624548640</span> bytes)</code></pre></div>
+<p>The membership test took still 19 seconds, as we expected. So what’s happening here? Now it’s probably a good point to introduce some terminology that will help us out understanding what’s happening and how to go forward.</p>
+<h2 id="nf-and-whnf">NF and WHNF</h2>
+<p>A reducible expression (or redex) is an expression that can be evaluated until a value is obtained, i.e. <code>let x = 1 + 6</code> is a redex since it can be evaluated to obtain <code>let x = 5</code>. Let’s again double check it in GHCI:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="kw">let</span> x <span class="fu">=</span> <span class="dv">1</span> <span class="fu">+</span> <span class="dv">5</span><span class="ot"> ::</span> <span class="dt">Int</span>
+<span class="ot">x ::</span> <span class="dt">Int</span>
+ƛ <span class="fu">:</span>print x
+x <span class="fu">=</span> (<span class="ot">_t6::</span><span class="dt">Int</span>)
+ƛ <span class="kw">let</span> <span class="fu">!</span>x <span class="fu">=</span> <span class="dv">1</span> <span class="fu">+</span> <span class="dv">5</span><span class="ot"> ::</span> <span class="dt">Int</span>
+<span class="ot">x ::</span> <span class="dt">Int</span>
+ƛ <span class="fu">:</span>print x
+x <span class="fu">=</span> <span class="dv">6</span></code></pre></div>
+<p>At this point <code>x</code> cannot be futher evaluated and is said to be in normal (or canonical) form. Now what about an expression like <code>Right (1 + 5)</code>? It should be clear that it’s not in normal form so can we just force evaluation by adding a bang pattern? Let’s see if that works:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="kw">let</span> <span class="fu">!</span>x <span class="fu">=</span> <span class="dt">Right</span> (<span class="dv">1</span> <span class="fu">+</span> <span class="dv">5</span>)<span class="ot"> ::</span> <span class="dt">Either</span> a <span class="dt">Int</span>
+<span class="ot">x ::</span> <span class="dt">Either</span> a <span class="dt">Int</span>
+ƛ <span class="fu">:</span>print x
+x <span class="fu">=</span> <span class="dt">Right</span> (<span class="ot">_t8::</span><span class="dt">Int</span>)</code></pre></div>
+<p>What’s happening here?! It turns out that an expression in Haskell can be in other form called weak head normal form when it’s not a redex itself and further evaluation of its sub-expressions cannot make it a redex. <code>Right (1 + 5)</code> isn’t a redex (<code>Right</code> is a constructor for the <code>Either</code> type) and it cannot be made one if the sub-expression <code>1 + 5</code> is evaluated. Does that mean we have to unwrap the sub-expression in order for it to be evaluated? Not necessarily. We have a few options, namely forcing the evaluation of the sub-expression before we wrap it:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="kw">let</span> <span class="fu">!</span>x <span class="fu">=</span> <span class="kw">let</span> <span class="fu">!</span>y <span class="fu">=</span> <span class="dv">1</span> <span class="fu">+</span> <span class="dv">5</span><span class="ot"> ::</span> <span class="dt">Int</span> <span class="kw">in</span> <span class="dt">Right</span> y
+<span class="ot">x ::</span> <span class="dt">Either</span> a <span class="dt">Int</span>
+ƛ <span class="fu">:</span>print x
+x <span class="fu">=</span> <span class="dt">Right</span> <span class="dv">6</span></code></pre></div>
+<p>or levaraging some of the functions in the <code>Control.DeepSeq</code> module:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="kw">let</span> <span class="fu">!</span>x <span class="fu">=</span> <span class="kw">let</span> x <span class="fu">=</span> <span class="dt">Right</span> (<span class="dv">1</span> <span class="fu">+</span> <span class="dv">5</span>)<span class="ot"> ::</span> <span class="dt">Either</span> a <span class="dt">Int</span> <span class="kw">in</span> x <span class="ot">`deepseq`</span> x
+<span class="ot">x ::</span> <span class="dt">Either</span> a <span class="dt">Int</span>
+ƛ <span class="fu">:</span>print x
+x <span class="fu">=</span> <span class="dt">Right</span> <span class="dv">6</span>
+ƛ <span class="kw">let</span> <span class="fu">!</span>x <span class="fu">=</span> <span class="dt">Right</span> (<span class="dv">1</span> <span class="fu">+</span> <span class="dv">5</span>)<span class="ot"> ::</span> <span class="dt">Either</span> a <span class="dt">Int</span>
+<span class="ot">x ::</span> <span class="dt">Either</span> a <span class="dt">Int</span>
+ƛ rnf x
+()
+<span class="ot">it ::</span> ()
+ƛ <span class="fu">:</span>print x
+x <span class="fu">=</span> <span class="dt">Right</span> <span class="dv">6</span></code></pre></div>
+<p><code>deepseq</code> is like <code>seq</code> on steroids, it reduces an expression and all its sub-expressions to normal form (<code>rnf</code> which stays for “reduce to normal form” does exactly the same). Again keep in mind is that in order to use these two functions the argument must be an instance of <code>NFData</code> (Normal Form Data).</p>
+<p>A more in depth explanation and a bunch of very informative links and more examples can be found in Stephen Diehl’s <a href="http://dev.stephendiehl.com/hask/#laziness">What I wish I knew when learning Haskell</a></p>
+<h2 id="taking-control">Taking control</h2>
+<p>Now that we’are aware of all this, let’s create a strict version of our <code>mkFromList</code> function and let’s call it <code>mkFromList'</code> (using the convention other functions like <code>foldr'</code> use). The first function we need to change is <code>(Right . mkBFilt)</code>: this is equivalent to <code>\x -&gt; Right (mkBFilt x)</code> (using <a href="https://en.wikipedia.org/wiki/Lambda_calculus#.CE.B7-conversion">eta-expansion</a>) and to <code>\pair -&gt; let bfilt = mkBFilt pair in Right bfilt</code> if we massage the lambda a bit. Here <code>bfilt</code> needs to be evaluated so again the easiest thing to do is to add a bang pattern: <code>\pair -&gt; let !bfilt = mkBFilt pair in Right bfilt</code>. A quick note for about point-free style: adding strictness is a bummer in that respect. Let’s have a look at the following code</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- file: BloomFilter/BloomFilter.hs</span>
+
+mkFromList&#39; errRate xs <span class="fu">=</span>
+  either <span class="dt">Left</span> (<span class="dt">Right</span> <span class="fu">.</span> mkFilt&#39;) <span class="fu">$</span> suggestSizing (genericLength xs) errRate
+  <span class="kw">where</span>
+    mkBFilt&#39; (bits, numHashes) <span class="fu">=</span>
+      <span class="kw">let</span> <span class="fu">!</span>bfilt <span class="fu">=</span>  B.fromList (doubleHash numHashes) bits xsin bfilt</code></pre></div>
+<p>By eta-expanding <code>(Right . mkFilt')</code> we obtain <code>\pair -&gt; Right (mkFilt' pair)</code> that is a function that will be evaluated lazily. Are we done yet? Almost. Let’s have a look at the type of <code>ebf'</code> again: <code>Either String (B.IBloom Int)</code>. What’s <code>IBloom</code> (the ‘I’ stays for “immutable”)? Here’s how it’s defined:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- file: BloomFilter/Internals.hs</span>
+
+<span class="kw">data</span> <span class="dt">IBloom</span> <span class="fu">=</span>
+  <span class="dt">IB</span> {<span class="ot"> hash  ::</span> (a <span class="ot">-&gt;</span> [<span class="dt">Word32</span>])
+     ,<span class="ot"> array ::</span> <span class="dt">UArray</span> <span class="dt">Word32</span> <span class="dt">Bool</span>
+     }</code></pre></div>
+<p>This closely reflects the definition of a Bloom filter, we have a function that returns a list of hashes for a given value and an array of bits. Keeping in mind that a constructor is also a function, we might notice that there is still something we need to force evaluation upon: the <code>array</code> field. In order to do this let’s write a strict version of <code>mkBFilt</code>, this time using <code>seq</code> for a change:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- file: BloomFilter/BloomFilter.hs</span>
+
+mkBFilt&#39; (bits, numHashes) <span class="fu">=</span>
+  <span class="kw">let</span> bfilt <span class="fu">=</span> B.fromList (doubleHash numHashes) bits xs
+  <span class="kw">in</span> array bfilt <span class="ot">`seq`</span> bfilt</code></pre></div>
+<p>Equivalently, we could have pattern-matched on <code>bfilt</code> and used a bang pattern on its <code>array</code> field. The final version of our <code>mkFromList'</code> function looks something like this:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- file: BloomFilter/BloomFilter.hs</span>
+
+<span class="ot">mkFromList&#39; ::</span> <span class="dt">Hashable</span> a <span class="ot">=&gt;</span> <span class="dt">ErrorRate</span> <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> <span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> a)
+mkFromList&#39; errRate xs <span class="fu">=</span>
+  either <span class="dt">Left</span> rightBFilt&#39; <span class="fu">$</span> suggestSizing (genericLength xs) errRate
+  <span class="kw">where</span>
+    rightBFilt&#39; x <span class="fu">=</span> <span class="kw">let</span> <span class="fu">!</span>bfilt <span class="fu">=</span> mkBFilt&#39; x <span class="kw">in</span> <span class="dt">Right</span> bfilt
+
+    mkBFilt&#39; (bits, numHashes) <span class="fu">=</span>
+      <span class="kw">let</span> bfilt <span class="fu">=</span> B.fromList (doubleHash numHashes) bits xs
+      <span class="kw">in</span> array bfilt <span class="ot">`seq`</span> bfilt</code></pre></div>
+<p>Let’s test it in GHCI:</p>
+<pre><code>ƛ let !ebf&#39;&#39; = mkFromList&#39; 0.01 ([1..10^6] :: [Int])
+ebf&#39;&#39; :: Either String (B.IBloom Int)
+(19.29 secs, 13819004104 bytes)
+ƛ :print ebf&#39;&#39;
+ebf&#39;&#39; = Right
+         (B.IB
+            (_t1::Int -&gt; [Word32])
+            (Data.Array.Base.UArray
+               (GHC.Word.W32# 0) (GHC.Word.W32# 9592954) 9592955
+               (_t2::ghc-prim-0.5.0.0:GHC.Prim.ByteArray#)))</code></pre>
+<p>And YES! We finally managed to fully evaluate our Bloom filter before its first use in our code.</p>
+<h2 id="wrapping-up">Wrapping up</h2>
+<ol style="list-style-type: decimal">
+<li>There are multiple ways we can use to introduce strictness in Haskell code: <code>seq</code>, the <code>BangPatterns</code> extension or the functions in the <code>Control.DeepSeq</code> module</li>
+<li>Using GHCI and leveraging the <code>:print</code> command and the <code>+s</code> flag can help us understanding how our code is evaluated while developing</li>
+<li>Keep in mind the difference between NF and WHNF: if we cannot manage to force evaluation of an expression it’s because some sub-expression is still in WHNF</li>
+<li>Carefully analyse our code to identify where strictness needs to be added</li>
+</ol>
+<h2 id="further-readings">Further readings</h2>
+<ul>
+<li><a href="https://www.fpcomplete.com/blog/2017/09/all-about-strictness" class="uri">https://www.fpcomplete.com/blog/2017/09/all-about-strictness</a></li>
+<li><a href="https://queue.acm.org/detail.cfm?id=2538488" class="uri">https://queue.acm.org/detail.cfm?id=2538488</a></li>
+</ul>]]></summary>
+</entry>
+<entry>
+    <title>Wait for it…a deep dive in Espresso's idling resources</title>
+    <link href="https://futtetennismo.io/posts/android/2014-04-05-wait-for-it.html" />
+    <id>https://futtetennismo.io/posts/android/2014-04-05-wait-for-it.html</id>
+    <published>2014-04-05T00:00:00Z</published>
+    <updated>2014-04-05T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<h5 id="update-a-new-better-version-of-this-post-is-available-on-the-jimdo-dev-blog.">Update: A new (better) version of this post is available on the <a href="http://dev.jimdo.com/2014/05/09/wait-for-it-a-deep-dive-into-espresso-s-idling-resources/">Jimdo Dev Blog</a>.</h5>
+<p>Recently I invested a decent amount of time in making our functional tests less clunky, especially when there are async computations involved. We started using <a href="https://code.google.com/p/android-test-kit/">Espresso</a> a few days after it was released and never looked back. In this blog post I’d like to focus on how you can tell Espresso to wait for an async computation to finish before performing any actions on a <code>View</code>, and a few gotchas I learned. <!--more--> Espresso introduces the concept of <a href="https://android-test-kit.googlecode.com/git/docs/javadocs/apidocs/index.html"><code>IdlingResource</code></a>, a simple interface that</p>
+<blockquote>
+<p>Represents a resource of an application under test which can cause asynchronous background work to happen during test execution</p>
+</blockquote>
+<p>The interface defines three methods:</p>
+<ul>
+<li><code>getName()</code>: must return a non-null string that identifies an idling resource. Morover, as the docs state:</li>
+</ul>
+<blockquote>
+<p>it is used for logging and <em>idempotency</em> of registration</p>
+</blockquote>
+<ul>
+<li><code>isIdleNow()</code>: returns the current idle state of the idling resource. If it returns <code>true</code>, the <code>onTransitionToIdle()</code> method on the registered <code>ResourceCallback</code> must have been previously called.</li>
+<li><code>registerIdleTransitionCallback(IdlingResource.ResourceCallback callback)</code>: normally this method is used to store a reference to the callback to notify it of a change in the idle state.</li>
+</ul>
+<h2 id="idling-resource-registration">Idling resource registration</h2>
+<p>Registering an idling resource is really simple: just call <code>Espresso.registerIdlingResource(myIdlingResource)</code>. This call is idempotent, meaning that &gt; it can be applied multiple times without changing the result beyond the initial application.</p>
+<p>This way consequent calls to <code>Espresso.registerIdlingResource(myIdlingResource)</code> for an idling resource with the same name won’t have any effect (Espresso will simply log a warning). Generally this is no big deal, but it becomes an issue if an idling resource has a dependency to the current <code>Context</code>. For example, the application under test can have a <code>WebView</code> and the tests need to wait for a page to be fully loaded. If idempotence is not taken into account and an idling resource with a reference to a <code>WebView</code> instance is registered - for example in the <code>setUp()</code> method of a test class - bad things will happen. First, subsequent tests will rely on a wrong referenced component in idling resource to be checked and will probably fail, and second the first <code>Context</code> is leaked since we’re holding a strong reference to it. The solution to that is to have an <code>ActivityLifecycleIdlingResource</code> and inject and clear the reference to a component when appropriate.</p>
+<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java"><span class="kw">abstract</span> <span class="kw">class</span> ActivityLifecycleIdlingResource&lt;T&gt; <span class="kw">implements</span> IdlingResource {
+  <span class="kw">private</span> T component;
+
+  <span class="dt">void</span> <span class="fu">inject</span>(T component) {
+    <span class="kw">this</span>.<span class="fu">component</span> = component;
+  }
+
+  <span class="dt">void</span> <span class="fu">clear</span>() {
+    <span class="kw">this</span>.<span class="fu">component</span> = <span class="kw">null</span>;
+  }
+}</code></pre></div>
+<p>Another - probably less error-prone - solution would be to have an <code>Espresso.unregisterIdlingResource(myIdlingResource)</code> API, there is already a <a href="https://code.google.com/p/android-test-kit/issues/detail?id=65">feature request</a> to add it. As for registering idling resources that are needed in all tests, I ended up registering them in the <code>callApplicationOnCreate(app)</code> method of a custom <code>InstrumentationTestRunner</code>, this way I am sure the registration happens only once.</p>
+<h2 id="implementing-an-idling-resource-for-a-thread-pool-executor">Implementing an idling resource for a thread pool executor</h2>
+<p>There can be <a href="http://www.slideshare.net/andersgoransson/efficient-android-threading">multiple</a> <a href="http://mttkay.github.io/blog/2013/08/25/functional-reactive-programming-on-android-with-rxjava/">reasons</a> why you’d want your application to not use the built-in Android components that handle async operations, in this case you’d need to define an idling resource that checks if the executor(s) used by the application are idle. Looking at the Espresso source code, with a small refactoring to the <a href="https://code.google.com/p/android-test-kit/source/browse/espresso/lib/src/main/java/com/google/android/apps/common/testing/ui/espresso/base/AsyncTaskPoolMonitor.java"><code>AsyncTaskPoolMonitor</code></a> class (Espresso uses it to check if there is some tasks running on the <code>AsyncTask</code> thread pool executor) a general <a href="https://gist.github.com/stefanodacchille/9995163#file-threadpoolidlingresource-java"><code>ThreadPoolIdlingResource</code></a> can be implemented.</p>
+<h2 id="soundtrack">Soundtrack:</h2>
+<iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/141161837&amp;color=ff5500&amp;auto_play=false&amp;hide_related=false&amp;show_artwork=true">
+</iframe>]]></summary>
+</entry>
+<entry>
+    <title>WebView Explorations</title>
+    <link href="https://futtetennismo.io/posts/android/2014-02-23-webview-explorations.html" />
+    <id>https://futtetennismo.io/posts/android/2014-02-23-webview-explorations.html</id>
+    <published>2014-02-23T00:00:00Z</published>
+    <updated>2014-02-23T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>In the last few weeks I’ve been playing around with <code>WebView</code>s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don’t know what I’m talking about - after all, the API has mostly remained untouched apart some nice additions, more about this in a bit - a couple of useful links by the Google folks are <a href="https://developers.google.com/chrome/mobile/docs/webview/overview">this</a> and <a href="http://developer.android.com/guide/webapps/migrating.html">this</a>. <!--more--> <strong>Disclaimer</strong>: with this post I don’t intend to describe all the differences in the API, I just want to highlight some of the problems/solutions I experienced/found by developing an application that uses the <code>WebView</code> API extensively.</p>
+<h2 id="differences-in-the-api-implementation">Differences in the API implementation</h2>
+<h3 id="hit-test-result">Hit test result</h3>
+<p>I discovered this class only recently and found it immensely useful. In the application I’m currently working on, a user can go to a different page in her website by either clicking on a link in the <code>WebView</code>, or by clicking on a native list item. These actions have different side effects, in the latter case the app must explicitly request to load a new url but not in the former, otherwise the same page will be loaded twice. The method <a href="https://developer.android.com/reference/android/webkit/WebView.html#getHitTestResult()"><code>WebView.getHitTestResult()</code></a> returns a <a href="https://developer.android.com/reference/android/webkit/WebView.HitTestResult.html"><code>HitTestResult</code></a> object that contains type and url, the type can be used to discover the type of element that has been clicked, it’ll be <a href="https://developer.android.com/reference/android/webkit/WebView.HitTestResult.html#SRC_ANCHOR_TYPE"><code>WebView.HitTestResult.SRC_ANCHOR_TYPE</code></a> in case of a HTML <code>a</code> tag with a http <code>src</code> attribute. The legacy API will return a <a href="http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/4.3.1_r1/android/webkit/WebViewClassic.java#7723"><code>null</code> result</a> if no supported element in the <code>WebView</code> was hit, while the new Chromium-based will always return a <a href="http://grepcode.com/file/repository.grepcode.com/java/ext/com.google.android/android/4.4.2_r1/com/android/webview/chromium/WebViewChromium.java#872">non-<code>null</code> result</a>.</p>
+<h3 id="webview-history">WebView history</h3>
+<p><code>WebView</code> keeps track of all visited urls in a data structure called <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html"><code>WebBackForwardList</code></a>, this can be retrieved by calling <a href="https://developer.android.com/reference/android/webkit/WebView.html#copyBackForwardList()"><code>WebView.copyBackForwardList()</code></a> method, as the method name clearly states it returns a copy of the <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html"><code>WebBackForwardList</code></a> maintained by the <code>WebView</code>. In the app I’m currently working on, after calling <a href="https://developer.android.com/reference/android/webkit/WebView.html#goBack()"><code>WebView.goBack()</code></a> the app needs to retrieve the previous page url: this can be easily done by calling <a href="https://developer.android.com/reference/android/webkit/WebBackForwardList.html#getCurrentItem()"><code>WebBackForwardList.getCurrentItem()</code></a>. The legacy implementation will return the page displayed <em>before</em> going back, while the new implemetation will return the page that will be displayed <em>after</em> going back (I didn’t go too deep into why that happens though).</p>
+<h3 id="javascript-links">Javascript links</h3>
+<p>The third one is a little bit more obscure: if a page contains a link like <code>&lt;a href=&quot;javascript:;&quot;&gt;...&lt;/a&gt;</code> - which is a quite common thing to do if one wants an element to be correctly rendered as a link, without actually linking to any resource - the Chromium-based implementation will invoke the <a href="https://developer.android.com/reference/android/webkit/WebViewClient.html#onPageFinished(android.webkit.WebView,%20java.lang.String)"><code>WebViewClient.onPageFinished()</code></a> callback the first time that element is clicked. Not sure about what is happening here, but it’s good to be aware of it because if the app is injecting some Javascript when the page finished loading, it could potentially inject it twice and cause some unexpected behaviour (keep reading if you want to know a way to make sure this doesn’t happen).</p>
+<h2 id="api-additions">API additions</h2>
+<ul>
+<li><p><a href="https://developers.google.com/chrome-developer-tools/docs/remote-debugging">Remote debugging</a>: pretty sweet, if you work with <code>WebView</code>s a lot you’ll love it. The linked resource explains everything in great detail, so I won’t say anything. Just try it.</p></li>
+<li><p><a href="https://developer.android.com/reference/android/webkit/WebView.html#evaluateJavascript(java.lang.String,%20android.webkit.ValueCallback%3Cjava.lang.String%3E)"><code>WebView.evaluateJavascript()</code></a>: this method it makes it straightforward to get a result back from injected Javascript, just supply a <a href="https://developer.android.com/reference/android/webkit/ValueCallback.html"><code>ValueCallback</code></a> when the method is invoked. Something similar can be achieved with the legacy implementation too, but it requires a bit more boilerplate.</p></li>
+</ul>
+<h2 id="keep-your-code-sane-encapsulate-those-api-differences">Keep your code sane, encapsulate those API differences</h2>
+<p>It is not uncommon to have your code cluttered with <code>if</code> statements when dealing with different API implementations. A way to avoid it that I find myself using a lot, is to create an adapter interface that hides those differences. In this case, the one I ended up writing looks roughly like this:</p>
+<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java"><span class="kw">public</span> <span class="kw">interface</span> IWebViewCompatibility {
+  <span class="dt">void</span> <span class="fu">injectWebView</span>(WebView webView);
+  <span class="dt">void</span> <span class="fu">evaluateJavascript</span>(<span class="bu">String</span> script, ValueCallbackAdapter callback);
+  <span class="dt">boolean</span> <span class="fu">httpLinkHit</span>();
+  <span class="bu">String</span> <span class="fu">getPreviousPageUrl</span>();
+
+  <span class="co">// Adapter interface for legacy WebView API</span>
+  <span class="kw">public</span> <span class="dt">static</span> <span class="kw">interface</span> ValueCallbackAdapter {
+    <span class="dt">void</span> <span class="fu">evaluateResult</span>(<span class="bu">String</span> value);
+    <span class="bu">String</span> <span class="fu">javascriptInterfaceMethodName</span>();
+  }
+}</code></pre></div>
+<p>If the application uses some sort of dependency injection framework - i.e. <a href="https://github.com/square/dagger">Dagger</a> - we’ll have to write only one <code>if</code> statement, when the adapter class is instantiated before being injected:</p>
+<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java"><span class="at">@Module</span>(injects = WebViewFragment.<span class="fu">class</span>)
+<span class="kw">public</span> <span class="kw">class</span> WebViewModule {
+  ...
+  <span class="at">@Provides</span> <span class="at">@Singleton</span>
+  <span class="kw">public</span> IWebViewCompatibility <span class="fu">provideWebViewCompatibility</span>() {
+    <span class="kw">return</span> SUPPORTS_KITKAT ? <span class="kw">new</span> <span class="fu">ChromiumWebViewCompatibility</span>()
+      : <span class="kw">new</span> <span class="fu">LegacyWebViewCompatibility</span>();
+  }
+}</code></pre></div>
+<p>That said, let’s have a look at how we can get back the result of the evaluation of a piece of Javascript on legacy API. We can leverage the <a href="https://developer.android.com/reference/android/webkit/JavascriptInterface.html"><code>JavascriptInterface</code></a> mechanism to add a helper interface to the page that will receive the result of an injected Javascript (my advice: be sure to do this before anything is loaded in the <code>WebView</code>, otherwise the content needs to be reloaded in order for the interface to be added to the page). Now let’s implement the legacy adapter interface:</p>
+<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java"><span class="kw">public</span> <span class="kw">class</span> LegacyWebViewCompatibility <span class="kw">implements</span> IWebViewCompatibility {
+  <span class="kw">private</span> WebView webView;
+  <span class="kw">private</span> ValueCallbackAdapter callback;
+
+  <span class="at">@Override</span> <span class="kw">public</span> <span class="dt">void</span> <span class="fu">injectWebView</span>(WebView webView) {
+    <span class="kw">this</span>.<span class="fu">webView</span> = webView;
+    <span class="kw">this</span>.<span class="fu">webView</span>.<span class="fu">addJavascriptInterface</span>(<span class="kw">new</span> <span class="fu">LegacyCallbackInterfaceHelper</span>(), NAME);
+  }
+
+  <span class="at">@Override</span>
+  <span class="kw">public</span> <span class="dt">void</span> <span class="fu">evaluateJavascript</span>(<span class="dt">final</span> <span class="bu">String</span> script, ValueCallbackAdapter callback) {
+    <span class="kw">this</span>.<span class="fu">callback</span> = callback;
+    <span class="kw">if</span> (callback != <span class="kw">null</span>) {
+      <span class="bu">String</span> js = <span class="bu">String</span><span class="fu">.format</span>(<span class="st">&quot;javascript:{var res=</span><span class="sc">%s</span><span class="st">;</span><span class="sc">%s</span><span class="st">.</span><span class="sc">%s</span><span class="st">(res);};void(0);&quot;</span>, script, NAME,
+        callback.<span class="fu">javascriptInterfaceMethodName</span>());
+      webView.<span class="fu">loadUrl</span>(js);
+    } <span class="kw">else</span> {
+      webView.<span class="fu">loadUrl</span>(<span class="st">&quot;javascript:{&quot;</span> + script + <span class="st">&quot;};void(0);&quot;</span>));
+    }
+}
+...
+  <span class="kw">class</span> LegacyCallbackInterfaceHelper {
+    <span class="dt">static</span> <span class="dt">final</span> <span class="bu">String</span> NAME = <span class="st">&quot;legacyAndroidCallbackInterfaceHelper&quot;</span>;
+
+    <span class="at">@JavascriptInterface</span> <span class="at">@SuppressWarnings</span>(<span class="st">&quot;unused&quot;</span>) <span class="co">// Called from js</span>
+      <span class="kw">public</span> <span class="dt">void</span> <span class="fu">jimdoDefined</span>(<span class="bu">String</span> result) {
+        ((Activity) webView.<span class="fu">getContext</span>()).<span class="fu">runOnUiThread</span>(<span class="kw">new</span> <span class="bu">Runnable</span>() {
+          <span class="at">@Override</span> <span class="kw">public</span> <span class="dt">void</span> <span class="fu">run</span>() {
+            LegacyWebViewCompatibilityDelegate.<span class="fu">this</span>.<span class="fu">callback</span>.<span class="fu">evaluateResult</span>(result);
+          }
+      });
+    }
+  }
+}</code></pre></div>
+<p>As you can see there’s a bit more boilerplate to write, but we managed to achieve the same result. One thing to notice here is that the callback should be run on the main thread - the <a href="https://developer.android.com/reference/android/webkit/JavascriptInterface.html"><code>JavascriptInterface</code></a> method runs on a <code>WebView</code> thread - otherwise you’ll get a nice little warning if you at the logs.</p>
+<p>At this point, here’s how we can use this to check if a piece of Javascript has already been injected and avoid to inject it twice:</p>
+<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java">javascriptInjector.<span class="fu">injectFunction</span>(screen, <span class="st">&quot;typeof jimdo === </span><span class="sc">\&#39;</span><span class="st">undefined</span><span class="sc">\&#39;</span><span class="st">&quot;</span>,
+  <span class="kw">new</span> WebViewCompatibilityDelegate.<span class="fu">ValueCallbackAdapter</span>() {
+
+  <span class="at">@Override</span> <span class="kw">public</span> <span class="dt">void</span> <span class="fu">evaluateResult</span>(<span class="bu">String</span> jimdoUndefined) {
+    <span class="kw">if</span> (<span class="bu">Boolean</span>.<span class="fu">valueOf</span>(jimdoUndefined)) {
+      javascriptInjector.<span class="fu">injectScript</span>(screen, <span class="st">&quot;my_script.js&quot;</span>, <span class="kw">null</span>);
+    }
+  }
+
+  <span class="at">@Override</span> <span class="kw">public</span> <span class="bu">String</span> <span class="fu">javascriptInterfaceMethodName</span>() {
+    <span class="co">// This corresponds to LegacyCallbackInterfaceHelper.jimdoDefined()</span>
+    <span class="kw">return</span> <span class="st">&quot;jimdoDefined&quot;</span>;
+  }
+});</code></pre></div>
+<p>First, the app injects a Javascript function that checks if a variable created by the script is already defined, then depending on the returned result the script is injected or not.</p>
+<h2 id="soundtrack">Soundtrack:</h2>
+<iframe width="660" height="60" src="//www.mixcloud.com/widget/iframe/?feed=http%3A%2F%2Fwww.mixcloud.com%2Fdarkfloor%2Fmantis-radio-150-objekt%2F&amp;mini=1&amp;embed_type=widget_standard&amp;embed_uuid=7b156b59-156d-4204-84bc-1a674fc22a50&amp;hide_tracklist=1&amp;replace=0&amp;hide_cover=1&amp;light=1" frameborder="0">
+</iframe>
+<div style="clear: both; height: 3px; width: 652px;">
+
+</div>
+<p style="display: block; font-size: 11px; font-family: 'Open Sans', Helvetica, Arial, sans-serif; margin: 0px; padding: 3px 4px; color: rgb(153, 153, 153); width: 652px;">
+<a href="http://www.mixcloud.com/darkfloor/mantis-radio-150-objekt/?utm_source=widget&amp;amp;utm_medium=web&amp;amp;utm_campaign=base_links&amp;amp;utm_term=resource_link" target="_blank" style="color:#808080; font-weight:bold;">Mantis Radio 150 + Objekt</a><span> by </span><a href="http://www.mixcloud.com/darkfloor/?utm_source=widget&amp;amp;utm_medium=web&amp;amp;utm_campaign=base_links&amp;amp;utm_term=profile_link" target="_blank" style="color:#808080; font-weight:bold;">Darkfloor.</a><span> on </span><a href="http://www.mixcloud.com/?utm_source=widget&amp;utm_medium=web&amp;utm_campaign=base_links&amp;utm_term=homepage_link" target="_blank" style="color:#808080; font-weight:bold;"> Mixcloud</a>
+</p>
+<div style="clear: both; height: 3px; width: 652px;">
+
+</div>]]></summary>
+</entry>
+<entry>
+    <title>Dealing with the unforeseen</title>
+    <link href="https://futtetennismo.io/posts/android/2013-04-28-dealing-with-the-unforeseen.html" />
+    <id>https://futtetennismo.io/posts/android/2013-04-28-dealing-with-the-unforeseen.html</id>
+    <published>2013-04-28T00:00:00Z</published>
+    <updated>2013-04-28T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>It’s quite common to invite users to rate an app on Google Play at some point, on one hand it’s good to know that your users are happy and on the other it’s a good way to attract new users. It’s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don’t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he’s not going to be too happy about it. How can we make sure that this doesn’t happen? <!--more--> When an uncaught exception is thrown, the <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html#uncaughtException(java.lang.Thread,%20java.lang.Throwable)">uncaughtException</a> method of the default <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> for that Thread is called. Good news is, you can supply your own <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> using the <a href="https://developer.android.com/reference/java/lang/Thread.html#setDefaultUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)">setDefaultUncaughtExceptionHandler</a> setter (this is what <a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDYQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Facra%2F&amp;ei=kAwBUezwL8_IsgbIvYH4Dg&amp;usg=AFQjCNF1L9fawVNYyKuqqIa7q22TBcL08w&amp;sig2=_FrQnihkSMcsqGUV5XXp1A&amp;bvm=bv.41524429,d.Yms">ACRA</a> and I suppose other libraries like <a href="https://www.crittercism.com/">Crittercism</a> or <a href="https://www.bugsense.com/">BugSense</a> do under the hood). Here is a little snippet of what we do in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype app</a>:</p>
+<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java">	<span class="kw">public</span> <span class="kw">class</span> CustomUncaughtExceptionHandlerProxy <span class="kw">implements</span> <span class="bu">Thread</span>.<span class="fu">UncaughtExceptionHandler</span> {
+
+	    <span class="kw">private</span> <span class="dt">static</span> CustomUncaughtExceptionHandlerProxy proxy;
+
+	    <span class="kw">private</span> <span class="dt">final</span> <span class="dt">boolean</span> enabled;
+
+	    <span class="kw">private</span> <span class="bu">Thread</span>.<span class="fu">UncaughtExceptionHandler</span> customUncaughtExceptionHandler;
+
+	    <span class="kw">private</span> <span class="fu">CustomUncaughtExceptionHandlerProxy</span>(CustomApplication application) {
+	        enabled = !application.<span class="fu">inDevMode</span>();
+	        <span class="kw">if</span> (enabled) {
+	            <span class="co">// Save a reference to the current default handler.</span>
+	            customUncaughtExceptionHandler = <span class="bu">Thread</span>.<span class="fu">getDefaultUncaughtExceptionHandler</span>();
+	            <span class="co">// Set our custom handler as the default one, so that it&#39;s first notified when something ugly happens.</span>
+	            <span class="bu">Thread</span>.<span class="fu">setDefaultUncaughtExceptionHandler</span>(<span class="kw">this</span>);
+	        }
+	    }
+
+	    <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">initialize</span>(CustomApplication application) {
+	        <span class="kw">if</span> (proxy == <span class="kw">null</span>) {
+	            proxy = <span class="kw">new</span> <span class="fu">CustomUncaughtExceptionHandlerProxy</span>(application);
+	        }
+	    }
+
+	    <span class="kw">public</span> <span class="dt">static</span> CustomUncaughtExceptionHandlerProxy <span class="fu">getInstance</span>() {
+	        <span class="kw">return</span> proxy;
+	    }
+
+	    <span class="at">@Override</span>
+	    <span class="kw">public</span> <span class="dt">void</span> <span class="fu">uncaughtException</span>(<span class="bu">Thread</span> thread, <span class="bu">Throwable</span> ex) {
+	        <span class="kw">if</span> (enabled) {
+	            <span class="kw">if</span> (!preferences.<span class="fu">rateAppDialogAlreadyShown</span>()) {
+	                <span class="co">// reset count only if the &#39;rate app&#39; dialog hasn&#39;t been already shown.</span>
+	                preferences.<span class="fu">resetShowRateAppDialogCountdown</span>();
+	            }
+	            <span class="co">// Let the default uncaught exception handler do its job.</span>
+	            customUncaughtExceptionHandler.<span class="fu">uncaughtException</span>(thread, ex);
+	        } <span class="kw">else</span> {
+	            <span class="bu">Thread</span>.<span class="fu">getDefaultUncaughtExceptionHandler</span>().<span class="fu">uncaughtException</span>(thread, ex);
+	        }
+	    }
+	}</code></pre></div>
+<p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it’s pretty straightforward but here’s a little explanation of how it works. Let’s say you want to show a “Rate App” dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>]]></summary>
+</entry>
+<entry>
+    <title>Location on Android...the Qype way</title>
+    <link href="https://futtetennismo.io/posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html" />
+    <id>https://futtetennismo.io/posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html</id>
+    <published>2012-10-16T00:00:00Z</published>
+    <updated>2012-10-16T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it’s possible to include it in an already existing application. This time I’ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application. <!--more--> A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user’s location, and it needs to know it as quickly as possible - nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
+<ol style="list-style-type: decimal">
+<li>a good trade off between quickness and accuracy is achieved.</li>
+<li>battery is not drained.</li>
+</ol>
+<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> - I’ll go back to this in a bit - and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
+<p>So what happens when a new location is received? As you already know from the previous post, <code>IgnitedLocationManager</code> invokes the <code>onIgnitedLocationChanged()</code> callback in the current <code>IgnitedActivity</code>. Since we want our logic to be shared across all out location-aware activities, each of them has a reference to an instance of the <code>QypeLocationManager</code> and it invokes a callback on this object each time a new location is returned:</p>
+<pre><code>@Override
+public boolean onIgnitedLocationChanged(Location location) {
+    return locationManager.onNewLocation(this, location, lastSearchedLocation);
+}</code></pre>
+<p>This callback has got two locations as parameters: the current location and the location used for the last search. I’ll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it’s the first time the current Activity is making a request - in this case the Activity is probably being created for the first time - and, if that’s the case, it checks if the current location is not null and if it’s “good enough” or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
+<pre><code>public boolean onNewLocation(final QypeLocationAwareActivity context, Location newLocation,
+        Location lastSearchedLocation) {
+
+    ...
+
+    // Check if the new location is too old, if so wait for a most recent location.
+    if (lastSearchedLocation == null) {
+        // Delete any pending API request with an old location and send a new request right
+        // away using the most up-to-date location.
+        if (locationHandler
+                .hasMessages(QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION)) {
+            locationHandler
+                    .removeMessages(QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION);
+        }
+        Activity activity = (Activity) context;
+        // Wait some time if the location is too old, but if a new fix doesn&#39;t arrive send the
+        // request using the location we&#39;ve got.
+        if (isOldLocation(newLocation)) {
+            DialogSupport.safeShowDialog(activity, R.id.ign_loc_dialog_wait_for_fix);
+            locationHandler.sendEmptyMessageDelayed(
+                    QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION,
+                    INTERVAL_SEND_REQUEST_USING_UNRELIABLE_LOCATION);
+        } else {
+            Dialog waitForLocationDialog = context.getWaitForLocationDialog();
+            if (waitForLocationDialog != null &amp;&amp; waitForLocationDialog.isShowing()) {
+                activity.dismissDialog(R.id.ign_loc_dialog_wait_for_fix);
+            }
+            context.onLocationAvailable();
+        }
+}</code></pre>
+<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn’t matter if the location is too coarse? Well…yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I’ll explain in a bit when accuracy is taken into account.</p>
+<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don’t want our users to wait too much before they can get some results, but we’d like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn’t move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let’s jump for a second at the end of this callback:</p>
+<pre><code>    ...
+    return requestMoreLocationUpdates(newLocation);
+}
+
+private boolean requestMoreLocationUpdates(Location newLocation) {
+    double accuracy = newLocation.getAccuracy();
+    int desiredAccuracy = getDesiredAccuracy();
+
+    // Check if the new location is fresh and accurate enough.
+    return isOldLocation(newLocation) || accuracy &gt; desiredAccuracy;
+}
+
+private boolean isOldLocation(Location location) {
+    long locationTime = location.getTime();
+    long timeDiff = getDesiredTimeDifference();
+    long desiredTime = System.currentTimeMillis() - timeDiff;
+    return locationTime &lt; desiredTime;
+}</code></pre>
+<p>Let’s assume that the location isn’t either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I’d like to point out something here: in our specific use case, the app doesn’t need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you’re using searches for results in an area centered around user’s location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by “stopping” I don’t actually mean that location updates won’t be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
+<p>If the last location isn’t either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won’t be null.</p>
+<pre><code>...
+
+} else {
+    boolean diffDistanceTooBig = diffDistanceTooBig(newLocation, lastSearchedLocation);
+    if (diffDistanceTooBig) {
+        boolean hasBetterLocationMessages = locationHandler
+                .hasMessages(MSG_BETTER_LOCATION);
+        if (!hasBetterLocationMessages) {
+            // It&#39;s a better location, invite the user to refresh his location
+            locationHandler.obtainMessage(MSG_BETTER_LOCATION).sendToTarget();
+        } else {
+            locationHandler.removeMessages(MSG_BETTER_LOCATION);
+            Message msg = locationHandler.obtainMessage(MSG_BETTER_LOCATION);
+            locationHandler.sendMessageDelayed(msg,
+                    QypeNewLocationHandler.DELAY_SHOW_BETTER_LOCATION_RELOAD_TOOLTIP);
+        }
+    }
+}
+
+...</code></pre>
+<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn’t differ too much from the old one, it means that the old location wasn’t that bad and the app doesn’t need to do anything special (note: it doesn’t matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
+<p>The last piece of the puzzle is the <code>QypeNewLocationHandler</code> class, which is just a simple implementation of a Handler that takes advantage of delayed messages to show/hide the reload view.</p>
+<pre><code>@Override
+public void handleMessage(Message msg) {
+    ReloadTooltip reloadTooltip = context.getReloadTooltip();
+    switch (msg.what) {
+    case MSG_BETTER_LOCATION:
+        if (showReloadTooltip(reloadTooltip)) {
+            reloadTooltip.setText(R.string.msg_reload_results_on_new_location);
+            reloadTooltip.show(true);
+            sendEmptyMessageDelayed(MSG_HIDE_RELOAD_TOOLTIP, TIMEOUT_HIDE_RELOAD_TOOLTIP);
+            reloadTooltip.setTag(System.currentTimeMillis());
+            hasBetterLocation = false;
+        } else if (context.isLoadingData()) {
+            hasBetterLocation = true;
+        }
+        break;
+    case MSG_HIDE_RELOAD_TOOLTIP:
+        reloadTooltip.hide(true);
+        break;
+    case MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION:
+        Dialog waitForLocationDialog = context.getWaitForLocationDialog();
+        if (waitForLocationDialog != null &amp;&amp; waitForLocationDialog.isShowing()) {
+            ((Activity) context).dismissDialog(R.id.ign_loc_dialog_wait_for_fix);
+        }
+        context.onLocationAvailable();
+        break;
+    default:
+        super.handleMessage(msg);
+    }
+}</code></pre>
+<p>Nothing special here, apart from a tweak we added while we were testing the app that prevents the reload view from being shown too often and becoming annoying for the user.</p>]]></summary>
+</entry>
+<entry>
+    <title>ignition v0.1 - the ignited way of doing location</title>
+    <link href="https://futtetennismo.io/posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html" />
+    <id>https://futtetennismo.io/posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html</id>
+    <published>2012-03-09T00:00:00Z</published>
+    <updated>2012-03-09T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I’d like to write about here is the module I focused on, that is the ignition-location module. Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 - Cupcake - API level 3. It wasn’t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools. <!--more--> It’s a bit weird that on Android I always worked on location-aware applications, and sadly if you have to deal with location your life is not that simple. I was literally thrilled when I watched <a href="http://www.google.com/events/io/2011/sessions/android-protips-advanced-topics-for-expert-android-app-developers.html">Reto Meier’s talk on the last Google I/O</a>, read his blog posts - on the <a href="http://android-developers.blogspot.com/2011/06/deep-dive-into-location.html">Android Developers Blog</a>, and on his personal blog (<a href="http://blog.radioactiveyak.com/2011/06/how-to-build-location-based-apps-that.html">1</a>, <a href="http://blog.radioactiveyak.com/2011/06/deep-dive-into-location-part-2-being.html">2</a>), and had a look at his <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project - because he showcased some really cool techniques and gave solutions to a lot of issues that I personally experienced. One issue about the sample project is that it’s not intented to be used as an Android library, so there is no easy way to integrate and all that code, and it’s a lot of code (but fair enough, that project wasn’t intented to be an Android library). So I started to think how that code could be reused.</p>
+<p>At that time I was working on integrating Analytics in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype application</a>(<a href="http://prezi.com/swcxu2ynsio-/implementing-analytics-with-aspectj/">here</a>’s a prezi of a barcamp session I did during the last DroidCon in London) using <a href="http://en.wikipedia.org/wiki/AspectJ">AspectJ</a>, and I really liked its unintrusiveness. That’s when I thought: it would be awesome if I wouldn’t had to be worried about enabling/disabling location updates, battery consumption and other details while I’m developing a location-aware application, I just want to know the most recent known location and I don’t care about all those things! In other words, the logic that handles location should be a separate concern with respect to the logic of the application (i.e.: getting the best places nearby, the nearby checked-in friends etc.).</p>
+<p>After spending several months adapting the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project and adding a couple of features so that it could be used as an Android library, here is the final result:</p>
+<pre><code>@IgnitedLocationActivity
+public class IgnitedLocationSampleActivity extends MapActivity {
+    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON&#39;T WORK!
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        ...
+    }
+
+    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON&#39;T WORK!
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON&#39;T WORK!
+    @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    public boolean onIgnitedLocationChanged(Location newLocation) {
+        ...
+        return true;
+    }
+    ...</code></pre>
+<p>}</p>
+<p>Et voilà ! That’s all the code you have to write in your location-aware Activity! Under the hood the ignition-location library will:</p>
+<ul>
+<li>enable/disable location updates</li>
+<li>enable/disable passive location updates</li>
+<li>return the most recent location to your application (using the <code>onIgnitedLocationChanged()</code> callback or a Location <u>field</u> with the <code>@IgnitedLocation</code> annotation)</li>
+<li>avoid using GPS if the battery level is too low</li>
+<li>automatically switch off GPS and request network updates if a location fix is not returned after a certain interval without the need for you to do anything else apart from adding the <code>@IgnitedLocation</code>Activity annotation to your Activity and make sure you override <code>onCreate()</code>, <code>onResume()</code> and <code>onPause()</code>. Many configuration parameters can be passed to the <code>@IgnitedLocation</code> Activity annotation to have fully customized settings.</li>
+</ul>
+<p>If Eclipse is your IDE, additionally to your Android setup you must:</p>
+<ol style="list-style-type: decimal">
+<li>download and install the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331303317995&amp;ved=0CCUQFjAA&amp;url=http%3A%2F%2Fwww.eclipse.org%2Fajdt%2F&amp;ei=lBNaT6D6BofhtQb2wvH6Cw&amp;usg=AFQjCNFDAcExHcXf900Zhjp4pcFF0VexHg">ajdt</a></li>
+<li>add ignition-location as a library project (have a look <a href="http://developer.android.com/guide/developing/projects/projects-eclipse.html#ReferencingLibraryProject">here</a> for instructions)</li>
+<li>add ignition-location to the aspect path (have a look at the image below)</li>
+</ol>
+<p>If you are using Maven as your build manager you have to:</p>
+<ol style="list-style-type: decimal">
+<li><p>add ignition-location as a dependency</p>
+<p><dependency> <groupId>com.github.ignition</groupId> <artifactId>ignition-location</artifactId> <version>0.1</version> <type>apklib</type> <exclusions> <exclusion> <groupId>com.google.guava</groupId> <artifactId>guava-collections</artifactId> </exclusion> </exclusions> </dependency></p></li>
+<li><p>add the aspectj-maven-plugin to your POM file, adding the ignition-location library to the aspect path</p>
+<p><plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>aspectj-maven-plugin</artifactId> <configuration> <aspectLibraries> <aspectLibrary> <groupId>com.github.ignition</groupId> <artifactId>ignition-location</artifactId> <type>apklib</type> </aspectLibrary> </aspectLibraries> <source>1.6</source> </configuration> <executions> <execution> <!-- phase need to be before compile, or the build will fail. More info here: http://stackoverflow.com/questions/2610633/maven-compile-aspectj-project-containing-java-1-6-source --> <phase>process-sources</phase> <goals> <goal>compile</goal> </goals> </execution> </executions> </plugin></p></li>
+</ol>
+<p>One last good thing about it is that it’s open source and on <a href="https://github.com/mttkay/ignition">github</a>! So fork it and help us make it better.</p>
+<p>NOTE:</p>
+<p>If you are wondering if the ignition-location magic will slow your application down, the simple answer is: no. Reflection is not used, AspectJ’s <a href="http://stackoverflow.com/questions/7646097/what-is-aspectj-context-binding">Context binding</a> is used instead. That means that all the magic is happening at compile time. Isn’t that cool?</p>]]></summary>
+</entry>
+
+</feed>

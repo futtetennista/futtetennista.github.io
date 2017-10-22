@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <!-- MUST in hex format, may the same as header-color. This color is for android chrome browser. -->
+  <meta name="theme-color" content="#5c6bc0">
+
+  <!-- <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> -->
+
+  <!-- Metadata. -->
+  <!-- TODO: favicon -->
+  <!-- <link rel="shortcut icon" href="{{ '/favicon.ico' | prepend: site.baseurl | prepend: site.url }}"> -->
+  <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
+  <title>Home</title>
+  <meta name="description" content="Futtennismo">
+  <link rel="canonical" href="./index.html">
+  <!-- TODO: rss feeds -->
+  <!-- <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ "/feed.xml" | prepend: site.baseurl | prepend: site.url }}" /> -->
+
+  <!-- Stylesheets. -->
+  <link rel="stylesheet" href="./lib/materialize/css/materialize.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <link media="all" rel="stylesheet" type="text/css" href="./lib/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="./lib/material-scrolltop/material-scrolltop.css">
+
+  <noscript>
+  <div class="notice-warning noscript">You don't have javascript enabled. Good luck! :(</div>
+</noscript>
+
+<!--[if IE]>
+  <div class="notice-warning">Oh, you are using Internet Explorer! Good luck... :(</div>
+<![endif]-->
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+      <nav class="nav-extended indigo lighten-1">
+        <div class="nav-wrapper">
+  <span class="site-title">Futtetennismo</span>
+  <a href="#" data-activates="mobile-navbar" class="button-collapse">
+    <i class="mdi mdi-menu white-text"></i>
+  </a>
+
+  <ul id="nav-mobile" class="right hide-on-med-and-down">
+    <li>
+      <a href="./" class="white-text">
+        <i class="mdi mdi-home left indigo-text text-lighten-3"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="./about.html" class="white-text">
+        <i class="mdi mdi-account-circle left indigo-text text-lighten-3"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="./imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="./feed.xml" class="white-text">
+        <i class="mdi mdi-rss left indigo-text text-lighten-3"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+
+  <ul class="side-nav" id="mobile-navbar">
+    <li>
+      <a href="./" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-home left green-text"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="./about.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-account-circle left blue-text"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="./imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="./feed.xml" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-rss left red-text"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+</div>
+
+      </nav>
+    </header>
+
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
+        <div class="home container">
+
+  <ul class="post-list">
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">October 21, 2017</span>
+        <a class="post-link" href="./posts/haskell/2017-10-21-lazy-io-to-conduit.html">Migrating from lazy IO to Conduit</a>
+
+        <button data-target=".posts/haskell/2017-10-21-lazy-io-to-conduit.lhs" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">lazy+io, conduit, real+world+haskell, haskell</div>
+            
+        </div>
+
+
+        <div id=".posts/haskell/2017-10-21-lazy-io-to-conduit.lhs" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>Migrating from lazy IO to Conduit</h4>
+            <p>
+<p>Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it’s not desirable (or even possible) to use strict IO, mostly for memory efficiency reasons. This is the kind of problems that streaming libraries like <a href="https://hackage.haskell.org/package/conduit">conduit</a> or <a href="https://hackage.haskell.org/package/pipes">pipes</a> are designed to solve. In this post I want to show how I refactored a piece of code that uses lazy IO to use the conduit library (for those not familiar with it, please read this <a href="https://haskell-lang.org/library/conduit">conduit tutorial</a> first). </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">lazy+io, conduit, real+world+haskell, haskell</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/haskell/2017-10-21-lazy-io-to-conduit.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">October 14, 2017</span>
+        <a class="post-link" href="./posts/haskell/2017-10-14-strictness.html">Being lazy with consciousness</a>
+
+        <button data-target=".posts/haskell/2017-10-14-strictness.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">lazy+evaluation, ghci, haskell</div>
+            
+        </div>
+
+
+        <div id=".posts/haskell/2017-10-14-strictness.markdown" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>Being lazy with consciousness</h4>
+            <p><p>Lazy evaluation sometimes makes it trickier to really understand how a piece of code for folks used to languages with strict semantics (as I am). Sometimes introducing strictness is necessary to avoid space leaks and to make memory allocations more predictable in certain parts of our code. The usual suggestion is to “carefully sprinkle strict evaluation” in our code; one of the classic examples of memory leak is using <code>foldl</code> to sum a list of ints, with the result that instead of returning a result using constant space, it ends up taking an outrageous amount of memory before returning a result because thunks pile up (this behaviour is known as space leak). Most of the times I personally find it tricky to add strictness to a piece of Haskell code, so I’d like to share my latest experience doing that.</p>
+<p>We’ll be using the Bloom filter implemented in chapter 26 of Real World Haskell as an example, the version contained in the book creates the filter lazily: our goal will be to create a strict version of that particular piece of code. </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">lazy+evaluation, ghci, haskell</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/haskell/2017-10-14-strictness.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">April  5, 2014</span>
+        <a class="post-link" href="./posts/android/2014-04-05-wait-for-it.html">Wait for it…a deep dive in Espresso's idling resources</a>
+
+        <button data-target=".posts/android/2014-04-05-wait-for-it.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">android, espresso, testing, legacy</div>
+            
+        </div>
+
+
+        <div id=".posts/android/2014-04-05-wait-for-it.markdown" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>Wait for it…a deep dive in Espresso's idling resources</h4>
+            <p><h5 id="update-a-new-better-version-of-this-post-is-available-on-the-jimdo-dev-blog.">Update: A new (better) version of this post is available on the <a href="http://dev.jimdo.com/2014/05/09/wait-for-it-a-deep-dive-into-espresso-s-idling-resources/">Jimdo Dev Blog</a>.</h5>
+<p>Recently I invested a decent amount of time in making our functional tests less clunky, especially when there are async computations involved. We started using <a href="https://code.google.com/p/android-test-kit/">Espresso</a> a few days after it was released and never looked back. In this blog post I’d like to focus on how you can tell Espresso to wait for an async computation to finish before performing any actions on a <code>View</code>, and a few gotchas I learned. </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">android, espresso, testing, legacy</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/android/2014-04-05-wait-for-it.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">February 23, 2014</span>
+        <a class="post-link" href="./posts/android/2014-02-23-webview-explorations.html">WebView Explorations</a>
+
+        <button data-target=".posts/android/2014-02-23-webview-explorations.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">android, webview, chromium, android+kitkat, legacy</div>
+            
+        </div>
+
+
+        <div id=".posts/android/2014-02-23-webview-explorations.markdown" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>WebView Explorations</h4>
+            <p><p>In the last few weeks I’ve been playing around with <code>WebView</code>s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don’t know what I’m talking about - after all, the API has mostly remained untouched apart some nice additions, more about this in a bit - a couple of useful links by the Google folks are <a href="https://developers.google.com/chrome/mobile/docs/webview/overview">this</a> and <a href="http://developer.android.com/guide/webapps/migrating.html">this</a>. </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">android, webview, chromium, android+kitkat, legacy</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/android/2014-02-23-webview-explorations.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">April 28, 2013</span>
+        <a class="post-link" href="./posts/android/2013-04-28-dealing-with-the-unforeseen.html">Dealing with the unforeseen</a>
+
+        <button data-target=".posts/android/2013-04-28-dealing-with-the-unforeseen.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">android, legacy</div>
+            
+        </div>
+
+
+        <div id=".posts/android/2013-04-28-dealing-with-the-unforeseen.markdown" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>Dealing with the unforeseen</h4>
+            <p><p>It’s quite common to invite users to rate an app on Google Play at some point, on one hand it’s good to know that your users are happy and on the other it’s a good way to attract new users. It’s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don’t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he’s not going to be too happy about it. How can we make sure that this doesn’t happen? </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">android, legacy</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/android/2013-04-28-dealing-with-the-unforeseen.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">October 16, 2012</span>
+        <a class="post-link" href="./posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html">Location on Android...the Qype way</a>
+
+        <button data-target=".posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">android, location, qype, legacy</div>
+            
+        </div>
+
+
+        <div id=".posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.markdown" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>Location on Android...the Qype way</h4>
+            <p><p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it’s possible to include it in an already existing application. This time I’ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application. </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">android, location, qype, legacy</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+      <li class="card-panel hoverable">
+        <span class="grey-text right">March  9, 2012</span>
+        <a class="post-link" href="./posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html">ignition v0.1 - the ignited way of doing location</a>
+
+        <button data-target=".posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
+          <i class="mdi mdi-send right"></i>
+        </button>
+
+        <div class="right">
+          
+              <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+              <div class="chip">android, ignition, location, legacy</div>
+            
+        </div>
+
+
+        <div id=".posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.markdown" class="modal modal-fixed-footer">
+          <div class="modal-content">
+            <h4>ignition v0.1 - the ignited way of doing location</h4>
+            <p><p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I’d like to write about here is the module I focused on, that is the ignition-location module. Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 - Cupcake - API level 3. It wasn’t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools. </p>
+            <div>
+              
+                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+                <div class="chip">android, ignition, location, legacy</div>
+              
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="./posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
+            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
+          </div>
+        </div>
+      </li>
+    
+</ul>
+
+
+</div>
+
+      </div>
+    </div>
+
+    <footer class="page-footer indigo lighten-1">
+
+  <div class="footer-copyright">
+
+    <div class="container">
+      © 2017 <a class="red-text text-accent-1" href="./about.html">futtetennista</a>, under
+      <a class="red-text text-accent-1" href="https://creativecommons.org/licenses/by-sa/4.0/"> CC BY-SA 4.0</a>.&nbsp;
+      Site proudly generated by <a class="red-text text-accent-1" href="http://jaspervdj.be/hakyll">Hakyll</a>,&nbsp;
+      original Jekyll theme by <a class="red-text text-accent-1" href="https://github.com/mumuxme/materialize-jekyll">mumuxme</a>.
+    </div>
+
+  </div>
+
+</footer>
+
+
+    <!-- scrolltop button -->
+    <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button">
+      <i class="mdi mdi-arrow-up-bold small white-text"></i>
+    </button>
+
+    <!-- jquery -->
+    <script type="text/javascript" src="./lib/jquery-min.js"></script>
+    <!-- materialize -->
+    <script src="./lib/materialize/js/materialize.min.js"></script>
+    <!-- <\!-- Material ScrollTop plugin -\-> -->
+    <script src="./lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="./js/init.js"></script>
+    <script src="./js/main.js"></script>
+
+  </body>
+
+</html>

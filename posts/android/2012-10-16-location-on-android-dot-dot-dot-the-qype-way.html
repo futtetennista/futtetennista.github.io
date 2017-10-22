@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <!-- MUST in hex format, may the same as header-color. This color is for android chrome browser. -->
+  <meta name="theme-color" content="#5c6bc0">
+
+  <!-- <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> -->
+
+  <!-- Metadata. -->
+  <!-- TODO: favicon -->
+  <!-- <link rel="shortcut icon" href="{{ '/favicon.ico' | prepend: site.baseurl | prepend: site.url }}"> -->
+  <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
+  <title>Location on Android...the Qype way</title>
+  <meta name="description" content="Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it’s possible to inclu">
+  <link rel="canonical" href="../../posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html">
+  <!-- TODO: rss feeds -->
+  <!-- <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ "/feed.xml" | prepend: site.baseurl | prepend: site.url }}" /> -->
+
+  <!-- Stylesheets. -->
+  <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link media="all" rel="stylesheet" type="text/css" href="../../lib/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="../../lib/material-scrolltop/material-scrolltop.css">
+
+  <noscript>
+  <div class="notice-warning noscript">You don't have javascript enabled. Good luck! :(</div>
+</noscript>
+
+<!--[if IE]>
+  <div class="notice-warning">Oh, you are using Internet Explorer! Good luck... :(</div>
+<![endif]-->
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+      <nav class="nav-extended indigo lighten-1">
+        <div class="nav-wrapper">
+  <span class="site-title">Futtetennismo</span>
+  <a href="#" data-activates="mobile-navbar" class="button-collapse">
+    <i class="mdi mdi-menu white-text"></i>
+  </a>
+
+  <ul id="nav-mobile" class="right hide-on-med-and-down">
+    <li>
+      <a href="../../" class="white-text">
+        <i class="mdi mdi-home left indigo-text text-lighten-3"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="white-text">
+        <i class="mdi mdi-account-circle left indigo-text text-lighten-3"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="white-text">
+        <i class="mdi mdi-rss left indigo-text text-lighten-3"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+
+  <ul class="side-nav" id="mobile-navbar">
+    <li>
+      <a href="../../" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-home left green-text"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-account-circle left blue-text"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-rss left red-text"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+</div>
+
+      </nav>
+    </header>
+
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
+        <div class="post-ribbon"></div>
+
+<div class="container post-container">
+  <div class="post-page card-panel z-depth-2">
+    <div class="post-section">
+
+      <p class="grey-text">
+        <i class="mdi mdi-calendar"></i>&nbsp;
+        Posted on October 16, 2012
+        
+          &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
+          by futtetennista
+        
+        &nbsp;
+        
+          <i class="mdi mdi-folder"></i>&nbsp;
+          <span class="capitalize"><a href="../../categories/android.html">android</a></span>
+          <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        
+      </p>
+
+      <div class="post-header">
+        <h1 class="post-title">Location on Android...the Qype way</h1>
+
+        
+          <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+          <div class="chip"><a href="../../tags/android.html">android</a>, <a href="../../tags/location.html">location</a>, <a href="../../tags/qype.html">qype</a>, <a href="../../tags/legacy.html">legacy</a></div>
+        
+      </div>
+
+      <article class="post-content">
+        <p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it’s possible to include it in an already existing application. This time I’ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application. <!--more--> A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user’s location, and it needs to know it as quickly as possible - nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
+<ol style="list-style-type: decimal">
+<li>a good trade off between quickness and accuracy is achieved.</li>
+<li>battery is not drained.</li>
+</ol>
+<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> - I’ll go back to this in a bit - and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
+<p>So what happens when a new location is received? As you already know from the previous post, <code>IgnitedLocationManager</code> invokes the <code>onIgnitedLocationChanged()</code> callback in the current <code>IgnitedActivity</code>. Since we want our logic to be shared across all out location-aware activities, each of them has a reference to an instance of the <code>QypeLocationManager</code> and it invokes a callback on this object each time a new location is returned:</p>
+<pre><code>@Override
+public boolean onIgnitedLocationChanged(Location location) {
+    return locationManager.onNewLocation(this, location, lastSearchedLocation);
+}</code></pre>
+<p>This callback has got two locations as parameters: the current location and the location used for the last search. I’ll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it’s the first time the current Activity is making a request - in this case the Activity is probably being created for the first time - and, if that’s the case, it checks if the current location is not null and if it’s “good enough” or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
+<pre><code>public boolean onNewLocation(final QypeLocationAwareActivity context, Location newLocation,
+        Location lastSearchedLocation) {
+
+    ...
+
+    // Check if the new location is too old, if so wait for a most recent location.
+    if (lastSearchedLocation == null) {
+        // Delete any pending API request with an old location and send a new request right
+        // away using the most up-to-date location.
+        if (locationHandler
+                .hasMessages(QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION)) {
+            locationHandler
+                    .removeMessages(QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION);
+        }
+        Activity activity = (Activity) context;
+        // Wait some time if the location is too old, but if a new fix doesn't arrive send the
+        // request using the location we've got.
+        if (isOldLocation(newLocation)) {
+            DialogSupport.safeShowDialog(activity, R.id.ign_loc_dialog_wait_for_fix);
+            locationHandler.sendEmptyMessageDelayed(
+                    QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION,
+                    INTERVAL_SEND_REQUEST_USING_UNRELIABLE_LOCATION);
+        } else {
+            Dialog waitForLocationDialog = context.getWaitForLocationDialog();
+            if (waitForLocationDialog != null &amp;&amp; waitForLocationDialog.isShowing()) {
+                activity.dismissDialog(R.id.ign_loc_dialog_wait_for_fix);
+            }
+            context.onLocationAvailable();
+        }
+}</code></pre>
+<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn’t matter if the location is too coarse? Well…yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I’ll explain in a bit when accuracy is taken into account.</p>
+<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don’t want our users to wait too much before they can get some results, but we’d like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn’t move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let’s jump for a second at the end of this callback:</p>
+<pre><code>    ...
+    return requestMoreLocationUpdates(newLocation);
+}
+
+private boolean requestMoreLocationUpdates(Location newLocation) {
+    double accuracy = newLocation.getAccuracy();
+    int desiredAccuracy = getDesiredAccuracy();
+
+    // Check if the new location is fresh and accurate enough.
+    return isOldLocation(newLocation) || accuracy &gt; desiredAccuracy;
+}
+
+private boolean isOldLocation(Location location) {
+    long locationTime = location.getTime();
+    long timeDiff = getDesiredTimeDifference();
+    long desiredTime = System.currentTimeMillis() - timeDiff;
+    return locationTime &lt; desiredTime;
+}</code></pre>
+<p>Let’s assume that the location isn’t either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I’d like to point out something here: in our specific use case, the app doesn’t need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you’re using searches for results in an area centered around user’s location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by “stopping” I don’t actually mean that location updates won’t be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
+<p>If the last location isn’t either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won’t be null.</p>
+<pre><code>...
+
+} else {
+    boolean diffDistanceTooBig = diffDistanceTooBig(newLocation, lastSearchedLocation);
+    if (diffDistanceTooBig) {
+        boolean hasBetterLocationMessages = locationHandler
+                .hasMessages(MSG_BETTER_LOCATION);
+        if (!hasBetterLocationMessages) {
+            // It's a better location, invite the user to refresh his location
+            locationHandler.obtainMessage(MSG_BETTER_LOCATION).sendToTarget();
+        } else {
+            locationHandler.removeMessages(MSG_BETTER_LOCATION);
+            Message msg = locationHandler.obtainMessage(MSG_BETTER_LOCATION);
+            locationHandler.sendMessageDelayed(msg,
+                    QypeNewLocationHandler.DELAY_SHOW_BETTER_LOCATION_RELOAD_TOOLTIP);
+        }
+    }
+}
+
+...</code></pre>
+<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn’t differ too much from the old one, it means that the old location wasn’t that bad and the app doesn’t need to do anything special (note: it doesn’t matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
+<p>The last piece of the puzzle is the <code>QypeNewLocationHandler</code> class, which is just a simple implementation of a Handler that takes advantage of delayed messages to show/hide the reload view.</p>
+<pre><code>@Override
+public void handleMessage(Message msg) {
+    ReloadTooltip reloadTooltip = context.getReloadTooltip();
+    switch (msg.what) {
+    case MSG_BETTER_LOCATION:
+        if (showReloadTooltip(reloadTooltip)) {
+            reloadTooltip.setText(R.string.msg_reload_results_on_new_location);
+            reloadTooltip.show(true);
+            sendEmptyMessageDelayed(MSG_HIDE_RELOAD_TOOLTIP, TIMEOUT_HIDE_RELOAD_TOOLTIP);
+            reloadTooltip.setTag(System.currentTimeMillis());
+            hasBetterLocation = false;
+        } else if (context.isLoadingData()) {
+            hasBetterLocation = true;
+        }
+        break;
+    case MSG_HIDE_RELOAD_TOOLTIP:
+        reloadTooltip.hide(true);
+        break;
+    case MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION:
+        Dialog waitForLocationDialog = context.getWaitForLocationDialog();
+        if (waitForLocationDialog != null &amp;&amp; waitForLocationDialog.isShowing()) {
+            ((Activity) context).dismissDialog(R.id.ign_loc_dialog_wait_for_fix);
+        }
+        context.onLocationAvailable();
+        break;
+    default:
+        super.handleMessage(msg);
+    }
+}</code></pre>
+<p>Nothing special here, apart from a tweak we added while we were testing the app that prevents the reload view from being shown too often and becoming annoying for the user.</p>
+      </article>
+
+      
+      </div>
+    </div>
+
+    <footer class="page-footer indigo lighten-1">
+
+  <div class="footer-copyright">
+
+    <div class="container">
+      © 2017 <a class="red-text text-accent-1" href="../../about.html">futtetennista</a>, under
+      <a class="red-text text-accent-1" href="https://creativecommons.org/licenses/by-sa/4.0/"> CC BY-SA 4.0</a>.&nbsp;
+      Site proudly generated by <a class="red-text text-accent-1" href="http://jaspervdj.be/hakyll">Hakyll</a>,&nbsp;
+      original Jekyll theme by <a class="red-text text-accent-1" href="https://github.com/mumuxme/materialize-jekyll">mumuxme</a>.
+    </div>
+
+  </div>
+
+</footer>
+
+
+    <!-- scrolltop button -->
+    <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button">
+      <i class="mdi mdi-arrow-up-bold small white-text"></i>
+    </button>
+
+    <!-- jquery -->
+    <script type="text/javascript" src="../../lib/jquery-min.js"></script>
+    <!-- materialize -->
+    <script src="../../lib/materialize/js/materialize.min.js"></script>
+    <!-- <\!-- Material ScrollTop plugin -\-> -->
+    <script src="../../lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="../../js/init.js"></script>
+    <script src="../../js/main.js"></script>
+
+  </body>
+
+</html>

@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <!-- MUST in hex format, may the same as header-color. This color is for android chrome browser. -->
+  <meta name="theme-color" content="#5c6bc0">
+
+  <!-- <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> -->
+
+  <!-- Metadata. -->
+  <!-- TODO: favicon -->
+  <!-- <link rel="shortcut icon" href="{{ '/favicon.ico' | prepend: site.baseurl | prepend: site.url }}"> -->
+  <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
+  <title>ignition v0.1 - the ignited way of doing location</title>
+  <meta name="description" content="Today as part of our Fun Friday we released version 0.1 of ignition, an Android library that should make your life as an Android developer much less painful. Wh">
+  <link rel="canonical" href="../../posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html">
+  <!-- TODO: rss feeds -->
+  <!-- <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ "/feed.xml" | prepend: site.baseurl | prepend: site.url }}" /> -->
+
+  <!-- Stylesheets. -->
+  <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link media="all" rel="stylesheet" type="text/css" href="../../lib/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="../../lib/material-scrolltop/material-scrolltop.css">
+
+  <noscript>
+  <div class="notice-warning noscript">You don't have javascript enabled. Good luck! :(</div>
+</noscript>
+
+<!--[if IE]>
+  <div class="notice-warning">Oh, you are using Internet Explorer! Good luck... :(</div>
+<![endif]-->
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+      <nav class="nav-extended indigo lighten-1">
+        <div class="nav-wrapper">
+  <span class="site-title">Futtetennismo</span>
+  <a href="#" data-activates="mobile-navbar" class="button-collapse">
+    <i class="mdi mdi-menu white-text"></i>
+  </a>
+
+  <ul id="nav-mobile" class="right hide-on-med-and-down">
+    <li>
+      <a href="../../" class="white-text">
+        <i class="mdi mdi-home left indigo-text text-lighten-3"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="white-text">
+        <i class="mdi mdi-account-circle left indigo-text text-lighten-3"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="white-text">
+        <i class="mdi mdi-rss left indigo-text text-lighten-3"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+
+  <ul class="side-nav" id="mobile-navbar">
+    <li>
+      <a href="../../" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-home left green-text"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-account-circle left blue-text"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-rss left red-text"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+</div>
+
+      </nav>
+    </header>
+
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
+        <div class="post-ribbon"></div>
+
+<div class="container post-container">
+  <div class="post-page card-panel z-depth-2">
+    <div class="post-section">
+
+      <p class="grey-text">
+        <i class="mdi mdi-calendar"></i>&nbsp;
+        Posted on March  9, 2012
+        
+        &nbsp;
+        
+          <i class="mdi mdi-folder"></i>&nbsp;
+          <span class="capitalize"><a href="../../categories/android.html">android</a></span>
+          <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        
+      </p>
+
+      <div class="post-header">
+        <h1 class="post-title">ignition v0.1 - the ignited way of doing location</h1>
+
+        
+          <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+          <div class="chip"><a href="../../tags/android.html">android</a>, <a href="../../tags/ignition.html">ignition</a>, <a href="../../tags/location.html">location</a>, <a href="../../tags/legacy.html">legacy</a></div>
+        
+      </div>
+
+      <article class="post-content">
+        <p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I’d like to write about here is the module I focused on, that is the ignition-location module. Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 - Cupcake - API level 3. It wasn’t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools. <!--more--> It’s a bit weird that on Android I always worked on location-aware applications, and sadly if you have to deal with location your life is not that simple. I was literally thrilled when I watched <a href="http://www.google.com/events/io/2011/sessions/android-protips-advanced-topics-for-expert-android-app-developers.html">Reto Meier’s talk on the last Google I/O</a>, read his blog posts - on the <a href="http://android-developers.blogspot.com/2011/06/deep-dive-into-location.html">Android Developers Blog</a>, and on his personal blog (<a href="http://blog.radioactiveyak.com/2011/06/how-to-build-location-based-apps-that.html">1</a>, <a href="http://blog.radioactiveyak.com/2011/06/deep-dive-into-location-part-2-being.html">2</a>), and had a look at his <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project - because he showcased some really cool techniques and gave solutions to a lot of issues that I personally experienced. One issue about the sample project is that it’s not intented to be used as an Android library, so there is no easy way to integrate and all that code, and it’s a lot of code (but fair enough, that project wasn’t intented to be an Android library). So I started to think how that code could be reused.</p>
+<p>At that time I was working on integrating Analytics in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype application</a>(<a href="http://prezi.com/swcxu2ynsio-/implementing-analytics-with-aspectj/">here</a>’s a prezi of a barcamp session I did during the last DroidCon in London) using <a href="http://en.wikipedia.org/wiki/AspectJ">AspectJ</a>, and I really liked its unintrusiveness. That’s when I thought: it would be awesome if I wouldn’t had to be worried about enabling/disabling location updates, battery consumption and other details while I’m developing a location-aware application, I just want to know the most recent known location and I don’t care about all those things! In other words, the logic that handles location should be a separate concern with respect to the logic of the application (i.e.: getting the best places nearby, the nearby checked-in friends etc.).</p>
+<p>After spending several months adapting the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project and adding a couple of features so that it could be used as an Android library, here is the final result:</p>
+<pre><code>@IgnitedLocationActivity
+public class IgnitedLocationSampleActivity extends MapActivity {
+    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON'T WORK!
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        ...
+    }
+
+    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON'T WORK!
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON'T WORK!
+    @Override
+    public void onPause() {
+        super.onPause();
+    }
+
+    @Override
+    public boolean onIgnitedLocationChanged(Location newLocation) {
+        ...
+        return true;
+    }
+    ...</code></pre>
+<p>}</p>
+<p>Et voilà ! That’s all the code you have to write in your location-aware Activity! Under the hood the ignition-location library will:</p>
+<ul>
+<li>enable/disable location updates</li>
+<li>enable/disable passive location updates</li>
+<li>return the most recent location to your application (using the <code>onIgnitedLocationChanged()</code> callback or a Location <u>field</u> with the <code>@IgnitedLocation</code> annotation)</li>
+<li>avoid using GPS if the battery level is too low</li>
+<li>automatically switch off GPS and request network updates if a location fix is not returned after a certain interval without the need for you to do anything else apart from adding the <code>@IgnitedLocation</code>Activity annotation to your Activity and make sure you override <code>onCreate()</code>, <code>onResume()</code> and <code>onPause()</code>. Many configuration parameters can be passed to the <code>@IgnitedLocation</code> Activity annotation to have fully customized settings.</li>
+</ul>
+<p>If Eclipse is your IDE, additionally to your Android setup you must:</p>
+<ol style="list-style-type: decimal">
+<li>download and install the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331303317995&amp;ved=0CCUQFjAA&amp;url=http%3A%2F%2Fwww.eclipse.org%2Fajdt%2F&amp;ei=lBNaT6D6BofhtQb2wvH6Cw&amp;usg=AFQjCNFDAcExHcXf900Zhjp4pcFF0VexHg">ajdt</a></li>
+<li>add ignition-location as a library project (have a look <a href="http://developer.android.com/guide/developing/projects/projects-eclipse.html#ReferencingLibraryProject">here</a> for instructions)</li>
+<li>add ignition-location to the aspect path (have a look at the image below)</li>
+</ol>
+<p>If you are using Maven as your build manager you have to:</p>
+<ol style="list-style-type: decimal">
+<li><p>add ignition-location as a dependency</p>
+<p><dependency> <groupId>com.github.ignition</groupId> <artifactId>ignition-location</artifactId> <version>0.1</version> <type>apklib</type> <exclusions> <exclusion> <groupId>com.google.guava</groupId> <artifactId>guava-collections</artifactId> </exclusion> </exclusions> </dependency></p></li>
+<li><p>add the aspectj-maven-plugin to your POM file, adding the ignition-location library to the aspect path</p>
+<p><plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>aspectj-maven-plugin</artifactId> <configuration> <aspectLibraries> <aspectLibrary> <groupId>com.github.ignition</groupId> <artifactId>ignition-location</artifactId> <type>apklib</type> </aspectLibrary> </aspectLibraries> <source>1.6</source> </configuration> <executions> <execution> <!-- phase need to be before compile, or the build will fail. More info here: http://stackoverflow.com/questions/2610633/maven-compile-aspectj-project-containing-java-1-6-source --> <phase>process-sources</phase> <goals> <goal>compile</goal> </goals> </execution> </executions> </plugin></p></li>
+</ol>
+<p>One last good thing about it is that it’s open source and on <a href="https://github.com/mttkay/ignition">github</a>! So fork it and help us make it better.</p>
+<p>NOTE:</p>
+<p>If you are wondering if the ignition-location magic will slow your application down, the simple answer is: no. Reflection is not used, AspectJ’s <a href="http://stackoverflow.com/questions/7646097/what-is-aspectj-context-binding">Context binding</a> is used instead. That means that all the magic is happening at compile time. Isn’t that cool?</p>
+      </article>
+
+      
+      </div>
+    </div>
+
+    <footer class="page-footer indigo lighten-1">
+
+  <div class="footer-copyright">
+
+    <div class="container">
+      © 2017 <a class="red-text text-accent-1" href="../../about.html">futtetennista</a>, under
+      <a class="red-text text-accent-1" href="https://creativecommons.org/licenses/by-sa/4.0/"> CC BY-SA 4.0</a>.&nbsp;
+      Site proudly generated by <a class="red-text text-accent-1" href="http://jaspervdj.be/hakyll">Hakyll</a>,&nbsp;
+      original Jekyll theme by <a class="red-text text-accent-1" href="https://github.com/mumuxme/materialize-jekyll">mumuxme</a>.
+    </div>
+
+  </div>
+
+</footer>
+
+
+    <!-- scrolltop button -->
+    <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button">
+      <i class="mdi mdi-arrow-up-bold small white-text"></i>
+    </button>
+
+    <!-- jquery -->
+    <script type="text/javascript" src="../../lib/jquery-min.js"></script>
+    <!-- materialize -->
+    <script src="../../lib/materialize/js/materialize.min.js"></script>
+    <!-- <\!-- Material ScrollTop plugin -\-> -->
+    <script src="../../lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="../../js/init.js"></script>
+    <script src="../../js/main.js"></script>
+
+  </body>
+
+</html>
