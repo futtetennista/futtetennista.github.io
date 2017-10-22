@@ -32,4 +32,4 @@ jobs:
             git add --all
             git commit -m "[`date '+%F %T %Z'`] New release"
             # Push
-            git push origin master:master --force-with-lease
+            git push origin master:master
