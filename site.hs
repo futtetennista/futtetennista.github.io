@@ -19,6 +19,7 @@ main = hakyllWith hakyllConfig $ do
   match (fromList [ "pages/about.markdown"
                   , "pages/contact.markdown"
                   , "pages/imprint.markdown"
+                  , "pages/LICENSE.markdown"
                   ]) $ do
     route $
       customRoute (maybe (error "Expected pages to be in 'pages' folder")
