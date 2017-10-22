@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <!-- MUST in hex format, may the same as header-color. This color is for android chrome browser. -->
+  <meta name="theme-color" content="#5c6bc0">
+
+  <!-- <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" /> -->
+
+  <!-- Metadata. -->
+  <!-- TODO: favicon -->
+  <!-- <link rel="shortcut icon" href="{{ '/favicon.ico' | prepend: site.baseurl | prepend: site.url }}"> -->
+  <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
+  <title>Deploying a Hakyll website using Github Pages and CircleCI 2.0</title>
+  <meta name="description" content="One of the last things left to figure out when I was about to lauch this website was finding a workflow to nicely deploy it. I was using Jekyll + Github Pages f">
+  <link rel="canonical" href="../../posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html">
+  <!-- TODO: rss feeds -->
+  <!-- <link rel="alternate" type="application/rss+xml" title="{{ site.title }}" href="{{ "/feed.xml" | prepend: site.baseurl | prepend: site.url }}" /> -->
+
+  <!-- Stylesheets. -->
+  <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link media="all" rel="stylesheet" type="text/css" href="../../lib/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="../../lib/material-scrolltop/material-scrolltop.css">
+
+  <noscript>
+  <div class="notice-warning noscript">You don't have javascript enabled. Good luck! :(</div>
+</noscript>
+
+<!--[if IE]>
+  <div class="notice-warning">Oh, you are using Internet Explorer! Good luck... :(</div>
+<![endif]-->
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+      <nav class="nav-extended indigo lighten-1">
+        <div class="nav-wrapper">
+  <span class="site-title">Futtetennismo</span>
+  <a href="#" data-activates="mobile-navbar" class="button-collapse">
+    <i class="mdi mdi-menu white-text"></i>
+  </a>
+
+  <ul id="nav-mobile" class="right hide-on-med-and-down">
+    <li>
+      <a href="../../" class="white-text">
+        <i class="mdi mdi-home left indigo-text text-lighten-3"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="white-text">
+        <i class="mdi mdi-account-circle left indigo-text text-lighten-3"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="white-text">
+        <i class="mdi mdi-rss left indigo-text text-lighten-3"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+
+  <ul class="side-nav" id="mobile-navbar">
+    <li>
+      <a href="../../" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-home left green-text"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-account-circle left blue-text"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-settings left blue-text"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-rss left red-text"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+</div>
+
+      </nav>
+    </header>
+
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
+        <div class="post-ribbon"></div>
+
+<div class="container post-container">
+  <div class="post-page card-panel z-depth-2">
+    <div class="post-section">
+
+      <p class="grey-text">
+        <i class="mdi mdi-calendar"></i>&nbsp;
+        Posted on October 22, 2017
+        
+        &nbsp;
+        
+          <i class="mdi mdi-folder"></i>&nbsp;
+          <span class="capitalize"><a href="../../categories/hakyll.html">hakyll</a></span>
+          <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        
+      </p>
+
+      <div class="post-header">
+        <h1 class="post-title">Deploying a Hakyll website using Github Pages and CircleCI 2.0</h1>
+
+        
+          <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+          <div class="chip"><a href="../../tags/hakyll.html">hakyll</a>, <a href="../../tags/docker.html">docker</a>, <a href="../../tags/circleci.html">circleci</a></div>
+        
+      </div>
+
+      <article class="post-content">
+        <p>One of the last things left to figure out when I was about to lauch this website was finding a workflow to nicely deploy it. I was using Jekyll + Github Pages for my old website and it was working well enough for me so I didn’t want to radically change the way I was doing things. On the other hand I didn’t update my old website in a while and I am new to Hakyll so I had to figure out if I could keep a similar workflow. I ended up spending a few hours figuring out a solution I was happy with and the following is a description of my present workflow and how I got to it. <!--more--> On the Hakyll website there are a <a href="https://www.stackbuilders.com/news/dr-hakyll-create-a-github-page-with-hakyll-and-circleci">few</a> <a href="http://kyle.marek-spartz.org/posts/2013-12-09-widely-and-hakyll.html">blog</a> <a href="https://jaspervdj.be/hakyll/tutorials/github-pages-tutorial.html">posts</a> on the topic. I initially blindly followed the <a href="http://kyle.marek-spartz.org/posts/2013-12-09-widely-and-hakyll.html">one</a> using <a href="https://circleci.com/">CircleCI</a> but I wished there was a simpler solution not involving git submodules; on the other hand the <a href="https://jaspervdj.be/hakyll/tutorials/github-pages-tutorial.html">other</a> was simple but focused developing on a local machine. I wished I could find a solution that combined both and I ended up finding it thanks to the fact that CircleCI rolled out their <a href="https://circleci.com/docs/2.0/">2.0 release</a>.</p>
+<h3 id="setting-up-circleci-2.0">Setting up CircleCI 2.0</h3>
+<p>Configuration files in CircleCI 2.0 are quite different from 1.0 so I couldn’t reuse much of the code in this <a href="https://www.stackbuilders.com/news/dr-hakyll-create-a-github-page-with-hakyll-and-circleci">post</a> but I found the docs quite good and the whole configuration options quite intuitive. CircleCI 2.0 adds great support for Docker, so I ended up creating a custom <a href="https://hub.docker.com/r/futtetennista/hakyll/">docker image</a> for my website after trying the <a href="https://hub.docker.com/_/haskell/">official Haskell image</a> and stumbling upon two main issues:</p>
+<ol style="list-style-type: decimal">
+<li><code>ssh</code> isn’t installed by default: this is a problem when checking out or pushing to a remote git repository (checkout actually works somehow thanks to some tricks CircleCI does but it logs a warning in its console)</li>
+<li><code>make</code> isn’t installed by default: my website uses <a href="https://github.com/meoblast001/hakyll-sass/">hakyll-sass</a> that has a C++ dependency - <code>libsass</code> - that needs to be built</li>
+</ol>
+<p>After that the project was building but it was compiling all dependecies. Building a site from scratch takes quite a bit - ~20 minutes on my local machine and ~12 minutes in CircleCI - so it’s critical to use CircleCI’s <a href="https://circleci.com/docs/2.0/caching/">caching</a> to speed things up. The <code>save_cache</code> and <code>restore_cache</code> configuration objects are the ones to configure in order to speed up the build, this is how the caching section looks for my project:</p>
+<div class="sourceCode"><pre class="sourceCode yaml"><code class="sourceCode yaml">  <span class="kw">-</span> <span class="fu">restore_cache:</span>
+      <span class="fu">key:</span><span class="at"> v1-stack-{{ checksum &quot;futtetennismo.cabal&quot; }}</span>
+  ...
+  <span class="kw">-</span> <span class="fu">save_cache:</span>
+      <span class="fu">paths:</span>
+        <span class="kw">-</span> ~/futtetennismo/.stack-work
+        <span class="kw">-</span> /root/.stack/
+      <span class="fu">key:</span><span class="at"> v1-stack-work-{{ checksum &quot;futtetennismo.cabal&quot; }}</span></code></pre></div>
+<p>It’s very simple: just let CircleCI know that it should cache and how the cache should be named in order to be retrieved at a later time.</p>
+<h5 id="tldr">TL;DR</h5>
+<p>Here’s something to keep in mind when caching in CircleCI 2.0</p>
+<blockquote>
+<p>The cache for a specific key is immutable and cannot be changed once written.</p>
+</blockquote>
+<p>In early experiments the <code>save_cache</code> object in my <code>config.yml</code> looked like this</p>
+<div class="sourceCode"><pre class="sourceCode yaml"><code class="sourceCode yaml">  <span class="kw">-</span> <span class="fu">save_cache:</span>
+      <span class="fu">paths:</span>
+        <span class="kw">-</span> ~/futtetennismo/.stack-work
+      <span class="fu">key:</span><span class="at"> stack-work-{{ checksum &quot;futtetennismo.cabal&quot; }}</span></code></pre></div>
+<p>but every new build was again taking a long time because the cache was mostly useless. Then I added <code>root/.stack</code> to the <code>paths</code> but still nothing, the cache was just a few under KB. At that point I noticed this tip in the docs:</p>
+<blockquote>
+<p>Tip: Given the immutability of caches, it might be helpful to start all your cache keys with a version prefix v1-… . That way you will be able to regenerate all your caches just by incrementing the version in this prefix.</p>
+</blockquote>
+<p>That meant that <code>save_cache</code> never overwrites an existing cache! I ended up building a new cache following that tip.</p>
+<h5 id="ssh-keys">SSH keys</h5>
+<p>The missing piece in the puzzle is now setting up ssh key in CircleCI to be able to checkout the project and push new versions of the website. I ended up creating a read-write deployment key for pushing to github and a checkout key for fetching from github. The latter is just a matter of a few clicks, the former involves some manual work but the docs by the Github folks are easy to follow.</p>
+<h6 id="bonus-goodness">Bonus goodness</h6>
+<p>One feature that CircleCI provides (and which proved to be extremely handy when debugging some issues setting up ssh keys) is the ability to connect to a running container via ssh. Bravo to the CircleCI folks!</p>
+<h3 id="workflow">Workflow</h3>
+<p>The workflow I ended up adopting is a mix of <a href="http://kyle.marek-spartz.org/posts/2013-12-09-widely-and-hakyll.html">this</a> <a href="https://jaspervdj.be/hakyll/tutorials/github-pages-tutorial.html">two</a> tutorials. The <code>master</code> branch - which is the one deployed by Github Pages in case of a user page - contains all the static assets of the website like images, html, css etc. Another branch - that I named <code>source</code> - contains all source code and each time a new commit is pushed to that branch CircleCI will build a version of my website and will eventually push it to Github (if the build succeeds). For convenience, I also configured my build in such a way that CircleCI builds <em>only</em> that branch. Here’s a snippet of the <code>deploy</code> object in the <code>config.yml</code>:</p>
+<div class="sourceCode"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span class="fu">version:</span><span class="at"> 2</span>
+<span class="fu">jobs:</span>
+  <span class="fu">build:</span>
+    <span class="fu">working_directory:</span><span class="at"> ~/futtetennismo</span>
+  <span class="fu">branches:</span>
+    <span class="fu">only:</span>
+      <span class="kw">-</span> source
+  ...
+  <span class="kw">-</span> <span class="fu">deploy:</span>
+      <span class="fu">name:</span><span class="at"> Deploy master to Github Pages</span>
+      <span class="fu">command:</span><span class="at"> |</span>
+        git config --global user.email robots@circleci.com
+        git config --global user.name CircleCI
+        stack exec site rebuild
+        git checkout master
+        git pull --rebase
+        <span class="co"># Overwrite existing files with new files</span>
+        cp -a _site/. .
+        <span class="co">#  Commit</span>
+        git add --all
+        git commit -m <span class="st">&quot;[`date '+%F %T %Z'`] New release&quot;</span>
+        <span class="co"># Push</span>
+        <span class="fu">git push origin master:</span><span class="at">master</span></code></pre></div>
+<h3 id="wrapping-up">Wrapping up</h3>
+<p>I described a workflow to be able to deploy websites built with Hakyll in a fully automated fashion using Github Pages and CircleCI 2.0 and I pointed out some of the gotchas I learned in the process. The code is open source and can be found on <a href="https://github.com/futtetennista/futtetennista.github.com">Github</a>.</p>
+      </article>
+
+      
+      </div>
+    </div>
+
+    <footer class="page-footer indigo lighten-1">
+
+  <div class="footer-copyright">
+
+    <div class="container">
+      © 2012-2017 <a class="red-text text-accent-1" href="../../about.html">futtetennista</a>, under
+      <a class="red-text text-accent-1" href="https://creativecommons.org/licenses/by-sa/4.0/"> CC BY-SA 4.0</a>.&nbsp;
+      Site proudly generated by <a class="red-text text-accent-1" href="http://jaspervdj.be/hakyll">Hakyll</a>,&nbsp;
+      original Jekyll theme by <a class="red-text text-accent-1" href="https://github.com/mumuxme/materialize-jekyll">mumuxme</a>.
+    </div>
+
+  </div>
+
+</footer>
+
+
+    <!-- scrolltop button -->
+    <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button">
+      <i class="mdi mdi-arrow-up-bold small white-text"></i>
+    </button>
+
+    <!-- jquery -->
+    <script type="text/javascript" src="../../lib/jquery-min.js"></script>
+    <!-- materialize -->
+    <script src="../../lib/materialize/js/materialize.min.js"></script>
+    <!-- <\!-- Material ScrollTop plugin -\-> -->
+    <script src="../../lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="../../js/init.js"></script>
+    <script src="../../js/main.js"></script>
+
+  </body>
+
+</html>
