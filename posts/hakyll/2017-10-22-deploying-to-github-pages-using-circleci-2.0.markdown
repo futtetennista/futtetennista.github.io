@@ -57,7 +57,10 @@ for my project:
 ```
 
 It's very simple: just let CircleCI know that it should cache and how the cache
-should be named in order to be retrieved at a later time.
+should be named in order to be retrieved at a later time. The improvements on build
+time are dramatic: from ~20 minutes in case of build with no cache to ~2 minutes in
+the worst case (when a new cache archive needs to be created and uploaded) to ~30
+seconds in the average case!
 
 ##### TL;DR
 Here's something to keep in mind when caching in CircleCI 2.0
