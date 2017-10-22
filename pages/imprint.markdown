@@ -2,12 +2,17 @@
 title: Imprint
 ---
 
-What does "futtetennismo" mean?! A couple of years ago I was reading Bud Spencer's
-[Mangio Ergo Sum]() where he among other things describes the philosophy he lived by
-for his entire life. That can be summarised into one simple word: "futtetìnne".
-The word comes from Napoli's dialect and can be loosely translated as "let it be".
-The concept is quite simple: focus on the things that really matter in your life
-and don't waste time or energy or money with all the other unimportant things.
+What does "futtetennismo" mean?! Some time ago I was reading a book written by
+Bud Spencer titled [Mangio Ergo Sum](http://www.edizioninpe.it/product/mangio-ergo-sum/)
+where among other things he describes the philosophy and principles he followed
+for his entire life. That can be summarised into one simple word:
+["futtetenne"](https://youtu.be/3t-gF8UzOHs).
+The word is Napoli's dialect and can be loosely translated as "not giving a damn".
+It might seem quite shallow and silly at the beginning but he goes on explaining
+what that means and it turns out to be quite the contrary. The gist of it - as I
+understood it - is:  focus on the things that *really* matter in life and don't
+waste resources - be it time, energy, money etc. - with all the other unimportant
+things.
 
 Taking that motto as an inspiration, "futtetennismo" is my try to talk about things
 that I really enjoy in my life, be it tech, learning, music, books or anything
