@@ -197,6 +197,13 @@
         git commit -m <span class="st">&quot;[`date '+%F %T %Z'`] New release&quot;</span>
         <span class="co"># Push</span>
         <span class="fu">git push origin master:</span><span class="at">master</span></code></pre></div>
+<p>As a last little bonus, I wrote a simple <code>pre-push</code> hook to open my browser and follow the deployment:</p>
+<pre><code>#!/usr/bin/env sh
+
+if [ $(git rev-parse --abbrev-ref HEAD) == 'source' ]
+then
+    open &quot;https://circleci.com/gh/futtetennista/futtetennista.github.com&quot;
+fi</code></pre>
 <h3 id="wrapping-up">Wrapping up</h3>
 <p>I described a workflow to be able to deploy websites built with Hakyll in a fully automated fashion using Github Pages and CircleCI 2.0 and I pointed out some of the gotchas I learned in the process. The code is open source and can be found on <a href="https://github.com/futtetennista/futtetennista.github.com">Github</a>.</p>
       </article>
