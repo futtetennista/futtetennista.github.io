@@ -45,7 +45,7 @@ The `save_cache` and `restore_cache` configuration objects are the ones to
 configure in order to speed up the build, this is how the caching section looks
 for my project:
 
-``` yaml
+```yaml
   - restore_cache:
       key: v1-stack-{{ checksum "futtetennismo.cabal" }}
   ...
@@ -66,7 +66,7 @@ Here's something to keep in mind when caching in CircleCI 2.0
 
 In early experiments the `save_cache` object in my `config.yml` looked like this
 
-``` yaml
+```yaml
   - save_cache:
       paths:
         - ~/futtetennismo/.stack-work
@@ -92,9 +92,9 @@ from github. The latter is just a matter of a few clicks, the former involves
 some manual work but the docs by the Github folks are easy to follow.
 
 ###### Bonus goodness
-One feature that CircleCI provides and that I really enjoyed is the ability to
-connect to a running container via ssh which proved to be extremely handy to
-debug some issues I had setting up ssh keys.
+One feature that CircleCI provides (and which proved to be extremely handy when
+debugging some issues setting up ssh keys) is the ability to connect to a
+running container via ssh. Bravo to the CircleCI folks!
 
 ### Workflow
 The workflow I ended up adopting is a mix of [this](http://kyle.marek-spartz.org/posts/2013-12-09-widely-and-hakyll.html)
@@ -137,4 +137,4 @@ jobs:
 I described a workflow to be able to deploy websites built with Hakyll in a
 fully automated fashion using Github Pages and CircleCI 2.0 and I pointed out
 some of the gotchas I learned in the process. The code is open source and can
-be found on [Github]((https://github.com/futtetennista/futtetennista.github.com).
+be found on [Github](https://github.com/futtetennista/futtetennista.github.com).
