@@ -136,6 +136,18 @@ jobs:
         git push origin master:master
 ```
 
+As a last little bonus, I wrote a simple `pre-push` hook to open my browser
+and follow the deployment:
+
+```
+#!/usr/bin/env sh
+
+if [ $(git rev-parse --abbrev-ref HEAD) == 'source' ]
+then
+    open "https://circleci.com/gh/futtetennista/futtetennista.github.com"
+fi
+```
+
 ### Wrapping up
 I described a workflow to be able to deploy websites built with Hakyll in a
 fully automated fashion using Github Pages and CircleCI 2.0 and I pointed out
