@@ -24,7 +24,7 @@ jobs:
       - deploy:
           name: Deploy master to Github Pages
           command: |
-            git config --global user.email circleci@circleci
+            git config --global user.email robots@circleci.com
             git config --global user.name CircleCI
             stack exec site rebuild
             # git checkout master
