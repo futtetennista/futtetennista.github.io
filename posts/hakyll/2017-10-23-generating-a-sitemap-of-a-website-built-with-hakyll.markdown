@@ -1,5 +1,6 @@
 ---
-title: Hakyll and web crawlers
+title: Generating a sitemap of a website built with Hakyll
+author: futtetennista
 tags: hakyll, seo, titbit
 ---
 Adding `sitemap.xml` and `robots.txt` to a website built with Hakyll is not
