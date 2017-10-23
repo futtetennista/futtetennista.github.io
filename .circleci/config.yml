@@ -11,7 +11,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-stack-{{ checksum "futtetennismo.cabal" }}
+            - v1-stack-work-{{ checksum "futtetennismo.cabal" }}
             - stack-work-
       - run:
           name: Build site executable
