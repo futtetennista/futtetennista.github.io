@@ -47,7 +47,6 @@ main = hakyllWith hakyllConfig $ do
       >>= loadAndApplyTemplate "templates/default.html" (ctxWithTags postCtx namedTags)
       >>= relativizeUrls
 
-
   match "pages/index.html" $ do
     route (constRoute "index.html")
     compile $ do
@@ -75,6 +74,7 @@ main = hakyllWith hakyllConfig $ do
       posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/**" "content"
       renderAtom atomFeedConfiguration feedCtx posts
 
+  -- SEO-related stuff
   create ["sitemap.xml"] $ do
     route idRoute
     compile $ do
@@ -90,6 +90,10 @@ main = hakyllWith hakyllConfig $ do
       makeItem ""
             >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
             >>= relativizeUrls
+
+  match (fromList ["robots.txt", "CNAME"]) $ do
+    route idRoute
+    compile $ getResourceBody >>= relativizeUrls
 
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
