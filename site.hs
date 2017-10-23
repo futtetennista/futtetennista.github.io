@@ -55,7 +55,6 @@ main = hakyllWith hakyllConfig $ do
           listField "posts" postCtx (return posts)
           <> constField "title" "Home"
           <> defaultContext
-
       getResourceBody
         >>= applyAsTemplate indexCtx
         >>= loadAndApplyTemplate "templates/default.html" indexCtx
@@ -80,15 +79,15 @@ main = hakyllWith hakyllConfig $ do
       posts <- recentFirst =<< loadAll "posts/**"
       pages <- loadAll "pages/*"
       let
-        allPosts =
-          siteMapPages pages ++ posts
+        crawlPages =
+          sitemapPages pages ++ posts
         sitemapCtx =
-          mconcat [ listField "entries" defaultContext (return allPosts)
+          mconcat [ listField "entries" defaultContext (return crawlPages)
                   , defaultContext
                   ]
       makeItem ""
-            >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
-            >>= relativizeUrls
+        >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
+        >>= relativizeUrls
 
   match (fromList ["robots.txt", "CNAME"]) $ do
     route idRoute
@@ -155,5 +154,6 @@ hakyllConfig =
   defaultConfiguration{ previewHost = "0.0.0.0" }
 
 
-siteMapPages =
+sitemapPages :: [Item String] -> [Item String]
+sitemapPages =
   filter ((/="pages/LICENSE.markdown") . toFilePath . itemIdentifier)
