@@ -41,7 +41,7 @@ After that the project was building but it was compiling all dependecies.
 Building a site from scratch takes quite a bit - ~20 minutes on my local machine
 and ~12 minutes in CircleCI - so it's critical to use CircleCI's
 [caching](https://circleci.com/docs/2.0/caching/) to speed things up.
-The `save_cache` and `restore_cache` configuration objects are the ones to
+The `save_cache` and `restore_cache` job-level keys are the ones to
 configure in order to speed up the build, this is how the caching section looks
 for my project:
 
@@ -67,7 +67,7 @@ Here's something to keep in mind when caching in CircleCI 2.0
 
 > The cache for a specific key is immutable and cannot be changed once written.
 
-In early experiments the `save_cache` object in my `config.yml` looked like this
+In early experiments the `save_cache` job-level key in my `config.yml` looked like this
 
 ```yaml
   - save_cache:
@@ -108,7 +108,7 @@ Another branch - that I named `source` - contains all source code and each time 
 new commit is pushed to that branch CircleCI will build a version of my website
 and will eventually push it to Github (if the build succeeds). For convenience,
 I also configured my build in such a way that CircleCI builds *only* that
-branch. Here's a snippet of the `deploy` object in the `config.yml`:
+branch. Here's a snippet of the `deploy` job-level key in the `config.yml`:
 
 ```yaml
 version: 2
