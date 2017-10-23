@@ -26,7 +26,7 @@
     </url>
 
     <url>
-        <loc>https://futtetennismo.me/posts/hakyll/2017-10-23-hakyll-and-web-crawlers.html</loc>
+        <loc>https://futtetennismo.me/posts/hakyll/2017-10-23-generating-a-sitemap-of-a-website-built-with-hakyll.html</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
     </url>
