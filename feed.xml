@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
     <title>Futtetennismo</title>
-    <link href="https://futtetennismo.io/feed.xml" rel="self" />
-    <link href="https://futtetennismo.io" />
-    <id>https://futtetennismo.io/feed.xml</id>
+    <link href="https://futtetennismo.me/feed.xml" rel="self" />
+    <link href="https://futtetennismo.me" />
+    <id>https://futtetennismo.me/feed.xml</id>
     <author>
         <name>futtetennista</name>
         <email>futtetennista@gmail.com</email>
@@ -11,8 +11,8 @@
     <updated>2017-10-22T00:00:00Z</updated>
     <entry>
     <title>Deploying a Hakyll website using Github Pages and CircleCI 2.0</title>
-    <link href="https://futtetennismo.io/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html" />
-    <id>https://futtetennismo.io/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html</id>
+    <link href="https://futtetennismo.me/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html" />
+    <id>https://futtetennismo.me/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html</id>
     <published>2017-10-22T00:00:00Z</published>
     <updated>2017-10-22T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>One of the last things left to figure out when I was about to lauch this website was finding a workflow to nicely deploy it. I was using Jekyll + Github Pages for my old website and it was working well enough for me so I didn’t want to radically change the way I was doing things. On the other hand I didn’t update my old website in a while and I am new to Hakyll so I had to figure out if I could keep a similar workflow. I ended up spending a few hours figuring out a solution I was happy with and the following is a description of my present workflow and how I got to it. <!--more--> On the Hakyll website there are a <a href="https://www.stackbuilders.com/news/dr-hakyll-create-a-github-page-with-hakyll-and-circleci">few</a> <a href="http://kyle.marek-spartz.org/posts/2013-12-09-widely-and-hakyll.html">blog</a> <a href="https://jaspervdj.be/hakyll/tutorials/github-pages-tutorial.html">posts</a> on the topic. I initially blindly followed the <a href="http://kyle.marek-spartz.org/posts/2013-12-09-widely-and-hakyll.html">one</a> using <a href="https://circleci.com/">CircleCI</a> but I wished there was a simpler solution not involving git submodules; on the other hand the <a href="https://jaspervdj.be/hakyll/tutorials/github-pages-tutorial.html">other</a> was simple but focused developing on a local machine. I wished I could find a solution that combined both and I ended up finding it thanks to the fact that CircleCI rolled out their <a href="https://circleci.com/docs/2.0/">2.0 release</a>.</p>
@@ -88,8 +88,8 @@ fi</code></pre>
 </entry>
 <entry>
     <title>Migrating from lazy IO to Conduit</title>
-    <link href="https://futtetennismo.io/posts/haskell/2017-10-21-lazy-io-to-conduit.html" />
-    <id>https://futtetennismo.io/posts/haskell/2017-10-21-lazy-io-to-conduit.html</id>
+    <link href="https://futtetennismo.me/posts/haskell/2017-10-21-lazy-io-to-conduit.html" />
+    <id>https://futtetennismo.me/posts/haskell/2017-10-21-lazy-io-to-conduit.html</id>
     <published>2017-10-21T00:00:00Z</published>
     <updated>2017-10-21T00:00:00Z</updated>
     <summary type="html"><![CDATA[
@@ -230,8 +230,8 @@ fi</code></pre>
 </entry>
 <entry>
     <title>Being lazy with consciousness</title>
-    <link href="https://futtetennismo.io/posts/haskell/2017-10-14-strictness.html" />
-    <id>https://futtetennismo.io/posts/haskell/2017-10-14-strictness.html</id>
+    <link href="https://futtetennismo.me/posts/haskell/2017-10-14-strictness.html" />
+    <id>https://futtetennismo.me/posts/haskell/2017-10-14-strictness.html</id>
     <published>2017-10-14T00:00:00Z</published>
     <updated>2017-10-14T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Lazy evaluation sometimes makes it trickier to really understand how a piece of code for folks used to languages with strict semantics (as I am). Sometimes introducing strictness is necessary to avoid space leaks and to make memory allocations more predictable in certain parts of our code. The usual suggestion is to “carefully sprinkle strict evaluation” in our code; one of the classic examples of memory leak is using <code>foldl</code> to sum a list of ints, with the result that instead of returning a result using constant space, it ends up taking an outrageous amount of memory before returning a result because thunks pile up (this behaviour is known as space leak). Most of the times I personally find it tricky to add strictness to a piece of Haskell code, so I’d like to share my latest experience doing that.</p>
@@ -387,8 +387,8 @@ ebf&#39;&#39; = Right
 </entry>
 <entry>
     <title>Wait for it…a deep dive in Espresso's idling resources</title>
-    <link href="https://futtetennismo.io/posts/android/2014-04-05-wait-for-it.html" />
-    <id>https://futtetennismo.io/posts/android/2014-04-05-wait-for-it.html</id>
+    <link href="https://futtetennismo.me/posts/android/2014-04-05-wait-for-it.html" />
+    <id>https://futtetennismo.me/posts/android/2014-04-05-wait-for-it.html</id>
     <published>2014-04-05T00:00:00Z</published>
     <updated>2014-04-05T00:00:00Z</updated>
     <summary type="html"><![CDATA[<h5 id="update-a-new-better-version-of-this-post-is-available-on-the-jimdo-dev-blog.">Update: A new (better) version of this post is available on the <a href="http://dev.jimdo.com/2014/05/09/wait-for-it-a-deep-dive-into-espresso-s-idling-resources/">Jimdo Dev Blog</a>.</h5>
@@ -430,8 +430,8 @@ ebf&#39;&#39; = Right
 </entry>
 <entry>
     <title>WebView Explorations</title>
-    <link href="https://futtetennismo.io/posts/android/2014-02-23-webview-explorations.html" />
-    <id>https://futtetennismo.io/posts/android/2014-02-23-webview-explorations.html</id>
+    <link href="https://futtetennismo.me/posts/android/2014-02-23-webview-explorations.html" />
+    <id>https://futtetennismo.me/posts/android/2014-02-23-webview-explorations.html</id>
     <published>2014-02-23T00:00:00Z</published>
     <updated>2014-02-23T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>In the last few weeks I’ve been playing around with <code>WebView</code>s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don’t know what I’m talking about - after all, the API has mostly remained untouched apart some nice additions, more about this in a bit - a couple of useful links by the Google folks are <a href="https://developers.google.com/chrome/mobile/docs/webview/overview">this</a> and <a href="http://developer.android.com/guide/webapps/migrating.html">this</a>. <!--more--> <strong>Disclaimer</strong>: with this post I don’t intend to describe all the differences in the API, I just want to highlight some of the problems/solutions I experienced/found by developing an application that uses the <code>WebView</code> API extensively.</p>
@@ -538,8 +538,8 @@ ebf&#39;&#39; = Right
 </entry>
 <entry>
     <title>Dealing with the unforeseen</title>
-    <link href="https://futtetennismo.io/posts/android/2013-04-28-dealing-with-the-unforeseen.html" />
-    <id>https://futtetennismo.io/posts/android/2013-04-28-dealing-with-the-unforeseen.html</id>
+    <link href="https://futtetennismo.me/posts/android/2013-04-28-dealing-with-the-unforeseen.html" />
+    <id>https://futtetennismo.me/posts/android/2013-04-28-dealing-with-the-unforeseen.html</id>
     <published>2013-04-28T00:00:00Z</published>
     <updated>2013-04-28T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>It’s quite common to invite users to rate an app on Google Play at some point, on one hand it’s good to know that your users are happy and on the other it’s a good way to attract new users. It’s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don’t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he’s not going to be too happy about it. How can we make sure that this doesn’t happen? <!--more--> When an uncaught exception is thrown, the <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html#uncaughtException(java.lang.Thread,%20java.lang.Throwable)">uncaughtException</a> method of the default <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> for that Thread is called. Good news is, you can supply your own <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> using the <a href="https://developer.android.com/reference/java/lang/Thread.html#setDefaultUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)">setDefaultUncaughtExceptionHandler</a> setter (this is what <a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDYQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Facra%2F&amp;ei=kAwBUezwL8_IsgbIvYH4Dg&amp;usg=AFQjCNF1L9fawVNYyKuqqIa7q22TBcL08w&amp;sig2=_FrQnihkSMcsqGUV5XXp1A&amp;bvm=bv.41524429,d.Yms">ACRA</a> and I suppose other libraries like <a href="https://www.crittercism.com/">Crittercism</a> or <a href="https://www.bugsense.com/">BugSense</a> do under the hood). Here is a little snippet of what we do in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype app</a>:</p>
@@ -589,8 +589,8 @@ ebf&#39;&#39; = Right
 </entry>
 <entry>
     <title>Location on Android...the Qype way</title>
-    <link href="https://futtetennismo.io/posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html" />
-    <id>https://futtetennismo.io/posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html</id>
+    <link href="https://futtetennismo.me/posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html" />
+    <id>https://futtetennismo.me/posts/android/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html</id>
     <published>2012-10-16T00:00:00Z</published>
     <updated>2012-10-16T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it’s possible to include it in an already existing application. This time I’ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application. <!--more--> A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user’s location, and it needs to know it as quickly as possible - nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
@@ -712,8 +712,8 @@ public void handleMessage(Message msg) {
 </entry>
 <entry>
     <title>ignition v0.1 - the ignited way of doing location</title>
-    <link href="https://futtetennismo.io/posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html" />
-    <id>https://futtetennismo.io/posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html</id>
+    <link href="https://futtetennismo.me/posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html" />
+    <id>https://futtetennismo.me/posts/android/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html</id>
     <published>2012-03-09T00:00:00Z</published>
     <updated>2012-03-09T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I’d like to write about here is the module I focused on, that is the ignition-location module. Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 - Cupcake - API level 3. It wasn’t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools. <!--more--> It’s a bit weird that on Android I always worked on location-aware applications, and sadly if you have to deal with location your life is not that simple. I was literally thrilled when I watched <a href="http://www.google.com/events/io/2011/sessions/android-protips-advanced-topics-for-expert-android-app-developers.html">Reto Meier’s talk on the last Google I/O</a>, read his blog posts - on the <a href="http://android-developers.blogspot.com/2011/06/deep-dive-into-location.html">Android Developers Blog</a>, and on his personal blog (<a href="http://blog.radioactiveyak.com/2011/06/how-to-build-location-based-apps-that.html">1</a>, <a href="http://blog.radioactiveyak.com/2011/06/deep-dive-into-location-part-2-being.html">2</a>), and had a look at his <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project - because he showcased some really cool techniques and gave solutions to a lot of issues that I personally experienced. One issue about the sample project is that it’s not intented to be used as an Android library, so there is no easy way to integrate and all that code, and it’s a lot of code (but fair enough, that project wasn’t intented to be an Android library). So I started to think how that code could be reused.</p>
