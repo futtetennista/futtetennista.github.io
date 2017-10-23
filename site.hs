@@ -9,7 +9,7 @@ import Hakyll.Web.Sass (sassCompiler)
 main :: IO ()
 main = hakyllWith hakyllConfig $ do
   match (fromGlob "images/**" .||. fromGlob "js/**" .||. fromGlob "lib/**") $ do
-    route   idRoute
+    route idRoute
     compile copyFileCompiler
 
   match "css/*.scss"$ do
@@ -73,7 +73,23 @@ main = hakyllWith hakyllConfig $ do
         feedCtx =
           postCtx <> bodyField "description"
       posts <- fmap (take 10) . recentFirst =<< loadAllSnapshots "posts/**" "content"
-      renderAtom futtetennismoFeedConfiguration feedCtx posts
+      renderAtom atomFeedConfiguration feedCtx posts
+
+  create ["sitemap.xml"] $ do
+    route idRoute
+    compile $ do
+      posts <- recentFirst =<< loadAll "posts/**"
+      pages <- loadAll "pages/*"
+      let
+        allPosts =
+          siteMapPages pages ++ posts
+        sitemapCtx =
+          mconcat [ listField "entries" defaultContext (return allPosts)
+                  , defaultContext
+                  ]
+      makeItem ""
+            >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
+            >>= relativizeUrls
 
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
@@ -117,8 +133,8 @@ createTagsRules tags mkTitle =
         >>= relativizeUrls
 
 
-futtetennismoFeedConfiguration :: FeedConfiguration
-futtetennismoFeedConfiguration =
+atomFeedConfiguration :: FeedConfiguration
+atomFeedConfiguration =
   FeedConfiguration { feedTitle       = "Futtetennismo"
                     , feedDescription = ""
                     , feedAuthorName  = "futtetennista"
@@ -130,3 +146,7 @@ futtetennismoFeedConfiguration =
 hakyllConfig :: Configuration
 hakyllConfig =
   defaultConfiguration{ previewHost = "0.0.0.0" }
+
+
+siteMapPages =
+  filter ((/="pages/LICENSE.markdown") . toFilePath . itemIdentifier)
