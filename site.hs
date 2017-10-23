@@ -123,7 +123,7 @@ futtetennismoFeedConfiguration =
                     , feedDescription = ""
                     , feedAuthorName  = "futtetennista"
                     , feedAuthorEmail = "futtetennista@gmail.com"
-                    , feedRoot        = "https://futtetennismo.io"
+                    , feedRoot        = "https://futtetennismo.me"
                     }
 
 
