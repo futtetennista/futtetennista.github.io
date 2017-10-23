@@ -17,7 +17,6 @@ main = hakyllWith hakyllConfig $ do
     compile (fmap compressCss <$> sassCompiler)
 
   match (fromList [ "pages/about.markdown"
-                  , "pages/contact.markdown"
                   , "pages/imprint.markdown"
                   , "pages/LICENSE.markdown"
                   ]) $ do
