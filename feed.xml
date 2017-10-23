@@ -8,8 +8,36 @@
         <name>futtetennista</name>
         <email>futtetennista@gmail.com</email>
     </author>
-    <updated>2017-10-22T00:00:00Z</updated>
+    <updated>2017-10-23T00:00:00Z</updated>
     <entry>
+    <title>Hakyll and web crawlers</title>
+    <link href="https://futtetennismo.me/posts/hakyll/2017-10-23-hakyll-and-web-crawlers.html" />
+    <id>https://futtetennismo.me/posts/hakyll/2017-10-23-hakyll-and-web-crawlers.html</id>
+    <published>2017-10-23T00:00:00Z</published>
+    <updated>2017-10-23T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Adding <code>sitemap.xml</code> and <code>robots.txt</code> to a website built with Hakyll is not explicitly documented but it ended up being quite easy with the help of some DuckDuckGo-fu. <!--more--> A quick <a href="https://duckduckgo.com/?q=hakyll+sitemap.xml">research</a> returns <a href="https://www.rohanjain.in/hakyll-sitemap/">this post</a>. With a few amendments the solution proposed in the post works like a charm, here’s the revised version I use for my website:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">  create [<span class="st">&quot;sitemap.xml&quot;</span>] <span class="fu">$</span> <span class="kw">do</span>
+    route idRoute
+    compile <span class="fu">$</span> <span class="kw">do</span>
+      posts <span class="ot">&lt;-</span> recentFirst <span class="fu">=&lt;&lt;</span> loadAll <span class="st">&quot;posts/**&quot;</span>
+      pages <span class="ot">&lt;-</span> loadAll <span class="st">&quot;pages/*&quot;</span>
+      <span class="kw">let</span>
+        crawlPages <span class="fu">=</span>
+          sitemapPages pages <span class="fu">++</span> posts
+        sitemapCtx <span class="fu">=</span>
+          mconcat [ listField <span class="st">&quot;entries&quot;</span> defaultContext (return crawlPages)
+                  , defaultContext
+                  ]
+      makeItem <span class="st">&quot;&quot;</span>
+        <span class="fu">&gt;&gt;=</span> loadAndApplyTemplate <span class="st">&quot;templates/sitemap.xml&quot;</span> sitemapCtx
+        <span class="fu">&gt;&gt;=</span> relativizeUrls
+
+  match (fromList [<span class="st">&quot;robots.txt&quot;</span>, <span class="st">&quot;CNAME&quot;</span>]) <span class="fu">$</span> <span class="kw">do</span>
+    route idRoute
+    compile <span class="fu">$</span> getResourceBody <span class="fu">&gt;&gt;=</span> relativizeUrls</code></pre></div>
+<p>Notice how the <code>robots.txt</code> and <code>CNAME</code> files - the latter is needed by my domain name registrar - are simply copied since there’s no need to apply any processing to them.</p>]]></summary>
+</entry>
+<entry>
     <title>Deploying a Hakyll website using Github Pages and CircleCI 2.0</title>
     <link href="https://futtetennismo.me/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html" />
     <id>https://futtetennismo.me/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html</id>

@@ -26,6 +26,12 @@
     </url>
 
     <url>
+        <loc>https://futtetennismo.me/posts/hakyll/2017-10-23-hakyll-and-web-crawlers.html</loc>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
         <loc>https://futtetennismo.me/posts/hakyll/2017-10-22-deploying-to-github-pages-using-circleci-2.0.html</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
