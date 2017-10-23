@@ -104,11 +104,11 @@ The workflow I ended up adopting is a mix of [this](http://kyle.marek-spartz.org
 [two](https://jaspervdj.be/hakyll/tutorials/github-pages-tutorial.html) tutorials.
 The `master` branch - which is the one deployed by Github Pages in case of a user
 page - contains all the static assets of the website like images, html, css etc.
-Another branch - that I named `source` - contains all source code and each time a
-new commit is pushed to that branch CircleCI will build a version of my website
-and will eventually push it to Github (if the build succeeds). For convenience,
-I also configured my build in such a way that CircleCI builds *only* that
-branch. Here's a snippet of the `deploy` job-level key in the `config.yml`:
+Another branch - that I arbitrarily named `source` - contains all source code
+and each time a new commit is pushed to that branch CircleCI will build a
+version of my website and will eventually push it to Github (if the build succeeds).
+For convenience, I also configured my build in such a way that CircleCI builds
+*only* that branch. Here's a snippet of the `deploy` job-level key in the `config.yml`:
 
 ```yaml
 version: 2
