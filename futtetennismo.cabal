@@ -13,5 +13,6 @@ executable site
                   , mtl == 2.2.*
                   , conduit-combinators == 1.1.*
                   , hakyll-sass == 0.2.*
+                  , hakyll-favicon == 0.1.*
   ghc-options:      -threaded
   default-language: Haskell2010

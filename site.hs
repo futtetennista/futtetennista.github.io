@@ -4,10 +4,13 @@ import Data.Monoid ((<>))
 import Data.List (stripPrefix)
 import qualified Data.Set as Set
 import Hakyll.Web.Sass (sassCompiler)
+import Hakyll.Favicon (faviconsRules, faviconsField)
 
 
 main :: IO ()
 main = hakyllWith hakyllConfig $ do
+  faviconsRules "images/favicon.svg"
+
   match (fromGlob "images/**" .||. fromGlob "js/**" .||. fromGlob "lib/**") $ do
     route idRoute
     compile copyFileCompiler
@@ -24,9 +27,12 @@ main = hakyllWith hakyllConfig $ do
       customRoute (maybe (error "Expected pages to be in 'pages' folder")
                          id . stripPrefix "pages/" . toFilePath)
       `composeRoutes` setExtension "html"
+    let
+      pageCtx =
+        faviconsField <> defaultContext
     compile $ pandocCompiler
-      >>= loadAndApplyTemplate "templates/page.html" defaultContext
-      >>= loadAndApplyTemplate "templates/default.html" defaultContext
+      >>= loadAndApplyTemplate "templates/page.html" pageCtx
+      >>= loadAndApplyTemplate "templates/default.html" pageCtx
       >>= relativizeUrls
 
   tags <- buildTags "posts/**" (fromCapture "tags/*.html")
@@ -54,6 +60,7 @@ main = hakyllWith hakyllConfig $ do
         indexCtx =
           listField "posts" postCtx (return posts)
           <> constField "title" "Home"
+          <> faviconsField
           <> defaultContext
       getResourceBody
         >>= applyAsTemplate indexCtx
@@ -109,6 +116,7 @@ postCtx =
     <> teaserField "teaser" "content"
     -- create a short version of the teaser. Strip out HTML tags and trim.
     <> mapContext (trim . take 160 . stripTags) (teaserField "teaser-short" "content")
+    <> faviconsField
     <> defaultContext
   where
     trim xs =
@@ -131,6 +139,7 @@ createTagsRules tags mkTitle =
         ctx =
           constField "title" (mkTitle tag)
           <> listField "posts" postCtx (return posts)
+          <> faviconsField
           <> defaultContext
 
       makeItem ""
