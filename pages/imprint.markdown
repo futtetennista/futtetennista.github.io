@@ -25,5 +25,5 @@ This website is it's built with [Hakyll](https://jaspervdj.be/hakyll/). The them
 is a port of the [Materialize Jekill](https://github.com/mumuxme/materialize-jekyll/)
 theme developed by [mumuxme](https://github.com/mumuxme). The materail icons are
 taken from [Material Design Icons](https://materialdesignicons.com/). Blog source
-code files the [MIT license](/LICENSE.html), all rights reserved for content
-(everything else).
+and code files licensed under the [MIT license](/LICENSE.html), all rights
+reserved for content (everything else).
