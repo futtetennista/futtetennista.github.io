@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Hakyll
 import Data.Monoid ((<>))
-import Data.List (stripPrefix)
+import Data.List (stripPrefix, isPrefixOf)
 import qualified Data.Set as Set
 import Hakyll.Web.Sass (sassCompiler)
 import Hakyll.Favicon (faviconsRules, faviconsField)
@@ -52,13 +52,27 @@ main = hakyllWith hakyllConfig $ do
       >>= loadAndApplyTemplate "templates/default.html" (ctxWithTags postCtx namedTags)
       >>= relativizeUrls
 
-  match "pages/index.html" $ do
-    route (constRoute "index.html")
+  create ["archive.html"] $ do
+    route idRoute
     compile $ do
       posts <- recentFirst =<< loadAll "posts/**"
       let
-        indexCtx =
+        archiveCtx =
           listField "posts" postCtx (return posts)
+          <> faviconsField
+          <> defaultContext
+      makeItem ""
+        >>= loadAndApplyTemplate "templates/archive.html" archiveCtx
+        >>= loadAndApplyTemplate "templates/default.html" archiveCtx
+        >>= relativizeUrls
+
+  match "pages/index.html" $ do
+    route (constRoute "index.html")
+    compile $ do
+      recentPosts <- recentFirst =<< loadRecentPosts
+      let
+        indexCtx =
+          listField "posts" postCtx (return recentPosts)
           <> constField "title" "Home"
           <> faviconsField
           <> defaultContext
@@ -166,3 +180,11 @@ hakyllConfig =
 sitemapPages :: [Item String] -> [Item String]
 sitemapPages =
   filter ((/="pages/LICENSE.markdown") . toFilePath . itemIdentifier)
+
+
+loadRecentPosts :: Compiler [Item String]
+loadRecentPosts =
+  filter archivedPost `fmap` loadAll "posts/**"
+  where
+    archivedPost =
+      not . (isPrefixOf "posts/archive/") . toFilePath . itemIdentifier

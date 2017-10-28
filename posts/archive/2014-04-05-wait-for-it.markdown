@@ -1,7 +1,7 @@
 ---
 title: "Wait for it…a deep dive in Espresso's idling resources"
 author: futtetennista
-tags: android, espresso, testing, legacy
+tags: android, espresso, testing, archive
 ---
 
 ##### Update: A new (better) version of this post is available on the [Jimdo Dev Blog](http://dev.jimdo.com/2014/05/09/wait-for-it-a-deep-dive-into-espresso-s-idling-resources/).

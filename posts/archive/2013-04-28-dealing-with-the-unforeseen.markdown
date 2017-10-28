@@ -1,7 +1,7 @@
 ---
 title: "Dealing with the unforeseen"
 author: futtetennista
-tags: android, legacy
+tags: android, archive
 ---
 
 It's quite common to invite users to rate an app on Google Play at some point, on one hand it's good to know that your users are happy and on the other it's a good way to attract new users. It's definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don't want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he's not going to be too happy about it. How can we make sure that this doesn't happen?

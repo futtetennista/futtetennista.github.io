@@ -1,6 +1,6 @@
 ---
 title: "ignition v0.1 - the ignited way of doing location"
-tags: android, ignition, location, legacy
+tags: android, ignition, location, archive
 ---
 
 

@@ -1,7 +1,7 @@
 ---
 title: "Location on Android...the Qype way"
 author: futtetennista
-tags: android, location, qype, legacy
+tags: android, location, qype, archive
 ---
 
 Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it's possible to include it in an already existing application. This time I'll explain how we integrated it in the [Qype Android](https://play.google.com/store/apps/details?id=com.qype.radar) application.

@@ -1,7 +1,7 @@
 ---
 title: WebView Explorations
 author: futtetennista
-tags: android, webview, chromium, android+kitkat, legacy
+tags: android, webview, chromium, android+kitkat, archive
 ---
 
 In the last few weeks I've been playing around with `WebView`s a lot and found out a few interesting differences (not necesserely documented) between the legacy implementation up to Jelly Bean and the brand new Chromium-based one in KitKat. If you don't know what I'm talking about - after all, the API has mostly remained untouched apart some nice additions, more about this in a bit - a couple of useful links by the Google folks are [this](https://developers.google.com/chrome/mobile/docs/webview/overview) and [this](http://developer.android.com/guide/webapps/migrating.html).
