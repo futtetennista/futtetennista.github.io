@@ -110,7 +110,7 @@ main = hakyllWith hakyllConfig $ do
         >>= loadAndApplyTemplate "templates/sitemap.xml" sitemapCtx
         >>= relativizeUrls
 
-  match (fromList ["robots.txt", "CNAME"]) $ do
+  match (fromList ["robots.txt", "CNAME", "keybase.txt"]) $ do
     route idRoute
     compile $ getResourceBody >>= relativizeUrls
 
