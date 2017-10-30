@@ -114,10 +114,6 @@ main = hakyllWith hakyllConfig $ do
     route idRoute
     compile $ getResourceBody >>= relativizeUrls
 
-  match "pages/google3f1f5a1db3d4b0ba.html" $ do
-    route (constRoute "google3f1f5a1db3d4b0ba.html")
-    compile $ getResourceBody >>= relativizeUrls
-
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
 ctxWithTags ctx =
