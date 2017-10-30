@@ -59,6 +59,7 @@ main = hakyllWith hakyllConfig $ do
       let
         archiveCtx =
           listField "posts" postCtx (return posts)
+          <> constField "title" "Archive"
           <> faviconsField
           <> defaultContext
       makeItem ""
