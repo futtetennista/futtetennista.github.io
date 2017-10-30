@@ -1,0 +1,55 @@
+==================================================================
+https://keybase.io/futtetennista
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://futtetennismo.me
+  * I am futtetennista (https://keybase.io/futtetennista) on keybase.
+  * I have a public key ASB-391E1CLq7CqRsAvsqmW3Tnlm8PmcSh6_w4MaOZueego
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "0120bda6cd6bcad80abb0795ec0848edf2a8d1acfc504eb781748a94c481edb9b6330a",
+      "host": "keybase.io",
+      "kid": "01207edfdd44d422eaec2a91b00becaa65b74e7966f0f99c4a1ebfc3831a399b9e7a0a",
+      "uid": "98c18251b49c0062b6b3c059fc8fa319",
+      "username": "futtetennista"
+    },
+    "merkle_root": {
+      "ctime": 1509343911,
+      "hash": "a12ff3795bfe0769adddba1423e66c674e37fa02a98ab55725f49ea74bc95da203494acf5f5ed072297f04d71848ef4710c689804611c059717fafe05838bfa1",
+      "hash_meta": "e6163d7ccbb9c5cb6a377e28264d301570579a5a972fca84623ee7fa54754fb6",
+      "seqno": 1645445
+    },
+    "service": {
+      "hostname": "futtetennismo.me",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 1
+  },
+  "client": {
+    "name": "keybase.io go client",
+    "version": "1.0.31"
+  },
+  "ctime": 1509343930,
+  "expire_in": 504576000,
+  "prev": "371e3ac07787fd9bdb63a3c2818f9ae64eb709583a4fbd556b911c495ac9d1ba",
+  "seqno": 12,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+hKRib2R5hqhkZXRhY2hlZMOpaGFzaF90eXBlCqNrZXnEIwEgft/dRNQi6uwqkbAL7Kplt055ZvD5nEoev8ODGjmbnnoKp3BheWxvYWTFA057ImJvZHkiOnsia2V5Ijp7ImVsZGVzdF9raWQiOiIwMTIwYmRhNmNkNmJjYWQ4MGFiYjA3OTVlYzA4NDhlZGYyYThkMWFjZmM1MDRlYjc4MTc0OGE5NGM0ODFlZGI5YjYzMzBhIiwiaG9zdCI6ImtleWJhc2UuaW8iLCJraWQiOiIwMTIwN2VkZmRkNDRkNDIyZWFlYzJhOTFiMDBiZWNhYTY1Yjc0ZTc5NjZmMGY5OWM0YTFlYmZjMzgzMWEzOTliOWU3YTBhIiwidWlkIjoiOThjMTgyNTFiNDljMDA2MmI2YjNjMDU5ZmM4ZmEzMTkiLCJ1c2VybmFtZSI6ImZ1dHRldGVubmlzdGEifSwibWVya2xlX3Jvb3QiOnsiY3RpbWUiOjE1MDkzNDM5MTEsImhhc2giOiJhMTJmZjM3OTViZmUwNzY5YWRkZGJhMTQyM2U2NmM2NzRlMzdmYTAyYTk4YWI1NTcyNWY0OWVhNzRiYzk1ZGEyMDM0OTRhY2Y1ZjVlZDA3MjI5N2YwNGQ3MTg0OGVmNDcxMGM2ODk4MDQ2MTFjMDU5NzE3ZmFmZTA1ODM4YmZhMSIsImhhc2hfbWV0YSI6ImU2MTYzZDdjY2JiOWM1Y2I2YTM3N2UyODI2NGQzMDE1NzA1NzlhNWE5NzJmY2E4NDYyM2VlN2ZhNTQ3NTRmYjYiLCJzZXFubyI6MTY0NTQ0NX0sInNlcnZpY2UiOnsiaG9zdG5hbWUiOiJmdXR0ZXRlbm5pc21vLm1lIiwicHJvdG9jb2wiOiJodHRwczoifSwidHlwZSI6IndlYl9zZXJ2aWNlX2JpbmRpbmciLCJ2ZXJzaW9uIjoxfSwiY2xpZW50Ijp7Im5hbWUiOiJrZXliYXNlLmlvIGdvIGNsaWVudCIsInZlcnNpb24iOiIxLjAuMzEifSwiY3RpbWUiOjE1MDkzNDM5MzAsImV4cGlyZV9pbiI6NTA0NTc2MDAwLCJwcmV2IjoiMzcxZTNhYzA3Nzg3ZmQ5YmRiNjNhM2MyODE4ZjlhZTY0ZWI3MDk1ODNhNGZiZDU1NmI5MTFjNDk1YWM5ZDFiYSIsInNlcW5vIjoxMiwidGFnIjoic2lnbmF0dXJlIn2jc2lnxECD61ZrnXlWt00k9ZcSJvS6W2edtWCnR5BCxbc8MEkE0d92z+RFIPcHLXO8RxASaSljIOj8cSOWaZW/JIhvd78MqHNpZ190eXBlIKRoYXNogqR0eXBlCKV2YWx1ZcQgoe24Djvc4AOBM+K9tWquJb/VZ26bMqe3m69/i0EcYbKjdGFnzQICp3ZlcnNpb24B
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/futtetennista
+
+==================================================================
