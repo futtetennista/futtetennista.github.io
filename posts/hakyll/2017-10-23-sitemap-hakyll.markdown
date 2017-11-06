@@ -1,7 +1,7 @@
 ---
 title: Generating a sitemap of a website built with Hakyll
 author: futtetennista
-tags: hakyll, seo, titbit
+tags: hakyll, seo, snippet
 ---
 Adding `sitemap.xml` and `robots.txt` to a website built with Hakyll is not
 explicitly documented but it ended up being quite easy with the help of some
