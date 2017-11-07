@@ -90,9 +90,12 @@ new cache following that tip.
 ##### SSH keys
 The missing piece in the puzzle is now setting up ssh key in CircleCI to be able to
 checkout the project and push new versions of the website. I ended up creating a
-read-write deployment key for pushing to github and a checkout key for fetching
+read/write deployment key for pushing to github and a checkout key for fetching
 from github. The latter is just a matter of a few clicks, the former involves
 some manual work but the docs by the Github folks are easy to follow.
+
+**UPDATE**: if a read/write deployment key is created and added to a project in
+CircleCI, there's actually no need to also have a checkout key.
 
 ###### Bonus goodness
 One feature that CircleCI provides (and which proved to be extremely handy when
