@@ -1,5 +1,5 @@
 ---
-title: Connecting to a postgres instance with user-defined bridge networks
+title: Connecting to a dockerised postgres instance via psql using user-defined bridge networks
 author: futtetennista
 tags: docker, postgres, snippet
 ---
