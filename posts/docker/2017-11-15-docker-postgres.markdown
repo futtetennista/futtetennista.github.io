@@ -17,28 +17,35 @@ supplied the name of the container is also its alias:
 ```
 $ docker run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres
 ```
+
 There is no example for the latter case though, so let's see how it can be achieved.
-When using user-defined networks is essential to know the **IP** of the container
-running the postgres server, this can be retrieved with:
+First let's create a user-defined network and give it an arbitrary name - i.e.
+`my_bridge` by simply typing: `$ docker network create my_bridge`. When using
+user-defined networks is essential to know the **IP** of the container
+running the postgres server, this can be retrieved like this:
 
 ```
-$ docker run -itd --name=postgres-instance postgres
+$ docker run -itd --name=postgres-instance postgres # Make sure there's an instance running
 $ docker inspect --format='{{ .NetworkSettings.Networks.my_bridge.IPAddress }}' postgres-instance
-172.19.0.2 # the IP to pass as the host to psql
+172.19.0.2
 ```
-Here `my_bridge` is an arbitrary name given to the user-defined network. Now let's
-run the `psql` command to create another container, configuring it to use the
-user-defined network and providing the IP of the postgres server it has to connect
-to:
+
+Now let's run the `psql` command to create another container, configuring it to
+use the user-defined network and providing the IP of the postgres server it has
+to connect to:
 
 ```
 $ docker run -it --rm --network=my_bridge postgres psql --host=172.19.0.2 --username=postgres
+
 ```
+
 Alternatively, leveraging the `--add-host` option, the command looks very similar
 to the one used when connecting containers using links:
 
 ```
 $ docker run -it --rm --network=my_bridge --add-host=postgres-instance:172.19.0.2 postgres psql --host=postgres-instance --username=postgres
+
 ```
+
 Here the `--add-host` option simply adds an entry to the `/etc/hosts` file of the
 container.
