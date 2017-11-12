@@ -10,6 +10,7 @@ graph algorithms i.e. graph traversal, shortest path between two vertices,
 minimum spanning trees etc. Plenty of literature when we consider imperative
 languages that is, but what about the functional world?
 <!--more-->
+
 In order to have an idea of how pervasive graphs are, have a look at the
 following table
 
@@ -17,35 +18,35 @@ following table
 [Coursera](https://www.coursera.org/learn/algorithms-part2/)
 by Bob Sedgwick and Kevin Wayne](/images/graph_applications.png)
 
-Having a background in imperative, object-oriented programming and having
-shifted my focus on functional programming in the last few years I was eager to
-learn how to approach those kind of problems functionally. My curiousity really
-started to grow when prepping for job interviews, where sometimes candidates
-are asked to solve problems about algorithms and data structures and often those
-problems are about graphs. When I started searching I honestly didn't expect to
-have such a hard time finding material, and I do not even mean good material but
-any material at all! Maybe I didn't look for it hard enough - if that's the case
+It's also not atypical to being asked to solve a problem involving graphs when
+doing job interviews and this is where my curiosity about functional graph algorithms
+really started: I was eager to learn how to approach those kind of problems
+functionally. When I started searching I honestly didn't expect to have such a
+hard time finding material, and I do not even mean good material but any material
+at all! Maybe I didn't look for it hard enough - if that's the case
 please [let me know](/about.html)! - but basically the only book on the subject
 of functional data structures out there is
-[Purely Functional Data Structures](https://www.amazon.de/Purely-Functional-Structures-Chris-Okasaki/)
-by Chris Okasaki that was released in 2008 (and it's pretty advanced material)
+[Purely Functional Data Structures](https://www.goodreads.com/book/show/594288.Purely_Functional_Data_Structures)
+by Chris Okasaki, released in 2008 (and it's pretty advanced material)
 and I couldn't find any book that focused on functional algorithms. Graphs and
 graph algorithms are no exception: there is a massive amount of literature
 available for imperative languages but it takes some [DuckDuckGo](http://duckduckgo.com/)-fu
 to find literature on the topic for purely functional languages, and more often
-than not that literature comes from the academic world. After a lot of digging
-my understanding is that lots of purely functional algorithms do exist but they
-are not as efficient as the imperative counterparts and this might be
-one of the reasons why they are so hard to find and basically not used in practice.
-So what are the alternatives? One could be "translating" graph
-algorithms that use an imperative style in a functional context but that is
-unsurprisingly difficult, one of the main reasons being that imperative graph
-algorithms rely heavily on state and side effects (sometimes for efficiency reasons)
-making the task hard and the outcome far from being optimal.
+than not that literature comes in the form of academic papers. After a decent amount
+of digging my understanding is that lots of purely functional algorithms do exist
+but they are not as efficient as the imperative counterparts; this might be
+one of the reasons why they are basically shovelled under the carpet and not used
+in practice. So how can we deal with graphs using a purely functional language?
+One possibility could be "translating" graph algorithms from the imperative
+world to the functional world but that turns out to be (unsurprisingly) unsatisfactory,
+one of the main reasons being that imperative graph algorithms rely heavily on
+state and side effects (sometimes for efficiency reasons) making the task hard
+and the outcome far from being optimal.
 
 ## The imperative approach with monads
-Let's try to port one the most fundamental imperative graph algorithms to
-Haskell: [depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search).
+To show what "translating" an imperative algorithm in a functional context, let's
+try to implement one the most fundamental graph algorithms in Haskell:
+[depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search).
 The following code is an almost literal translation of the DFS algorithm as in
 [The Algorithm Design Manual](https://www.goodreads.com/book/show/425208.The_Algorithm_Design_Manual)
 by Steven S. Skiena:
@@ -176,14 +177,15 @@ formally prooving the critical properties of the algorithms. I would like to
 highlight this last aspect: it's probably the first time I encounter some material
 on graph algorithms that takes it into consideration and it can be really useful
 in property testing for example. The paper approaches graph traversal as a combinatorial
-problem and employ a common technique in languages with non-strict semantics:
-generate and prune. In a nutshell: the algorithm *lazily* generates nodes from
-the input graph and prunes the ones that do not respect the invariants dictated by
-DFS. Lazy evaluation - that guarantees that an expression is not evaluated until
-it is strictly necessary - together with the fact that discarding unwanted trees
-signifies that those trees will never be created in the first place, imply that
-they will never be traversed assuring that the algorithm will never do
-unnecessary work.
+problem and employs a common technique in languages with non-strict semantics:
+generate and prune. In a nutshell: the generate step describes how to create all
+possible trees from a given vertex and the prune step discards the trees that do
+not respect the invariants of DFS, namely (sub-)trees whose root is a vertex
+that has already been discovered. This approach guarantees the efficiency of the
+algorithm because the evaluation strategy of languages with non-strict semantics
+(call-by-need or lazy evaluation) assures that an expression is evaluated on-demand
+and since the discarded trees will never be used (traversed) they will never
+be created in the first place.
 
 ``` haskell
 #! /usr/bin/env stack
@@ -339,11 +341,11 @@ forward g treeG preord = mapT select g
 
 The algorithms to classify edges might become clearer by looking at this diagrams
 ```
-     Pre-order graph traversal:                Post-order graph traversal:
+    Pre-order graph traversal:                Post-order graph traversal:
 
-       --- Tree / Forward -->                    ----------- Back ------------>
-     v                        w                v                                w
-       <--- Back / Cross ----                    <-- Tree / Forward / Cross ---
+      --- Tree / Forward -->                    ----------- Back ------------>
+    v                        w                v                                w
+      <--- Back / Cross ----                    <-- Tree / Forward / Cross ---
 
 ```
 
