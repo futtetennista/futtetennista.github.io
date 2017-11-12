@@ -418,4 +418,26 @@ rules for the construction of a graph, namely that the context of a given vertex
 contains the adjacent inbound and outbound edges only if the pair of vertices
 has *already been discovered*.
 
-### Active patterns
+### Active graph patterns
+Pattern matching was identified as one of the ingredients that made lists and
+trees algorithms clean and succint, the paper refers to an extension of pattern
+matching for graphs named *"active graph pattern"* whose main goal is as far as
+I understood to make the notation more compact, augmenting the classic pattern
+matching by allowing a function to be called before the matching is applied.
+This is not currently available in Haskell so the following code is something
+I made up to hopefully provide an intuition to the reader and **will not** type-check:
+
+``` haskell
+deg :: Vertex -> Graph w l -> Int
+deg v ((ins, _, _, outs) (:&: ! v) g) = length ins + length out
+```
+
+The expression `(:&: ! v)` can be interpreted as: *"find the `Context` for the
+vertex `v` in `g` if it exists"*.
+Active graph patterns are not essential when implementing inductive graphs and
+it is possible do pattern matching without them, all that is needed is a function
+`match` with type `Vertex -> Graph w l -> Maybe (Context w l, Graph w l)`.
+
+### Efficiency
+
+### Functional graph algorithms
