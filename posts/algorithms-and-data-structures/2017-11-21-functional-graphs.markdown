@@ -4,25 +4,25 @@ tags: haskell, graphs
 categories: data+strutures, algorithms
 ---
 
-Graphs are a fundamental data structure in Computer Science because *a lot* of
+Graphs are a fundamental data structure in computer science because *a lot* of
 problems can be modelled with them. Plenty of literature available on graphs and
 graph algorithms i.e. graph traversal, shortest path between two vertices,
 minimum spanning trees etc. Plenty of literature when we consider imperative
-languages that is, but what about the functional world?
+languages that is, but what about functional languages?
 <!--more-->
 
-In order to have an idea of how pervasive graphs are, have a look at the
-following table
+The following table gives a pretty good idea of how pervasive graphs are and why
+anyone should care to answer the question in the first place.
 
-![Image taken from a slide of the Algorithms part 2 MOOC on
+![Graph applications (image taken from a slide of the Algorithms part 2 MOOC on
 [Coursera](https://www.coursera.org/learn/algorithms-part2/)
-by Bob Sedgwick and Kevin Wayne](/images/graph_applications.png)
+by Bob Sedgwick and Kevin Wayne)](/images/graph_applications.png)
 
-It's also not atypical to being asked to solve a problem involving graphs when
-doing job interviews and this is where my curiosity about functional graph algorithms
-really started: I was eager to learn how to approach those kind of problems
-functionally. When I started searching I honestly didn't expect to have such a
-hard time finding material, and I do not even mean good material but any material
+Problems involving graphs are also not unusual during job interviews and this is
+actually where my curiosity about functional graph algorithms really took off:
+I was eager to learn how to approach those kind of problems functionally.
+When I started searching I honestly didn't expect to have such a
+hard time finding material, and I do not even mean *good* material but any material
 at all! Maybe I didn't look for it hard enough - if that's the case
 please [let me know](/about.html)! - but basically the only book on the subject
 of functional data structures out there is
@@ -43,7 +43,7 @@ one of the main reasons being that imperative graph algorithms rely heavily on
 state and side effects (sometimes for efficiency reasons) making the task hard
 and the outcome far from being optimal.
 
-## The imperative approach with monads
+## Imperative-style algorithms with monads
 To show what "translating" an imperative algorithm in a functional context, let's
 try to implement one the most fundamental graph algorithms in Haskell:
 [depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search).
@@ -52,16 +52,6 @@ The following code is an almost literal translation of the DFS algorithm as in
 by Steven S. Skiena:
 
 ``` haskell
-#!/usr/bin/env stack
-{-
-stack script
---resolver lts-9.6
---package mtl
---package containers
---package vector
---package primitive
--}
-
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE RankNTypes #-}
@@ -152,12 +142,12 @@ dfs g =
 
 Not *that* elegant or modular isn't it? Also it is definitely **not** the most
 efficient implementation but I doubt that making it more efficient will fix the
-other concerns just mentioned. It probably is in some respect better than an
-imperative-style implementation - for example it makes the presence of state and
-side effects explicit and union types are handy - but one might argue that monadic
-code makes the algorithm even harder to follow.
+other concerns just mentioned. It probably is in some aspects better than an
+imperative-style implementation - for example state and side effects are now
+explicit and pattern matching makes the code a bit clearer - but one
+might argue that monadic code makes the algorithm even harder to follow.
 
-## Moving towards a functional solution
+## Towards a functional solution
 My [DuckDuckGo](http://duckduckgo.com/)-ing around pointed me at some point to
 the [Haskell wiki](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
 where a few links to research papers that approach graphs and graph
@@ -188,14 +178,6 @@ and since the discarded trees will never be used (traversed) they will never
 be created in the first place.
 
 ``` haskell
-#! /usr/bin/env stack
-{-
-stack script
---resolver lts-9.6
---package array
---package containers
--}
-
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE BangPatterns #-}
@@ -361,10 +343,11 @@ by Martin Erwig starts with this line
 
 > How should I implement a graph algorithm in a functional programming language?
 
-It really clicked with me from the git-go because it asked the same questions I
-had on the topic and provided answers for most of them. It acknowledges
-lots of the functional algorithms already developed but also considers them all
-not completely satisfactory either because they use concepts not currently available
+I must confess that this paper really clicked with me from the git-go because it
+asked the same questions I had on the topic and provided answers for most of them.
+It acknowledges lots of the functional algorithms already developed but also
+considers them all not completely satisfactory either because they use concepts
+not currently available
 in today's programming languages or because they entail some imperative-style
 strategy - i.e. keeping track of visited nodes by somehow labelling them -
 that contaminates the clarity of the algorithm, makes it harder to reason about
