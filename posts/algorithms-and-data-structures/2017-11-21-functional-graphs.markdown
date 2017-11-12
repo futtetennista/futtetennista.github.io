@@ -392,7 +392,10 @@ The context describes a given vertex, namely its value, label (if any) and its
 adjacent edges classified as inbound or outbound. So far so good, how can we build
 an inductive graph? This is easier to understand with an example:
 
-![Sample graph](/images/sample_graph.png)
+<div class="figure centered">
+  <img src="/images/sample_graph.png" alt="Sample graph">
+  <p class="caption">An inductive graph based on the given sample graph</p>
+</div>
 
 ```haskell
 ƛ: read "mkG [('a', 1), ('b', 2), ('c', 3)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
@@ -400,7 +403,10 @@ an inductive graph? This is easier to understand with an example:
 
 ```
 
-![An inductive graph based on the given sample graph](/images/sample_inductive_graph123.png)
+<div class="figure centered">
+  <img src="/images/sample_inductive_graph123.png" alt="Inductive graph">
+  <p class="caption">An inductive graph based on the given sample graph</p>
+</div>
 
 Note that given a set of input vertices and edges, multiple inductive graphs
 can be built depending on the order of insertion of its vertices.
@@ -410,7 +416,10 @@ can be built depending on the order of insertion of its vertices.
 ([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
 ```
 
-![Another inductive graph based on the given sample graph](/images/sample_inductive_graph321.png)
+<div class="figure centered">
+  <img src="/images/sample_inductive_graph321.png" alt="Inductive graph">
+  <p class="caption">Another inductive graph based on the given sample graph</p>
+</div>
 
 Looking back at the definition of the `Graph` type, it might look quite
 similar to the one of lists but it's not quite the same because there are
