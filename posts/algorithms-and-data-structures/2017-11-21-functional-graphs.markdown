@@ -339,17 +339,9 @@ forward g treeG preord = mapT select g
     select v es = [(v', w) | (v', w) <- es, preord ! v < preord ! v'] \\ treeG ! v
 ```
 
-The algorithms to classify edges might become clearer by looking at this diagrams
-```
-    Pre-order graph traversal:                Post-order graph traversal:
+#### Notes
 
-      --- Tree / Forward -->                    ----------- Back ------------>
-    v                        w                v                                w
-      <--- Back / Cross ----                    <-- Tree / Forward / Cross ---
-
-```
-
-Two closing notes: section 5 (*Implementing depth-first search*) states that
+Section "5. Implementing depth-first search" states that
 
 > The choice of pruning patterns determines whether the forest ends up being
 > depth-first (traverse in a left-most, top-most fashion) or breadth-first (
@@ -363,36 +355,37 @@ The code snippets above have been mostly copy and pasted from the paper, they on
 needed some tweaks when dealing with th `ST` monad.
 
 ## Functional graph algorithms using inductive graphs
-I found the introduction of the paper
+The introduction of the paper
 ["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
-by Martin Erwig just brilliant. It really clicked with me because it addressed
-most of the questions and perplexities I had, starting from the very first line:
+by Martin Erwig starts with this line
 
 > How should I implement a graph algorithm in a functional programming language?
 
-The paper acknowledges lots of the functional implementations out there but also
-finds them all unsatisfactory: they either use concepts not currently available
-in today's programming languages or they entail some imperative-style strategy -
-i.e. keeping track of visited nodes by somehow labelling them -
-that contaminates the clarity of the algorithm and makes it harder to reason about
-it and to proof its correctness. The solution the paper proposes is thinking
+It really clicked with me from the git-go because it asked the same questions I
+had on the topic and provided answers for most of them. It acknowledges
+lots of the functional algorithms already developed but also considers them all
+not completely satisfactory either because they use concepts not currently available
+in today's programming languages or because they entail some imperative-style
+strategy - i.e. keeping track of visited nodes by somehow labelling them -
+that contaminates the clarity of the algorithm, makes it harder to reason about
+it and to proof its correctness. The solution the paper proposes is to think
 about graphs in a new way.
 
 ### Enter inductive graphs
-Lists and trees algorithms instead are much more simple
-and modular and do not require additional bookkeeping, why? Their definition is
+Lists and trees algorithms are much more simple and modular than graph algorithms
+and do not require additional bookkeeping: why is that? For once, their definition is
 inductive and function definitions using those data structures are also inductive;
-moreover, pattern matching helps a great deal when it comes to clarity and
-succinctness. Now let's take graphs: a graph is usually defined as a pair
-`G = (V, E)` where `V` is the set of vertices and `E` the set of edges,
-where edge is defined as a pair of vertices in `V`.
+additionally, pattern matching helps a great deal when it comes to clarity and
+succinctness. Now let's have a look at the definition of graphs: they are usually
+defined as a pair `G = (V, E)` where `V` is the set of vertices and `E` the set
+of edges, where edge is defined as a pair of vertices in `V`.
 Imperative-style algorithms on graphs discover edges and vertices incrementally
 and usually need to keep track of the visited vertices either using a separate
-data structure or  by defining the graph slightly differently to add new fields.
+data structure or by defining the graph slightly differently to add new fields.
 In this sense the usual definition of graphs is monolithical. These are identified
 as the reasons why algorithms centered around this API are doomed if what they
 want to achieve is clarity and modularity.
-A valid definition for a graph defined inductively might have the following:
+A valid definition for a graph defined inductively is the following:
 
 ``` haskell
 infixr 5 :&:
@@ -436,8 +429,10 @@ can be built depending on the order of insertion of its vertices.
 
 ![Another inductive graph based on the given sample graph](/images/sample_inductive_graph321.png)
 
-Looking back at the definition of the `Graph` type, it looks quite
+Looking back at the definition of the `Graph` type, it might look quite
 similar to the one of lists but it's not quite the same because there are
 rules for the construction of a graph, namely that the context of a given vertex
 contains the adjacent inbound and outbound edges only if the pair of vertices
 has *already been discovered*.
+
+### Active patterns
