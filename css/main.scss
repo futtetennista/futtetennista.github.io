@@ -109,7 +109,7 @@ ul, ol, dl, figure,
 /* Text */
 
 strong {
-    //font-weight: bold;
+    font-weight: bold;
 }
 
 p {
@@ -606,10 +606,6 @@ a.reversefootnote {
     h6 {
         font-size: 1.2rem;
         margin: 1.68rem 0 1rem;
-    }
-
-    strong {
-        color: darken($red, 20%);
     }
 
     ul li { list-style-type: disc; }
