@@ -362,4 +362,82 @@ If anybody has some pointers again please [let me know](/about.html)!
 The code snippets above have been mostly copy and pasted from the paper, they only
 needed some tweaks when dealing with th `ST` monad.
 
-## Functional algorithms using inductive graphs
+## Functional graph algorithms using inductive graphs
+I found the introduction of the paper
+["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
+by Martin Erwig just brilliant. It really clicked with me because it addressed
+most of the questions and perplexities I had, starting from the very first line:
+
+> How should I implement a graph algorithm in a functional programming language?
+
+The paper acknowledges lots of the functional implementations out there but also
+finds them all unsatisfactory: they either use concepts not currently available
+in today's programming languages or they entail some imperative-style strategy -
+i.e. keeping track of visited nodes by somehow labelling them -
+that contaminates the clarity of the algorithm and makes it harder to reason about
+it and to proof its correctness. The solution the paper proposes is thinking
+about graphs in a new way.
+
+### Enter inductive graphs
+Lists and trees algorithms instead are much more simple
+and modular and do not require additional bookkeeping, why? Their definition is
+inductive and function definitions using those data structures are also inductive;
+moreover, pattern matching helps a great deal when it comes to clarity and
+succinctness. Now let's take graphs: a graph is usually defined as a pair
+`G = (V, E)` where `V` is the set of vertices and `E` the set of edges,
+where edge is defined as a pair of vertices in `V`.
+Imperative-style algorithms on graphs discover edges and vertices incrementally
+and usually need to keep track of the visited vertices either using a separate
+data structure or  by defining the graph slightly differently to add new fields.
+In this sense the usual definition of graphs is monolithical. These are identified
+as the reasons why algorithms centered around this API are doomed if what they
+want to achieve is clarity and modularity.
+A valid definition for a graph defined inductively might have the following:
+
+``` haskell
+infixr 5 :&:
+data Graph w l = Empty | (Context w l) :&: (Graph w l) deriving Show
+
+type Context w l =
+  ( Adj w  -- inbound edges
+  , Vertex
+  , l      -- label
+  , Adj w  -- outbound edges
+  )
+
+-- adjacent weighted edges
+type Adj w = [(w, Vertex)]
+
+type Vertex = Int
+```
+
+A graph is either empty or it's a function that accepts a context and a graph.
+The context describes a given vertex, namely its value, label (if any) and its
+adjacent edges classified as inbound or outbound. So far so good, how can we build
+an inductive graph? This is easier to understand with an example:
+
+![Sample graph](/images/sample_graph.png)
+
+```haskell
+ƛ: read "mkG [('a', 1), ('b', 2), ('c', 3)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
+([(4,3),(3,2)],1,'a',[(5,2)]) :&: (([],2,'b',[(1,3)]) :&: (([],3,'c',[]) :&: Empty))
+
+```
+
+![An inductive graph based on the given sample graph](/images/sample_inductive_graph123.png)
+
+Note that given a set of input vertices and edges, multiple inductive graphs
+can be built depending on the order of insertion of its vertices.
+
+``` haskell
+ƛ: read "mkG [('c', 3), ('b', 2), ('a', 1)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
+([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
+```
+
+![Another inductive graph based on the given sample graph](/images/sample_inductive_graph321.png)
+
+Looking back at the definition of the `Graph` type, it looks quite
+similar to the one of lists but it's not quite the same because there are
+rules for the construction of a graph, namely that the context of a given vertex
+contains the adjacent inbound and outbound edges only if the pair of vertices
+has *already been discovered*.
