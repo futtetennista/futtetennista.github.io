@@ -184,12 +184,12 @@ a {
 /* Blockquotes */
 
 blockquote {
-    font-family: $code-font-family;
-    background-color: lighten($grey, 30%);
+    font-family: $base-font-family;
+    background-color: lighten($grey, 50%);
     border-left: 4px solid #ee6e73;
     padding-left: $spacing-unit / 2;
-    letter-spacing: -1px;
-    /*font-style: italic;*/
+    /* letter-spacing: -1px; */
+    font-style: italic;
 
     > :last-child {
         margin-bottom: 0;
