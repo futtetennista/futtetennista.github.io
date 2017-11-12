@@ -76,7 +76,8 @@
 </blockquote>
 <p>That meant that <code>save_cache</code> never overwrites an existing cache! I ended up building a new cache following that tip.</p>
 <h5 id="ssh-keys">SSH keys</h5>
-<p>The missing piece in the puzzle is now setting up ssh key in CircleCI to be able to checkout the project and push new versions of the website. I ended up creating a read-write deployment key for pushing to github and a checkout key for fetching from github. The latter is just a matter of a few clicks, the former involves some manual work but the docs by the Github folks are easy to follow.</p>
+<p>The missing piece in the puzzle is now setting up ssh key in CircleCI to be able to checkout the project and push new versions of the website. I ended up creating a read/write deployment key for pushing to github and a checkout key for fetching from github. The latter is just a matter of a few clicks, the former involves some manual work but the docs by the Github folks are easy to follow.</p>
+<p><strong>UPDATE</strong>: if a read/write deployment key is created and added to a project in CircleCI, there’s actually no need to also have a checkout key.</p>
 <h6 id="bonus-goodness">Bonus goodness</h6>
 <p>One feature that CircleCI provides (and which proved to be extremely handy when debugging some issues setting up ssh keys) is the ability to connect to a running container via ssh. Bravo to the CircleCI folks!</p>
 <h3 id="workflow">Workflow</h3>
