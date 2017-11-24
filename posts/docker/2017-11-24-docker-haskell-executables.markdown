@@ -38,6 +38,7 @@ to create the executable image. The `Dockerfile` for the base image is not that
 interesting:
 
 ``` bash
+# Dockerfile.builder
 # docker build -t futtetennista/serverless-validator-builder --file Dockerfile.builder .
 FROM haskell:8.0
 
@@ -61,6 +62,7 @@ It just installs some Linux dependencies and builds the Haskell dependencies.
 The one for the executable image is a bit more exciting:
 
 ``` bash
+# Dockerfile
 # docker build -t futtetennista/serverless-validator .
 FROM futtetennista/serverless-validator-builder as builder
 
@@ -105,10 +107,9 @@ practical problems Haskellers face in their day-to-day coding!
 
 This technique is applicable whenever your application needs to build upon an
 existing framework or library: for example this very website! Building it
-on CircleCI without any caching takes almost
+on CircleCI without any caching and compiling all needed dependencies took almost
 [14 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/136),
-that goes down to
+with caching that went down to
 [1:32 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/141)
-with caching and to
-[1:18 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/143)
-with a base image with pre-compiled dependencies.
+and with a base image with pre-compiled dependencies to
+[1:18 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/143).
