@@ -3,7 +3,7 @@ jobs:
   build:
     working_directory: ~/futtetennismo
     docker:
-      - image: futtetennista/hakyll:futtetennismo-0.1.0
+      - image: futtetennista/hakyll:futtetennismo-0.1.1
     branches:
       only:
         - source
