@@ -5,14 +5,14 @@ tags: docker, haskell, snippet
 ---
 
 Providing an application as a [Docker executable image](https://www.infoq.com/articles/docker-executable-images)
-is a handy way to distribute an application: no need to install languages, frameworks
+is a handy way to distribute an application: no need to install toolchains, frameworks
 and dependencies. One can just pull a Docker image and run it. It's really that simple.
 Docker images can grow wildly in size because they need to install all the dependecies
 needed to run the application: this as a user can be quite annoying.
 Imagine you want to use a tiny application that solves a very specific problem and
-you have to download a 2GB Docker image. It's undesirable. And it's actually not
-needed: why not shipping only the executable in a very compact Docker image like
-alpine? How can this be achieved if the application is built in Haskell?
+you have to download a 2GB Docker image! It's undesirable. And it's actually not
+needed: why not shipping only the executable in a very compact Docker image?
+How can this be achieved if the application is built in Haskell?
 
 <!--more-->
 
@@ -32,8 +32,8 @@ I first used plain multi-stage builds but that had an
 issue: since all the Haskell dependencies have to be compiled, the first part of
 the multi-stage build was taking a long time to complete while the second part was
 taking only a few seconds. For this reason I ended up splitting the two, basically
-going back to the builder patter the blog post mentions: first I built a base image
-with all Haskell dependencies already compiled and than used a multi-stage build
+going back to the builder patter the blog post mentions: I first built a base image
+with all needed Haskell dependencies compiled and than used a multi-stage build
 to create the executable image. The `Dockerfile` for the base image is not that
 interesting:
 
@@ -57,7 +57,7 @@ RUN stack --resolver lts-9.14 install base \
 
 ```
 
-It just installs some Linux dependecies and builds the Haskell dependecies.
+It just installs some Linux dependencies and builds the Haskell dependencies.
 The one for the executable image is a bit more exciting:
 
 ``` bash
