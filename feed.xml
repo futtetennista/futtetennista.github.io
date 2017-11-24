@@ -8,8 +8,58 @@
         <name>futtetennista</name>
         <email>futtetennista@gmail.com</email>
     </author>
-    <updated>2017-11-15T00:00:00Z</updated>
+    <updated>2017-11-24T00:00:00Z</updated>
     <entry>
+    <title>Building slim Docker images for Haskell applications</title>
+    <link href="https://futtetennismo.me/posts/docker/2017-11-24-docker-haskell-executables.html" />
+    <id>https://futtetennismo.me/posts/docker/2017-11-24-docker-haskell-executables.html</id>
+    <published>2017-11-24T00:00:00Z</published>
+    <updated>2017-11-24T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Providing an application as a <a href="https://www.infoq.com/articles/docker-executable-images">Docker executable image</a> is a handy way to distribute an application: no need to install toolchains, frameworks and dependencies. One can just pull a Docker image and run it. It’s really that simple. Docker images can grow wildly in size because they need to install all the dependecies needed to run the application: this as a user can be quite annoying. Imagine you want to use a tiny application that solves a very specific problem and you have to download a 2GB Docker image! It’s undesirable. And it’s actually not needed: why not shipping only the executable in a very compact Docker image? How can this be achieved if the application is built in Haskell?</p>
+<!--more-->
+<p>I faced the problem I while ago while working on a <a href="https://github.com/futtetennista/ServerlessValidator">pet-project</a>: the Docker image was almost 2GB(!) but the only thing the application was doing was validating a YAML file. I didn’t find a good solution until a few days ago the <a href="http://feram.io/">feram.io</a> folks pointed me to this <a href="https://blog.alexellis.io/mutli-stage-docker-builds/">blog post</a> (thanks guys!). Multi-stage builds?!…I didn’t even know that was possible! So I got back to my pet-project and see how that would work out in Haskell (the application in the blog post is written in Go lang). The final solution I ended up implementing after some painful and time-consuming trial and error was a bit more involved than what is described in that post but it was worthy: the final size of the <a href="https://hub.docker.com/r/futtetennista/serverless-validator/">Docker image</a> dropped <strong>from 2GB to 17.1MB - 5MB compressed size!</strong> I first used plain multi-stage builds but that had an issue: since all the Haskell dependencies have to be compiled, the first part of the multi-stage build was taking a long time to complete while the second part was taking only a few seconds. For this reason I ended up splitting the two, basically going back to the builder patter the blog post mentions: I first built a base image with all needed Haskell dependencies compiled and than used a multi-stage build to create the executable image. The <code>Dockerfile</code> for the base image is not that interesting:</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># docker build -t futtetennista/serverless-validator-builder --file Dockerfile.builder .</span>
+<span class="ex">FROM</span> haskell:8.0
+
+<span class="co"># Install dependecies needed to compile Haskell libraries</span>
+<span class="ex">RUN</span> apt-get update <span class="kw">&amp;&amp;</span> <span class="ex">apt-get</span> install --yes \
+    xz-utils \
+    make
+
+<span class="ex">RUN</span> stack --resolver lts-9.14 install base \
+    protolude \
+    text \
+    aeson \
+    yaml \
+    unordered-containers \
+    case-insensitive \
+    regex-compat</code></pre></div>
+<p>It just installs some Linux dependencies and builds the Haskell dependencies. The one for the executable image is a bit more exciting:</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># docker build -t futtetennista/serverless-validator .</span>
+<span class="ex">FROM</span> futtetennista/serverless-validator-builder as builder
+
+<span class="ex">WORKDIR</span> <span class="st">&quot;/home/serverless-validator/&quot;</span>
+
+<span class="co"># copy the contents of the current directory in the working directory</span>
+<span class="ex">COPY</span> . .
+
+<span class="ex">RUN</span> stack --resolver lts-9.14 install <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
+    <span class="fu">strip</span> /root/.local/bin/serverless-validator
+
+
+<span class="ex">FROM</span> fpco/haskell-scratch:integer-gmp
+
+<span class="ex">COPY</span> --from=builder /root/.local/bin/serverless-validator /bin/
+
+<span class="ex">ENTRYPOINT</span> [<span class="st">&quot;/bin/serverless-validator&quot;</span>]</code></pre></div>
+<p>First it compiles and links the executable in the base container, removes some unwanted piece of data as <code>man strip</code> illustrates</p>
+<blockquote>
+<p>strip removes or modifies the symbol table attached to the output of the assembler and link editor. This is useful to save space after a program has been debugged and to limit dynamically bound symbols.</p>
+</blockquote>
+<p>and finally copies the executable from the base container to the executable container. The <a href="https://hub.docker.com/r/fpco/haskell-scratch/">fpco/haskell-scratch</a> Docker image was created by a personal Haskell-hero of mine, <a href="https://twitter.com/snoyberg">Michael Snoyberg</a> and introduced in this <a href="https://www.fpcomplete.com/blog/2015/05/haskell-web-server-in-5mb">blog post</a> a while back. It’s a minimal Linux image (~2MB) that can be used as a base image to run Haskell applications; the image hasn’t been updated in two years but it still works flawlessly (there is another Docker image tagged <a href="https://hub.docker.com/r/snoyberg/haskell-scratch/">snoyberg/haskell-scratch</a> but I guess it has been deprecated).</p>
+<p>Thanks once again to Michael and the FP Complete folks for solving <strong>so</strong> many practical problems Haskellers face in their day-to-day coding!</p>]]></summary>
+</entry>
+<entry>
     <title>Connecting to a dockerised postgres instance via psql using user-defined bridge networks</title>
     <link href="https://futtetennismo.me/posts/docker/2017-11-15-docker-postgres.html" />
     <id>https://futtetennismo.me/posts/docker/2017-11-15-docker-postgres.html</id>
@@ -757,68 +807,6 @@ public void handleMessage(Message msg) {
     }
 }</code></pre>
 <p>Nothing special here, apart from a tweak we added while we were testing the app that prevents the reload view from being shown too often and becoming annoying for the user.</p>]]></summary>
-</entry>
-<entry>
-    <title>ignition v0.1 - the ignited way of doing location</title>
-    <link href="https://futtetennismo.me/posts/archive/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html" />
-    <id>https://futtetennismo.me/posts/archive/2012-03-09-ignition-v0-dot-1-the-ignited-way-of-doing-location.html</id>
-    <published>2012-03-09T00:00:00Z</published>
-    <updated>2012-03-09T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Today as part of our Fun Friday we released version 0.1 of <a href="https://github.com/mttkay/ignition">ignition</a>, an Android library that should make your life as an Android developer much less painful. What I’d like to write about here is the module I focused on, that is the ignition-location module. Personally I started working with Android almost 3 years ago, in Android terms that means Android v1.5 - Cupcake - API level 3. It wasn’t easy to understand the framework back then, lots of documentation was missing and I spent hours digging in the source code to understand of things were supposed to work. A lot has changed since 1.5, and developing Android applications has become way easier with better documented APIs and better tools. <!--more--> It’s a bit weird that on Android I always worked on location-aware applications, and sadly if you have to deal with location your life is not that simple. I was literally thrilled when I watched <a href="http://www.google.com/events/io/2011/sessions/android-protips-advanced-topics-for-expert-android-app-developers.html">Reto Meier’s talk on the last Google I/O</a>, read his blog posts - on the <a href="http://android-developers.blogspot.com/2011/06/deep-dive-into-location.html">Android Developers Blog</a>, and on his personal blog (<a href="http://blog.radioactiveyak.com/2011/06/how-to-build-location-based-apps-that.html">1</a>, <a href="http://blog.radioactiveyak.com/2011/06/deep-dive-into-location-part-2-being.html">2</a>), and had a look at his <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project - because he showcased some really cool techniques and gave solutions to a lot of issues that I personally experienced. One issue about the sample project is that it’s not intented to be used as an Android library, so there is no easy way to integrate and all that code, and it’s a lot of code (but fair enough, that project wasn’t intented to be an Android library). So I started to think how that code could be reused.</p>
-<p>At that time I was working on integrating Analytics in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype application</a>(<a href="http://prezi.com/swcxu2ynsio-/implementing-analytics-with-aspectj/">here</a>’s a prezi of a barcamp session I did during the last DroidCon in London) using <a href="http://en.wikipedia.org/wiki/AspectJ">AspectJ</a>, and I really liked its unintrusiveness. That’s when I thought: it would be awesome if I wouldn’t had to be worried about enabling/disabling location updates, battery consumption and other details while I’m developing a location-aware application, I just want to know the most recent known location and I don’t care about all those things! In other words, the logic that handles location should be a separate concern with respect to the logic of the application (i.e.: getting the best places nearby, the nearby checked-in friends etc.).</p>
-<p>After spending several months adapting the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331302043597&amp;ved=0CCcQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Fandroid-protips-location%2F&amp;ei=mA5aT8uzOYHStAaryvGZDA&amp;usg=AFQjCNEr7Ee0hLkpQ4-fC8eNw1sEAVqDkA">android-protips-location</a> project and adding a couple of features so that it could be used as an Android library, here is the final result:</p>
-<pre><code>@IgnitedLocationActivity
-public class IgnitedLocationSampleActivity extends MapActivity {
-    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON&#39;T WORK!
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        ...
-    }
-
-    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON&#39;T WORK!
-    @Override
-    public void onResume() {
-        super.onResume();
-    }
-
-    // MUST BE OVERRIDDEN OR IGNITION LOCATION WON&#39;T WORK!
-    @Override
-    public void onPause() {
-        super.onPause();
-    }
-
-    @Override
-    public boolean onIgnitedLocationChanged(Location newLocation) {
-        ...
-        return true;
-    }
-    ...</code></pre>
-<p>}</p>
-<p>Et voilà ! That’s all the code you have to write in your location-aware Activity! Under the hood the ignition-location library will:</p>
-<ul>
-<li>enable/disable location updates</li>
-<li>enable/disable passive location updates</li>
-<li>return the most recent location to your application (using the <code>onIgnitedLocationChanged()</code> callback or a Location <u>field</u> with the <code>@IgnitedLocation</code> annotation)</li>
-<li>avoid using GPS if the battery level is too low</li>
-<li>automatically switch off GPS and request network updates if a location fix is not returned after a certain interval without the need for you to do anything else apart from adding the <code>@IgnitedLocation</code>Activity annotation to your Activity and make sure you override <code>onCreate()</code>, <code>onResume()</code> and <code>onPause()</code>. Many configuration parameters can be passed to the <code>@IgnitedLocation</code> Activity annotation to have fully customized settings.</li>
-</ul>
-<p>If Eclipse is your IDE, additionally to your Android setup you must:</p>
-<ol style="list-style-type: decimal">
-<li>download and install the <a href="http://www.google.de/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cts=1331303317995&amp;ved=0CCUQFjAA&amp;url=http%3A%2F%2Fwww.eclipse.org%2Fajdt%2F&amp;ei=lBNaT6D6BofhtQb2wvH6Cw&amp;usg=AFQjCNFDAcExHcXf900Zhjp4pcFF0VexHg">ajdt</a></li>
-<li>add ignition-location as a library project (have a look <a href="http://developer.android.com/guide/developing/projects/projects-eclipse.html#ReferencingLibraryProject">here</a> for instructions)</li>
-<li>add ignition-location to the aspect path (have a look at the image below)</li>
-</ol>
-<p>If you are using Maven as your build manager you have to:</p>
-<ol style="list-style-type: decimal">
-<li><p>add ignition-location as a dependency</p>
-<p><dependency> <groupId>com.github.ignition</groupId> <artifactId>ignition-location</artifactId> <version>0.1</version> <type>apklib</type> <exclusions> <exclusion> <groupId>com.google.guava</groupId> <artifactId>guava-collections</artifactId> </exclusion> </exclusions> </dependency></p></li>
-<li><p>add the aspectj-maven-plugin to your POM file, adding the ignition-location library to the aspect path</p>
-<p><plugin> <groupId>org.codehaus.mojo</groupId> <artifactId>aspectj-maven-plugin</artifactId> <configuration> <aspectLibraries> <aspectLibrary> <groupId>com.github.ignition</groupId> <artifactId>ignition-location</artifactId> <type>apklib</type> </aspectLibrary> </aspectLibraries> <source>1.6</source> </configuration> <executions> <execution> <!-- phase need to be before compile, or the build will fail. More info here: http://stackoverflow.com/questions/2610633/maven-compile-aspectj-project-containing-java-1-6-source --> <phase>process-sources</phase> <goals> <goal>compile</goal> </goals> </execution> </executions> </plugin></p></li>
-</ol>
-<p>One last good thing about it is that it’s open source and on <a href="https://github.com/mttkay/ignition">github</a>! So fork it and help us make it better.</p>
-<p>NOTE:</p>
-<p>If you are wondering if the ignition-location magic will slow your application down, the simple answer is: no. Reflection is not used, AspectJ’s <a href="http://stackoverflow.com/questions/7646097/what-is-aspectj-context-binding">Context binding</a> is used instead. That means that all the magic is happening at compile time. Isn’t that cool?</p>]]></summary>
 </entry>
 
 </feed>

@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+  <!-- MUST in hex format, may the same as header-color. This color is for android chrome browser. -->
+  <meta name="theme-color" content="#5c6bc0">
+
+  <!-- Metadata. -->
+  <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"><link rel="shortcut icon" href="../../images/favicons/favicon32.png"><link rel="apple-touch-icon-precomposed" sizes="144x144" href="../../images/favicons/favicon144.png"><link rel="apple-touch-icon-precomposed" sizes="114x114" href="../../images/favicons/favicon114.png"><link rel="apple-touch-icon-precomposed" sizes="72x72" href="../../images/favicons/favicon72.png"><link rel="apple-touch-icon-precomposed" sizes="57x57" href="../../images/favicons/favicon57.png">
+  <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
+  <title>Building slim Docker images for Haskell applications</title>
+  <meta name="description" content="Providing an application as a Docker executable image is a handy way to distribute an application: no need to install toolchains, frameworks and dependencies. O">
+  <link rel="canonical" href="../../posts/docker/2017-11-24-docker-haskell-executables.html">
+  <link rel="alternate" type="application/atom+xml" title="Building slim Docker images for Haskell applications" href="../../feed.xml" />
+
+  <!-- Stylesheets. -->
+  <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
+  <link rel="stylesheet" href="../../css/main.css">
+  <link media="all" rel="stylesheet" type="text/css" href="../../lib/mdi/css/materialdesignicons.min.css">
+  <link rel="stylesheet" href="../../lib/material-scrolltop/material-scrolltop.css">
+
+  <noscript>
+  <div class="notice-warning noscript">You don't have javascript enabled. Good luck! :(</div>
+</noscript>
+
+<!--[if IE]>
+  <div class="notice-warning">Oh, you are using Internet Explorer! Good luck... :(</div>
+<![endif]-->
+
+</head>
+
+
+  <body>
+
+    <header class="site-header">
+      <nav class="nav-extended indigo lighten-1">
+        <div class="nav-wrapper">
+  <span class="site-title">Futtetennismo</span>
+  <a href="#" data-activates="mobile-navbar" class="button-collapse">
+    <i class="mdi mdi-menu white-text"></i>
+  </a>
+
+  <ul id="nav-mobile" class="right hide-on-med-and-down">
+    <li>
+      <a href="../../" class="white-text">
+        <i class="mdi mdi-home left indigo-text text-lighten-3"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../archive.html" class="white-text">
+        <i class="mdi mdi-archive left indigo-text text-lighten-3"></i>
+        Archive
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="white-text">
+        <i class="mdi mdi-account-circle left indigo-text text-lighten-3"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="white-text">
+        <i class="mdi mdi-settings left indigo-text text-lighten-3"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="white-text">
+        <i class="mdi mdi-rss left indigo-text text-lighten-3"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+
+  <ul class="side-nav" id="mobile-navbar">
+    <li>
+      <a href="../../" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-home left green-text"></i>
+        Home
+      </a>
+    </li>
+    <li>
+      <a href="../../archive.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-archive left indigo-text text-lighten-3"></i>
+        Archive
+      </a>
+    </li>
+    <li>
+      <a href="../../about.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-account-circle left blue-text"></i>
+        About
+      </a>
+    </li>
+    <li>
+      <a href="../../imprint.html" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-settings left blue-text"></i>
+        Imprint
+      </a>
+    </li>
+    <li>
+      <a href="../../feed.xml" class="waves-effect waves-teal black-text">
+        <i class="mdi mdi-rss left red-text"></i>
+        Feed
+      </a>
+    </li>
+  </ul>
+</div>
+
+      </nav>
+    </header>
+
+    <div class="site-container" id="tab-main">
+      <div class="wrapper">
+        <div class="post-ribbon"></div>
+
+<div class="container post-container">
+  <div class="post-page card-panel z-depth-2">
+    <div class="post-section">
+
+      <p class="grey-text">
+        <i class="mdi mdi-calendar"></i>&nbsp;
+        Posted on November 24, 2017
+        
+          &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
+          by futtetennista
+        
+        &nbsp;
+        
+          <i class="mdi mdi-folder"></i>&nbsp;
+          <span class="capitalize"><a href="../../categories/docker.html">docker</a>, <a href="../../categories/haskell.html">haskell</a></span>
+          <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
+        
+      </p>
+
+      <div class="post-header">
+        <h1 class="post-title">Building slim Docker images for Haskell applications</h1>
+
+        
+          <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
+          <div class="chip"><a href="../../tags/docker.html">docker</a>, <a href="../../tags/haskell.html">haskell</a>, <a href="../../tags/snippet.html">snippet</a></div>
+        
+      </div>
+
+      <article class="post-content">
+        <p>Providing an application as a <a href="https://www.infoq.com/articles/docker-executable-images">Docker executable image</a> is a handy way to distribute an application: no need to install toolchains, frameworks and dependencies. One can just pull a Docker image and run it. It’s really that simple. Docker images can grow wildly in size because they need to install all the dependecies needed to run the application: this as a user can be quite annoying. Imagine you want to use a tiny application that solves a very specific problem and you have to download a 2GB Docker image! It’s undesirable. And it’s actually not needed: why not shipping only the executable in a very compact Docker image? How can this be achieved if the application is built in Haskell?</p>
+<!--more-->
+<p>I faced the problem I while ago while working on a <a href="https://github.com/futtetennista/ServerlessValidator">pet-project</a>: the Docker image was almost 2GB(!) but the only thing the application was doing was validating a YAML file. I didn’t find a good solution until a few days ago the <a href="http://feram.io/">feram.io</a> folks pointed me to this <a href="https://blog.alexellis.io/mutli-stage-docker-builds/">blog post</a> (thanks guys!). Multi-stage builds?!…I didn’t even know that was possible! So I got back to my pet-project and see how that would work out in Haskell (the application in the blog post is written in Go lang). The final solution I ended up implementing after some painful and time-consuming trial and error was a bit more involved than what is described in that post but it was worthy: the final size of the <a href="https://hub.docker.com/r/futtetennista/serverless-validator/">Docker image</a> dropped <strong>from 2GB to 17.1MB - 5MB compressed size!</strong> I first used plain multi-stage builds but that had an issue: since all the Haskell dependencies have to be compiled, the first part of the multi-stage build was taking a long time to complete while the second part was taking only a few seconds. For this reason I ended up splitting the two, basically going back to the builder patter the blog post mentions: I first built a base image with all needed Haskell dependencies compiled and than used a multi-stage build to create the executable image. The <code>Dockerfile</code> for the base image is not that interesting:</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># docker build -t futtetennista/serverless-validator-builder --file Dockerfile.builder .</span>
+<span class="ex">FROM</span> haskell:8.0
+
+<span class="co"># Install dependecies needed to compile Haskell libraries</span>
+<span class="ex">RUN</span> apt-get update <span class="kw">&amp;&amp;</span> <span class="ex">apt-get</span> install --yes \
+    xz-utils \
+    make
+
+<span class="ex">RUN</span> stack --resolver lts-9.14 install base \
+    protolude \
+    text \
+    aeson \
+    yaml \
+    unordered-containers \
+    case-insensitive \
+    regex-compat</code></pre></div>
+<p>It just installs some Linux dependencies and builds the Haskell dependencies. The one for the executable image is a bit more exciting:</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># docker build -t futtetennista/serverless-validator .</span>
+<span class="ex">FROM</span> futtetennista/serverless-validator-builder as builder
+
+<span class="ex">WORKDIR</span> <span class="st">&quot;/home/serverless-validator/&quot;</span>
+
+<span class="co"># copy the contents of the current directory in the working directory</span>
+<span class="ex">COPY</span> . .
+
+<span class="ex">RUN</span> stack --resolver lts-9.14 install <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
+    <span class="fu">strip</span> /root/.local/bin/serverless-validator
+
+
+<span class="ex">FROM</span> fpco/haskell-scratch:integer-gmp
+
+<span class="ex">COPY</span> --from=builder /root/.local/bin/serverless-validator /bin/
+
+<span class="ex">ENTRYPOINT</span> [<span class="st">&quot;/bin/serverless-validator&quot;</span>]</code></pre></div>
+<p>First it compiles and links the executable in the base container, removes some unwanted piece of data as <code>man strip</code> illustrates</p>
+<blockquote>
+<p>strip removes or modifies the symbol table attached to the output of the assembler and link editor. This is useful to save space after a program has been debugged and to limit dynamically bound symbols.</p>
+</blockquote>
+<p>and finally copies the executable from the base container to the executable container. The <a href="https://hub.docker.com/r/fpco/haskell-scratch/">fpco/haskell-scratch</a> Docker image was created by a personal Haskell-hero of mine, <a href="https://twitter.com/snoyberg">Michael Snoyberg</a> and introduced in this <a href="https://www.fpcomplete.com/blog/2015/05/haskell-web-server-in-5mb">blog post</a> a while back. It’s a minimal Linux image (~2MB) that can be used as a base image to run Haskell applications; the image hasn’t been updated in two years but it still works flawlessly (there is another Docker image tagged <a href="https://hub.docker.com/r/snoyberg/haskell-scratch/">snoyberg/haskell-scratch</a> but I guess it has been deprecated).</p>
+<p>Thanks once again to Michael and the FP Complete folks for solving <strong>so</strong> many practical problems Haskellers face in their day-to-day coding!</p>
+      </article>
+
+      
+      </div>
+    </div>
+
+    <footer class="page-footer indigo lighten-1">
+
+  <div class="footer-copyright">
+
+    <div class="container">
+      © 2012-2017 <a class="red-text text-accent-1" href="../../about.html">futtetennista</a>, under
+      <a class="red-text text-accent-1" href="https://creativecommons.org/licenses/by-sa/4.0/"> CC BY-SA 4.0</a>.&nbsp;
+      Site proudly generated by <a class="red-text text-accent-1" href="http://jaspervdj.be/hakyll">Hakyll</a>,&nbsp;
+      original Jekyll theme by <a class="red-text text-accent-1" href="https://github.com/mumuxme/materialize-jekyll">mumuxme</a>.
+    </div>
+
+  </div>
+
+</footer>
+
+
+    <!-- scrolltop button -->
+    <button class="material-scrolltop waves-effect waves-light hide-on-small-only" type="button">
+      <i class="mdi mdi-arrow-up-bold small white-text"></i>
+    </button>
+
+    <!-- jquery -->
+    <script type="text/javascript" src="../../lib/jquery-min.js"></script>
+    <!-- materialize -->
+    <script src="../../lib/materialize/js/materialize.min.js"></script>
+    <!-- <\!-- Material ScrollTop plugin -\-> -->
+    <script src="../../lib/material-scrolltop/material-scrolltop.js"></script>
+    <!-- main -->
+    <script src="../../js/init.js"></script>
+    <script src="../../js/main.js"></script>
+
+  </body>
+
+</html>
