@@ -190,6 +190,8 @@
 </blockquote>
 <p>and finally copies the executable from the base container to the executable container. The <a href="https://hub.docker.com/r/fpco/haskell-scratch/">fpco/haskell-scratch</a> Docker image was created by a personal Haskell-hero of mine, <a href="https://twitter.com/snoyberg">Michael Snoyberg</a> and introduced in this <a href="https://www.fpcomplete.com/blog/2015/05/haskell-web-server-in-5mb">blog post</a> a while back. It’s a minimal Linux image (~2MB) that can be used as a base image to run Haskell applications; the image hasn’t been updated in two years but it still works flawlessly (there is another Docker image tagged <a href="https://hub.docker.com/r/snoyberg/haskell-scratch/">snoyberg/haskell-scratch</a> but I guess it has been deprecated).</p>
 <p>Thanks once again to Michael and the FP Complete folks for solving <strong>so</strong> many practical problems Haskellers face in their day-to-day coding!</p>
+<h4 id="update">UPDATE</h4>
+<p>This technique is applicable whenever your application needs to build upon an existing framework or library: for example this very website! Building it on CircleCI without any caching takes almost <a href="https://circleci.com/gh/futtetennista/futtetennista.github.io/136">14 minutes</a>, that goes down to <a href="https://circleci.com/gh/futtetennista/futtetennista.github.io/141">1:32 minutes</a> with caching and to <a href="https://circleci.com/gh/futtetennista/futtetennista.github.io/143">1:18 minutes</a> with a base image with pre-compiled dependencies.</p>
       </article>
 
       
