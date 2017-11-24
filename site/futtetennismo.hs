@@ -2,6 +2,7 @@
 import Hakyll
 import Data.Monoid ((<>))
 import Data.List (stripPrefix, isPrefixOf)
+import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Hakyll.Web.Sass (sassCompiler)
 import Hakyll.Favicon (faviconsRules, faviconsField)
@@ -24,8 +25,8 @@ main = hakyllWith hakyllConfig $ do
                   , "pages/LICENSE.markdown"
                   ]) $ do
     route $
-      customRoute (maybe (error "Expected pages to be in 'pages' folder")
-                         id . stripPrefix "pages/" . toFilePath)
+      customRoute (fromMaybe (error "Expected pages to be in 'pages' folder")
+                             . stripPrefix "pages/" . toFilePath)
       `composeRoutes` setExtension "html"
     let
       pageCtx =
@@ -117,8 +118,8 @@ main = hakyllWith hakyllConfig $ do
 
 
 ctxWithTags :: Context String -> [(String, Tags)] -> Context String
-ctxWithTags ctx =
-  foldr (\(name, tags) baseCtx -> tagsField name tags <> baseCtx) ctx
+ctxWithTags =
+  foldr (\(name, tags) baseCtx -> tagsField name tags <> baseCtx)
 
 
 postCtx :: Context String
@@ -142,10 +143,10 @@ postCtx =
 
 createTagsRules :: Tags -> (String -> String) -> Rules ()
 createTagsRules tags mkTitle =
-  tagsRules tags $ \tag pattern -> do
+  tagsRules tags $ \tag pttrn -> do
     route idRoute
     compile $ do
-      posts <- recentFirst =<< loadAll pattern
+      posts <- recentFirst =<< loadAll pttrn
       let
         ctx =
           constField "title" (mkTitle tag)
@@ -184,4 +185,4 @@ loadRecentPosts =
   filter archivedPost `fmap` loadAll "posts/**"
   where
     archivedPost =
-      not . (isPrefixOf "posts/archive/") . toFilePath . itemIdentifier
+      not . isPrefixOf "posts/archive/" . toFilePath . itemIdentifier

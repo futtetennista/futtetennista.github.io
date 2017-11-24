@@ -3,8 +3,9 @@ version:            0.1.0.0
 build-type:         Simple
 cabal-version:      >= 1.10
 
-executable site
-  main-is:          site.hs
+executable futtetennismo
+  hs-source-dirs:   site
+  main-is:          futtetennismo.hs
   build-depends:    base == 4.*
                   , hakyll == 4.9.*
                   , bytestring == 0.10.8.*
