@@ -11,7 +11,7 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - v1-stack-work-{{ checksum "futtetennismo.cabal" }}
+            - v2-stack-work-{{ checksum "futtetennismo.cabal" }}
             - stack-work-
       - run:
           name: Build site executable
@@ -20,7 +20,7 @@ jobs:
           paths:
             - ~/futtetennismo/.stack-work
             - /root/.stack/
-          key: v1-stack-work-{{ checksum "futtetennismo.cabal" }}
+          key: v2-stack-work-{{ checksum "futtetennismo.cabal" }}
       - deploy:
           name: Deploy master to Github Pages
           command: |
