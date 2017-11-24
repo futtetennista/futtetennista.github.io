@@ -99,3 +99,16 @@ I guess it has been deprecated).
 
 Thanks once again to Michael and the FP Complete folks for solving **so** many
 practical problems Haskellers face in their day-to-day coding!
+
+
+#### UPDATE
+
+This technique is applicable whenever your application needs to build upon an
+existing framework or library: for example this very website! Building it
+on CircleCI without any caching takes almost
+[14 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/136),
+that goes down to
+[1:32 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/141)
+with caching and to
+[1:18 minutes](https://circleci.com/gh/futtetennista/futtetennista.github.io/143)
+with a base image with pre-compiled dependencies.
