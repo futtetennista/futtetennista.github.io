@@ -81,7 +81,7 @@ data VState = Undiscovered | Discovered | Processed deriving (Show, Eq, Ord)
 
 type ConnectedComponent w a = Tree w a
 
-data Tree w a = Nil | Node !a ![(w, Tree w a)] deriving (Show, Eq)
+data Tree w a = Nil | Node !a [(w, Tree w a)] deriving (Show, Eq)
 
 -- Let's assume for simplicity that vertices and weights are integers
 dfs :: Graph Int Int -> [ConnectedComponent Int Int]
@@ -200,6 +200,7 @@ type Bounds = (Vertex, Vertex)
 buildG :: Bounds -> [(Vertex, EdgeNode)] -> Graph
 buildG = accumArray (flip (:)) []
 
+-- generate all possible trees for each node (on-demand)
 generate :: Graph -> Vertex -> Tree Vertex
 generate g v = Node v (map (generate g . fst) (g ! v))
 
@@ -270,55 +271,50 @@ topsort = reverse . postOrd
 postorder :: Tree a -> Seq a
 postorder (Node x ts) = postorderF ts |> x
 
-postorderF :: Forest a -> Seq a
-postorderF = foldr ((><) . postorder) Seq.empty
+postorderForest :: Forest a -> Seq a
+postorderForest = foldr ((><) . postorder) Seq.empty
 
 postOrd :: Graph -> [Int]
-postOrd = toList . postorderF . dff
+postOrd = toList . postorderForest . dff
 
 preorder :: [a] -> Tree a -> [a]
-preorder vs (Node v ts) = preorderF (v:vs) ts
+preorder vs (Node v ts) = preorderForest (v:vs) ts
 
-preorderF :: [a] -> Forest a -> [a]
-preorderF = reverse . foldr (flip preorder)
+preorderForest :: [a] -> Forest a -> [a]
+preorderForest = reverse . foldr (flip preorder)
 
 preOrd :: Graph -> [Vertex]
-preOrd = preorderF [] . dff
+preOrd = preorderForest [] . dff
 
--- EDGE CLASSIFICATION
--- build graph of edge types
--- O(T)
+```
+
+And how to build graphs by classifying the different types of edges in a graph
+leveraging pre- and post-order graph traversals:
+
+```haskell
 mapT :: (Vertex -> a -> b) -> Table a -> Table b
 mapT f tree = array (bounds tree) [(v, f v (tree ! v)) | v <- indices tree]
 
--- O(TS^2)
 tree :: Bounds -> Forest Vertex -> Graph
 tree bnds ts = buildG bnds (concatMap flat ts)
   where
-    -- #ts + #ts^2 = O(TS^2)
     flat (Node v ts) = [(v, (v', 0)) | Node v' _ <- ts] ++ concatMap flat ts
 
--- O(V * E)
 back :: Graph -> Table Vertex -> Graph
 back g postord = mapT select g
   where
     select v es = [(v', w) | (v', w) <- es, postord ! v < postord ! v']
 
-
--- O(V * E)
 cross :: Graph -> Table Vertex -> Table Vertex -> Graph
 cross g preord postord = mapT select g
   where
     select v es =
     [(v', w) | (v', w) <- es, postord ! v > postord ! v' && preord ! v > preord ! v']
 
-
--- O(V * E{g} * E{treeG})
 forward :: Graph -> Graph -> Table Vertex -> Graph
-forward g treeG preord = mapT select g
+forward g treeGraph preord = mapT select g
   where
-    -- #edges{g} + #edges{g} * #edges{treeG} = O(E{g} * E{treeG})
-    select v es = [(v', w) | (v', w) <- es, preord ! v < preord ! v'] \\ treeG ! v
+    select v es = [(v', w) | (v', w) <- es, preord ! v < preord ! v'] \\ treeGraph ! v
 ```
 
 #### Notes
@@ -355,20 +351,24 @@ it and to proof its correctness. The solution the paper proposes is to think
 about graphs in a new way.
 
 ### Enter inductive graphs
-Lists and trees algorithms are much more simple and modular than graph algorithms
-and do not require additional bookkeeping: why is that? For once, their definition is
-inductive and function definitions using those data structures are also inductive;
-additionally, pattern matching helps a great deal when it comes to clarity and
-succinctness. Now let's have a look at the definition of graphs: they are usually
+
+The paper makes a very interesting observation at some point: lists and trees
+algorithms are much simpler and more modular than graph algorithms
+and do not require additional bookkeeping: why is that? The answer is two-fold:
+for once, their definition is inductive and function definitions using those
+data structures are also inductive and besides that pattern matching helps a
+great deal when it comes to clarity and succinctness.
+Now let's have a look at the definition of graphs: they are usually
 defined as a pair `G = (V, E)` where `V` is the set of vertices and `E` the set
 of edges, where edge is defined as a pair of vertices in `V`.
 Imperative-style algorithms on graphs discover edges and vertices incrementally
 and usually need to keep track of the visited vertices either using a separate
-data structure or by defining the graph slightly differently to add new fields.
-In this sense the usual definition of graphs is monolithical. These are identified
-as the reasons why algorithms centered around this API are doomed if what they
-want to achieve is clarity and modularity.
-A valid definition for a graph defined inductively is the following:
+data structure or by storing more data in the data structure representing the graph.
+In this sense the usual definition of graphs is monolithical and this is the
+reasons why algorithms that use this API are doomed if what they strive for
+clarity and modularity. Would it be possible to define graphs inductively? If so
+how? A valid definition for a graph data structure defined inductively might look
+like the following:
 
 ``` haskell
 infixr 5 :&:
@@ -387,9 +387,11 @@ type Adj w = [(w, Vertex)]
 type Vertex = Int
 ```
 
-A graph is either empty or it's a function that accepts a context and a graph.
-The context describes a given vertex, namely its value, label (if any) and its
-adjacent edges classified as inbound or outbound. So far so good, how can we build
+The definition should look familiar if you've already seen one for trees or lists:
+a graph is either empty or it has a context and another graph.
+The context contains information about a given vertex, namely its value,
+label (if any) and its adjacent edges classified as inbound or outbound.
+So far so good, how can we build
 an inductive graph? This is easier to understand with an example:
 
 <div class="figure centered">
@@ -423,16 +425,19 @@ can be built depending on the order of insertion of its vertices.
 
 Looking back at the definition of the `Graph` type, it might look quite
 similar to the one of lists but it's not quite the same because there are
-rules for the construction of a graph, namely that the context of a given vertex
+rules for the construction of a graph: the context of a given vertex
 contains the adjacent inbound and outbound edges only if the pair of vertices
 has *already been discovered*.
 
 ### Active graph patterns
+
 Pattern matching was identified as one of the ingredients that made lists and
 trees algorithms clean and succint, the paper refers to an extension of pattern
 matching for graphs named *"active graph pattern"* whose main goal is as far as
 I understood to make the notation more compact, augmenting the classic pattern
-matching by allowing a function to be called before the matching is applied.
+matching by allowing a function to be called before the matching is applied. It
+is very similar to [view patterns](???) but it's more powerful because the patter
+can access the outer scope.
 This is not currently available in Haskell so the following code is something
 I made up to hopefully provide an intuition to the reader and **will not** type-check:
 
@@ -442,11 +447,49 @@ deg v ((ins, _, _, outs) (:&: ! v) g) = length ins + length out
 ```
 
 The expression `(:&: ! v)` can be interpreted as: *"find the `Context` for the
-vertex `v` in `g` if it exists"*.
+vertex `v` in `g` if it exists and try to match the given pattern"*.
 Active graph patterns are not essential when implementing inductive graphs and
 it is possible do pattern matching without them, all that is needed is a function
-`match` with type `Vertex -> Graph w l -> Maybe (Context w l, Graph w l)`.
+`match`. An extremely naive implementation might look like:
 
-### Efficiency
+``` haskell
+match :: Vertex -> Graph w l -> Maybe (Context w l, Graph w l)
+match qv = matchHelp ([], [])
+  where
+    matchHelp _ Empty = Nothing
+    matchHelp (vs, es) ((ins, v, l, outs) :&: g)
+      | qv == v = let (:&:) !ctx !g' = mkG g ((l, v):vs) es'
+                  in Just (ctx, g')
+      | otherwise = matchHelp ((l, v):vs, es') g
+      where
+        es' =
+          map (\(w, fromv) -> (fromv, v, w)) ins
+            ++ map (\(w, tov) -> (v, tov, w)) outs
+            ++ es
+```
+
+#### A word on efficiency
+
+The goal of this blog post is not to show how to implement inductive graphs in the
+real-world but to give an intuition of how they work. An efficient implementation
+must use a more efficient data structure than the one shown above and more
+importantly pattern matching must run in linear time for graph algorithms to be
+performant. It's quite easy to notice that the toy implementations shown so far
+are not even close to that running time. A real-world implementation
+based on Martin Erwigs' paper is available on [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1)
+so if you're curious to know how it is possible to implement inductive graphs
+efficiently I'll encourage to study the source code.
+I'll possibly cover the topic in a future blog post.
 
 ### Functional graph algorithms
+
+Having our inductive definitions of graphs, it's time to discover how that can be
+leveraged to write graph algorithms that fully honour the functional style. I'll
+talk about three fundamental graph algorithms, in the paper you can find more of
+them: depth-first search (or DFS), breadth-first search (or BFS) and shortest path.
+
+#### DFS
+
+#### BFS
+
+#### Shortest path
