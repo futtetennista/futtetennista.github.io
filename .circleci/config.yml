@@ -15,7 +15,7 @@ jobs:
             - stack-work-
       - run:
           name: HLint site executable
-          command: stack exec hlint site/
+          command: stack install hlint && stack exec hlint site/
       - run:
           name: Build executable
           command: stack build
