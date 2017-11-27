@@ -14,7 +14,10 @@ jobs:
             - v2-stack-work-{{ checksum "futtetennismo.cabal" }}
             - stack-work-
       - run:
-          name: Build site executable
+          name: HLint site executable
+          command: stack exec hlint site/
+      - run:
+          name: Build executable
           command: stack build
       - save_cache:
           paths:
