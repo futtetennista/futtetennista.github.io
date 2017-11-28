@@ -483,13 +483,126 @@ I'll possibly cover the topic in a future blog post.
 
 ### Functional graph algorithms
 
-Having our inductive definitions of graphs, it's time to discover how that can be
-leveraged to write graph algorithms that fully honour the functional style. I'll
-talk about three fundamental graph algorithms, in the paper you can find more of
+Having our inductive definitions of graphs, it's time to show how that can be
+leveraged to write graph algorithms that are elegant and composable.
+We'll have a look at three fundamental graph algorithms, in the paper you can find more of
 them: depth-first search (or DFS), breadth-first search (or BFS) and shortest path.
 
-#### DFS
+### Terminology
 
-#### BFS
+Here's a
+- query vertex: the vertex the algorithm is currently processing
+- outbound edge: an edge whose source vertex is the query vertex
+- source vertex: the vertex at the left of an edge
+- destination vertex: the vertex at the right of an edge
+- successor [vertex]: the destination vertex of the next outbound edge (edge order
+is unspecified)
+- siblings [vertices]: the destination vertices in the tail of the outbound edges
+
+#### Depth-first search
+
+Using a depth-first search strategy to visit a graph essentially means: visit
+each vertex **once** and **visit successors before siblings**.
+Here's what the algorithm looks like:
+
+``` haskell
+dfs :: [Vertex] -> Graph w l -> [Vertex]
+dfs _ Empty = []
+dfs [] _ = []
+dfs (v:vs) g =
+  case v `match` g of
+    Nothing -> dfs vs g
+
+    -- `ctx2outvs` is a function that maps edges to a list of vertices
+    Just ((_,vtx,_,outs), g') -> vtx : dfs (outs ++ vs) g'
+```
+
+`dfs` is a recursicve function that takes a list of input vertices and a graph
+and returns a list of vertices sorted by traversing the graph in DFS-style.
+If the graph or their input vertices are empty it returns the empty list,
+otherwise it takes the current vertex `v` and `match`es it against the graph.
+If `v` is a vertex in the graph,
+`match` will first return its context and a new graph without it, append
+`v` to the results list and finally the recursion will happen using as input
+the list of destination vertices for all outbound edges of `v` appended to
+the remaining source vertices and the new graph returned by the `match` function;
+if `v` is not a vertex in the graph then it is simply ignored and the algorithm
+recursively calls itself.
+There key facts to understand about the algorithm are:
+
+1. destination vertices are appended *in front of* the source vertices: this is what makes
+the algorithm traversing the input graph depth-first. This is exactly what the
+second invariant of DFS dictates : visit a successor before the sibilings.
+2. the `match` function returns a new graph *without* the query vertex: this is
+what the first invariant of DFS dictates - visit each vertex exectly once.
+Since the new graph doesn't contain the query vertex there is no need for keeping
+track of the visited vertices.
+
+Let's have a look at a very simple example using one of the sample graphs above:
+
+``` haskell
+ƛ: let g = read "mkG [('c', 3), ('b', 2), ('a', 1)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
+([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
+ƛ: dfs [1] g
+[1, 2, 3]
+```
+
+Building the DFS forest of a graph is a bit more convoluted. A forest is a set
+of trees - we'll use lists instead of sets as common in functional programming.
+To build the DFS forest the algorithm needs to traverse the graph using DFS for
+each of the source vertices individually, and only when the DFS traversal is
+complete (the list of source vertices is empty) it can proceed with the net one.
+Here's what the algorithm looks like:
+
+``` haskell
+import Control.Arrow (second)
+
+
+dff :: [Vertex] -> Graph w l -> Forest Vertex
+dff vs = fst . dff' vs
+
+dff' :: [Vertex] -> Graph w l -> (Forest Vertex, Graph w l)
+dff' [] g = ([], g)
+dff' (v:vs) g =
+  case v `match` g of
+    Nothing -> dff' vs g
+
+    Just (ctx, g') -> (Node v ts : forest, g2)
+  where
+    (ts, (forest, g2)) = second (dff' vs) $ dff' (outvs ctx) g'
+
+```
+
+The `dff` function calls an auxiliary function `dff'` that does most of the work.
+`dff` is as `dfs` a recursive function: it tirst it matches the source vertex `v`
+and if `match`ing succeeds the function
+calls itself with the successor vertices and the new graph as its input until the
+list of source vertices is empty; when that happens `dff'` recurses using the
+remaining source vertices and the graph resulted from running `dff'` for the
+previous source vertex.
+
+#### Breadth-first search
+
+Using a breadth-first search strategy to visit a graph essentially means: traverse
+each vertex **once** and **visit siblings before successors**.
+Here's what the algorithm looks like:
+
+``` haskell
+bfs :: Graph w l -> [Vertex] -> [Vertex]
+bfs gr vs =
+  bfs' gr vs
+  where
+    bfs' g svs
+      | isEmpty g || null svs =
+          []
+      | otherwise =
+          case v `match` g of
+            Nothing -> bfs' g vs
+
+            -- `ctx2outvs` is a function that maps edges to a list of vertices
+            Just ((_,vtx,_,outs), g') -> vtx : dfs (vs ++ outs) g'
+```
+
+
 
 #### Shortest path
