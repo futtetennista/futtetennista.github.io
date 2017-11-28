@@ -1,4 +1,4 @@
-FROM futtetennista/hakyll:4.8.0.0-ext
+FROM futtetennista/hakyll:4.9.8.0-ext
 
 RUN stack --resolver lts-9.14 install hlint
 
