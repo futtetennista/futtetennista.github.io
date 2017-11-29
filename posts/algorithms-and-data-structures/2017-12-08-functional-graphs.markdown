@@ -468,19 +468,6 @@ match qv = matchHelp ([], [])
             ++ es
 ```
 
-#### A word on efficiency
-
-The goal of this blog post is not to show how to implement inductive graphs in the
-real-world but to give an intuition of how they work. An efficient implementation
-must use a more efficient data structure than the one shown above and more
-importantly pattern matching must run in linear time for graph algorithms to be
-performant. It's quite easy to notice that the toy implementations shown so far
-are not even close to that running time. A real-world implementation
-based on Martin Erwigs' paper is available on [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1)
-so if you're curious to know how it is possible to implement inductive graphs
-efficiently I'll encourage to study the source code.
-I'll possibly cover the topic in a future blog post.
-
 ### Functional graph algorithms
 
 Having our inductive definitions of graphs, it's time to show how that can be
@@ -488,16 +475,19 @@ leveraged to write graph algorithms that are elegant and composable.
 We'll have a look at three fundamental graph algorithms, in the paper you can find more of
 them: depth-first search (or DFS), breadth-first search (or BFS) and shortest path.
 
-### Terminology
+##### Terminology
 
-Here's a
+Before digging into the description of the algorithms, these are some of the terms
+to keep in mind since I'll use frequently use them:
+
 - query vertex: the vertex the algorithm is currently processing
 - outbound edge: an edge whose source vertex is the query vertex
 - source vertex: the vertex at the left of an edge
 - destination vertex: the vertex at the right of an edge
-- successor [vertex]: the destination vertex of the next outbound edge (edge order
-is unspecified)
-- siblings [vertices]: the destination vertices in the tail of the outbound edges
+- successor (or successor vertex): the destination vertex of the next outbound
+edge (edge order is unspecified)
+- siblings (referring to vertices): all destination vertices of outbound edges
+except for the successor
 
 #### Depth-first search
 
@@ -509,12 +499,11 @@ Here's what the algorithm looks like:
 dfs :: [Vertex] -> Graph w l -> [Vertex]
 dfs _ Empty = []
 dfs [] _ = []
-dfs (v:vs) g =
-  case v `match` g of
-    Nothing -> dfs vs g
+dfs (v:vs) g = case v `match` g of
+  Nothing -> dfs vs g
+  Just ((_,vtx,_,outs), g') -> vtx : dfs (nextvs outs ++ vs) g'
 
-    -- `ctx2outvs` is a function that maps edges to a list of vertices
-    Just ((_,vtx,_,outs), g') -> vtx : dfs (outs ++ vs) g'
+nextvs :: Context l w -> [Vertex]
 ```
 
 `dfs` is a recursicve function that takes a list of input vertices and a graph
@@ -543,34 +532,35 @@ Let's have a look at a very simple example using one of the sample graphs above:
 ``` haskell
 ƛ: let g = read "mkG [('c', 3), ('b', 2), ('a', 1)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
 ([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
-ƛ: dfs [1] g
+ƛ: dfs (vertices g) g
 [1, 2, 3]
 ```
 
-Building the DFS forest of a graph is a bit more convoluted. A forest is a set
-of trees - we'll use lists instead of sets as common in functional programming.
-To build the DFS forest the algorithm needs to traverse the graph using DFS for
-each of the source vertices individually, and only when the DFS traversal is
-complete (the list of source vertices is empty) it can proceed with the net one.
-Here's what the algorithm looks like:
+One of the applications of DFS is finding the spanning forest (set of trees) of
+a graph. The algorithm needs to build the spanning forest by traversing the graph
+in such a way that only when DFS traversal is completed for a
+[connected component](https://en.wikipedia.org/wiki/Connected_component_(graph_theory))
+it will proceed with the next one. Here's what the algorithm looks like:
 
 ``` haskell
 import Control.Arrow (second)
 
+data Tree a = Nil | Node !a (Forest a) deriving Show
+
+type Forest a = [Tree a]
 
 dff :: [Vertex] -> Graph w l -> Forest Vertex
 dff vs = fst . dff' vs
 
 dff' :: [Vertex] -> Graph w l -> (Forest Vertex, Graph w l)
 dff' [] g = ([], g)
-dff' (v:vs) g =
-  case v `match` g of
-    Nothing -> dff' vs g
-
-    Just (ctx, g') -> (Node v ts : forest, g2)
+dff' (v:vs) g = case v `match` g of
+  Nothing -> dff' vs g
+  Just (ctx, g') -> (Node v ts : forest, g'')
   where
-    (ts, (forest, g2)) = second (dff' vs) $ dff' (outvs ctx) g'
+    (ts, (forest, g'')) = second (dff' vs) (dff' (destvs ctx) g')
 
+destvs :: Context l w -> [Vertex]
 ```
 
 The `dff` function calls an auxiliary function `dff'` that does most of the work.
@@ -580,6 +570,14 @@ calls itself with the successor vertices and the new graph as its input until th
 list of source vertices is empty; when that happens `dff'` recurses using the
 remaining source vertices and the graph resulted from running `dff'` for the
 previous source vertex.
+Again let's have a look at a very simple example built on top of the previous one:
+
+``` haskell
+ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4), (4, 5, 7)]"
+([(4,3),(3,2)],1,'a',[(5,2)]) :&: (([],2,'b',[(1,3)]) :&: (([],3,'c',[]) :&: Empty))
+ƛ: dff (vertices g) g
+[Node 1 [Node 2 [Node 3 []]], Node 4 [Node 5 []]]
+```
 
 #### Breadth-first search
 
@@ -589,20 +587,113 @@ Here's what the algorithm looks like:
 
 ``` haskell
 bfs :: Graph w l -> [Vertex] -> [Vertex]
-bfs gr vs =
-  bfs' gr vs
+bfs gr vs = bfs' gr vs
   where
     bfs' g svs
-      | isEmpty g || null svs =
-          []
-      | otherwise =
-          case v `match` g of
-            Nothing -> bfs' g vs
+      | isEmpty g || null svs = []
+      | otherwise = case v `match` g of
+          Nothing -> bfs' g vs
+          Just ((_,vtx,_,outs), g') -> vtx : dfs (vs ++ destvs outs) g'
 
-            -- `ctx2outvs` is a function that maps edges to a list of vertices
-            Just ((_,vtx,_,outs), g') -> vtx : dfs (vs ++ outs) g'
+destvs :: Context l w -> [Vertex]
 ```
 
+There key facts to notice about the algorithm are:
 
+1. destination vertices are appended *at the end of* the source vertices: this is what makes
+the algorithm traversing the input graph breadth-first. This is exactly what the
+second invariant of DFS dictates : visit siblings before the successor.
+2. the `match` function returns a new graph *without* the query vertex: this is
+what the first invariant of BFS dictates - visit each vertex exectly once.
+Since the new graph doesn't contain the query vertex there is no need for keeping
+track of the visited vertices.
+3. the algorithm is basically the same as the one in `dfs`, the only thing that
+changes is where destination vertices are appended: in case of BFS they're
+appended at the end of the list, in case of DFS in front of it. To fully appreciate
+this it might be useful to think of these algorithms in terms of the defining
+strategies of the data structures they internally use: LIFO in case of DFS and a
+FIFO in case of BFS.
+
+One of the applications of BFS is finding the shortest path in a unweighted graph.
+This time the algorithm chooses a different representation for the spanning forest,
+the reason is that it's harder to build a tree of nodes because of the way
+BFS works: **its recursion logic delivers nodes in a top-down fashion whereas the one
+in DFS delivers them in a bottom-up fashion, which is the natural way of building
+a tree** [EXPLAIN THIS BETTER].
+The paper argues that representation is not that useful in some
+applications of BFS spanning trees - like for example finding the shortest path
+between two vertices in a unweighted graph - and that can be achieved representing
+the spanning tree with a list of paths. Let's have a look at the implementation:
+
+``` haskell
+import Control.Arrow (first)
+
+type Path = [Vertex]
+
+-- Roots tree
+type RTree = [Path]
+
+bft :: Vertex -> Graph w l -> RTree
+bft v =  bf [[v]]
+
+bf :: [Path] -> Graph w l -> RTree
+bf paths = bf' paths
+  where
+    bf' :: [Path] -> Graph w l -> RTree
+    bf' ps g
+      | null ps || isEmpty g = []
+      | otherwise = case v `match` g of
+          Nothing -> bf' ps' g
+          Just (ctx, g') -> p : bf' (ps' ++ map (:p) (destvs out)) g'
+
+    -- gets the query vertex from the first path in the list and the remaining paths.
+    -- Paths will always be non-empty because of how `bf` is called from `bft`
+    (p@(v:_), ps') = first head (splitAt 1 ps)
+
+destvs :: Context l w -> [Vertex]
+
+esp :: Vertex -> Vertex -> Graph w l -> Path
+esp src dst = reverse . pathTo ((==dst) . head) . bft src
+ where
+   pathTo :: (a -> Bool) -> [a] -> a
+   pathTo p = head . filter p
+```
+
+Instead of explaining what the `bf` function does step-by-step, let's have a look
+at an example on a simple graph:
+
+``` haskell
+ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3)] [(1, 2, ()), (2, 1, ()), (2, 3, ()), (3, 1, ())]" :: Graph () Char
+([(4,()),(3,())],1,'a',[(5,())]) :&: (([],2,'b',[(1,())]) :&: (([],3,'c',[]) :&: Empty))
+ƛ: bf [[1]] g
+[[1],[2,1],[3,2,1]]
+```
+
+The resulting spanning tree contains the shortest path from the source vertex to all
+other vertices in reverse order. The `esp` function looks for the path in which
+the first vertex is the destination of the path and reverses it. Notice that
+since Haskell has non-strict sematics, `esp` stops as soon as the path to the target
+destination vertex is found and that building complete paths from source and
+destination vertices the way `bf` does not waste any memory since list prefixes
+are shared.
 
 #### Shortest path
+
+The last algorithm I want to mention is Dijkstra's shortest path.
+
+### A word on efficiency
+
+The goal of this blog post is not to show how to implement inductive graphs in the
+real-world but to give an intuition of how they work. An efficient implementation
+must use a more efficient data structure than the one shown above and more
+importantly pattern matching must run in linear time for graph algorithms to be
+performant. It's quite easy to notice that the toy implementations shown so far
+are not even close to that running time. A real-world implementation
+based on Martin Erwigs' paper is available on
+[Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1)
+so if you're curious to know how it is possible to implement inductive graphs
+efficiently I'll encourage to study the source code.
+I'll possibly cover the topic in a future blog post.
+
+
+## Wrapping up
