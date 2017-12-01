@@ -777,5 +777,23 @@ and if you're curious to know how it is possible to implement inductive graphs
 efficiently I'll encourage to look at the source code.
 I'll possibly cover the topic in a future blog post.
 
-
 ## Wrapping up
+
+The journey into graphs and related algorithm in functional programming for me
+started with a simple question that was surprisingly (for me) hard to answer:
+*"How should I implement a graph algorithm in a functional programming language?"*.
+The plethora of resource about graphs in for imperative languages is not matched
+in the functional world, where adequate solution to the problem have surfaced
+only in the last 20 years or so and are restricted to the academic world.
+We started by analysing a unsatisfactory solution based on monads,
+then moved to a more satisfactory one that leverages monads only for perfomance
+reasons but had its roots in imperative
+programming and finally described inductive graphs that tackle the problem a
+completely new take on the problem and manages to achieve an elegant, clear,
+modular and efficient solution - caveat: efficiency doesn't come out of the box.
+One recurring pattern to achieve elegant and modular graph algorithms I noticed
+is the tendency to shift complexity from the algorithm itself to the data structures:
+for example implementing an inductive graph and active patterns is more complex
+than implementing an adjacency lists, and using a min-heap in the shortest path
+algorithm eliminates the need for bookkeeping when looking for the next cheapest
+path.
