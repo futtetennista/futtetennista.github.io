@@ -7,8 +7,12 @@ categories: data+strutures, algorithms
 Graphs are a fundamental data structure in computer science because *a lot* of
 problems can be modelled with them. Plenty of literature available on graphs and
 graph algorithms i.e. graph traversal, shortest path between two vertices,
-minimum spanning trees etc. Plenty of literature when we consider imperative
-languages that is, but what about functional languages?
+minimum spanning trees etc. Plenty of literature when we consider imperative programming
+languages that is, but when we consider functional programming languages
+the scenario changes dramatically for the worst. So let's start a journey to try to
+answer the following question:
+"How should I implement a graph algorithm in a functional programming language?".
+
 <!--more-->
 
 The following table gives a pretty good idea of how pervasive graphs are and why
@@ -36,14 +40,15 @@ than not that literature comes in the form of academic papers. After a decent am
 of digging my understanding is that lots of purely functional algorithms do exist
 but they are not as efficient as the imperative counterparts; this might be
 one of the reasons why they are basically shovelled under the carpet and not used
-in practice. So how can we deal with graphs using a purely functional language?
+in practice. So how can we write graph algorithms using a purely functional language?
 One possibility could be "translating" graph algorithms from the imperative
-world to the functional world but that turns out to be (unsurprisingly) unsatisfactory,
-one of the main reasons being that imperative graph algorithms rely heavily on
-state and side effects (sometimes for efficiency reasons) making the task hard
-and the outcome far from being optimal.
+world to the functional world but that turns out to be (unsurprisingly)
+unsatisfactory, one of the main reasons being that imperative graph algorithms
+rely heavily on state and side effects (sometimes for efficiency reasons) making
+the task hard and the outcome far from being optimal.
 
 ## Imperative-style algorithms with monads
+
 To show what "translating" an imperative algorithm in a functional context, let's
 try to implement one the most fundamental graph algorithms in Haskell:
 [depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search).
@@ -114,15 +119,10 @@ dfs g =
       modify' (\s -> s{ dfsConnectedComponent = tree' })
       gets dfsConnectedComponent
 
-    processEdgeNode :: Int
-                    -> Tree Int Int
-                    -> VState
-                    -> EdgeNode Int Int
-                    -> ST s (Tree Int Int)
+    processEdgeNode :: Int -> Tree Int Int -> VState -> EdgeNode Int Int -> ST s (Tree Int Int)
     processEdgeNode v tree Undiscovered edgeNode@(v', _) =
       evalStateT dfs' (DFSState v' (buildTree v edgeNode tree) vstates)
-    processEdgeNode _ tree Discovered _ = return tree
-    processEdgeNode _ tree Processed _ = return tree
+    processEdgeNode _ tree _ _ = return tree
 
     findNextUndiscoveredVertex :: forall (m :: * -> *). PrimMonad m
                                => MV.MVector (PrimState m) VState
@@ -140,14 +140,15 @@ dfs g =
 
 ```
 
-Not *that* elegant or modular isn't it? Also it is definitely **not** the most
-efficient implementation but I doubt that making it more efficient will fix the
-other concerns just mentioned. It probably is in some aspects better than an
-imperative-style implementation - for example state and side effects are now
-explicit and pattern matching makes the code a bit clearer - but one
+If you stopped reading I would not blame you. It is definitely **not** the best
+piece of code ever written using a functional programming languange.
+It probably is in some aspects better than an imperative-style implementation
+- for example state and side effects are now explicit and pattern matching makes
+the code a bit clearer in some places - but one
 might argue that monadic code makes the algorithm even harder to follow.
 
 ## Towards a functional solution
+
 My [DuckDuckGo](http://duckduckgo.com/)-ing around pointed me at some point to
 the [Haskell wiki](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
 where a few links to research papers that approach graphs and graph
@@ -159,6 +160,7 @@ by David King and John Launchbury and
 by Martin Erwig and I'd like to give some highlights of their content.
 
 ## Functional depth-first search using adjacency lists
+
 In ["Structuring Depth First Search Algorithms in Haskell"](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526)
 David King's and John Launchbury's main goals are: implementing depth-first search
 and related algorithms using a functional style without any performance penalty
@@ -168,14 +170,8 @@ highlight this last aspect: it's probably the first time I encounter some materi
 on graph algorithms that takes it into consideration and it can be really useful
 in property testing for example. The paper approaches graph traversal as a combinatorial
 problem and employs a common technique in languages with non-strict semantics:
-generate and prune. In a nutshell: the generate step describes how to create all
-possible trees from a given vertex and the prune step discards the trees that do
-not respect the invariants of DFS, namely (sub-)trees whose root is a vertex
-that has already been discovered. This approach guarantees the efficiency of the
-algorithm because the evaluation strategy of languages with non-strict semantics
-(call-by-need or lazy evaluation) assures that an expression is evaluated on-demand
-and since the discarded trees will never be used (traversed) they will never
-be created in the first place.
+generate and prune. I'll illustrate what that mean in a bit, let's first define
+some types and auxiliary functions:
 
 ``` haskell
 {-# LANGUAGE RankNTypes #-}
@@ -200,10 +196,6 @@ type Bounds = (Vertex, Vertex)
 buildG :: Bounds -> [(Vertex, EdgeNode)] -> Graph
 buildG = accumArray (flip (:)) []
 
--- generate all possible trees for each node (on-demand)
-generate :: Graph -> Vertex -> Tree Vertex
-generate g v = Node v (map (generate g . fst) (g ! v))
-
 mkEmpty :: (Ix i, MA.MArray (MA.STUArray s) Bool m)
         => (i, i)
         -> m (MA.STUArray s i Bool)
@@ -217,44 +209,63 @@ contains = MA.readArray
 
 include :: (Ix i, MA.MArray a Bool m) => a i Bool -> i -> m ()
 include arr v = MA.writeArray arr v True
+```
 
+And now let's have a look that the generate and prune algorithm.
+In a nutshell: the generate step describes how to create all
+possible trees from a given vertex and the prune step discards the trees that do
+not respect the invariants of DFS, namely (sub-)trees whose root is a vertex
+that has already been discovered. The approach guarantees the efficiency of the
+algorithm because the evaluation strategy of languages with non-strict semantics
+(call-by-need or lazy evaluation) assures that an expression is evaluated on-demand
+and since the discarded trees will never be used - that is traversed - they will
+never be created in the first place.
+
+``` haskell
 dfs :: Graph -> [Vertex] -> Forest Vertex
 dfs g = prune (bounds g) . map (generate g)
   where
+    -- create all possible trees for each node (on-demand)...
+    generate :: Graph -> Vertex -> Tree Vertex
+    generate g v = Node v (map (generate g . fst) (g ! v))
+
+    -- ...and discard the ones that are unused
     prune :: Bounds -> Forest Vertex -> Forest Vertex
     prune bnds ts = runST $ do
       s <- mkEmpty bnds :: forall s. ST s (MA.STUArray s Vertex Bool)
       chop ts s
-
-    chop :: (MA.MArray (MA.STUArray s) Bool m)
-         => Forest Vertex
-         -> MA.STUArray s Vertex Bool
-         -> m (Forest Vertex)
-    chop [] _arr = return []
-    chop (Node v ts:ns) arr = do
-      visited <- contains arr v
-      if visited
-        -- prune ts
-        then chop ns arr
-        else do
-          include arr v
-          -- traverse left-to-right
-          ts' <- chop ts arr
-          -- traverse top-to-bottom
-          ns' <- chop ns arr
-          return $ Node v ts' : ns'
 ```
 
-For performance reasons the algorithm uses a mutable array to keep track
+For performance reasons the `chop` function uses a mutable array to keep track
 of the state of each vertex, but the paper points out that it could be replaced
 by a `Set` in order to avoid the need for monadic code; the price to
 pay is a logarithmic increase in its time complexity though.
-Also, note that even if the algorithm uses a functional
-style the data structure used to represent a graph is an
+
+``` haskell
+chop :: (MA.MArray (MA.STUArray s) Bool m)
+     => Forest Vertex -> MA.STUArray s Vertex Bool -> m (Forest Vertex)
+chop [] _arr = return []
+chop (Node v ts:ns) arr = do
+  visited <- contains arr v
+  if visited
+    -- prune ts
+    then chop ns arr
+    else do
+      -- label vertex
+      include arr v
+      -- traverse left-to-right
+      ts' <- chop ts arr
+      -- traverse top-to-bottom
+      ns' <- chop ns arr
+      return $ Node v ts' : ns'
+```
+
+Also, note that even if the algorithm uses a functional style the data structure
+used to represent a graph is an
 [adjacency list](https://en.wikipedia.org/wiki/Adjacency_list), which
 is usually the preferred way of representing graphs in the imperative world.
-The paper also shows how to implement other common graph algorithms using a
-functional style:
+The paper also shows how to elegantly implement other common graph algorithms
+employing a functional style:
 
 ``` haskell
 -- add imports
@@ -333,6 +344,7 @@ The code snippets above have been mostly copy and pasted from the paper, they on
 needed some tweaks when dealing with th `ST` monad.
 
 ## Functional graph algorithms using inductive graphs
+
 The introduction of the paper
 ["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
 by Martin Erwig starts with this line
@@ -345,7 +357,7 @@ It acknowledges lots of the functional algorithms already developed but also
 considers them all not completely satisfactory either because they use concepts
 not currently available
 in today's programming languages or because they entail some imperative-style
-strategy - i.e. keeping track of visited nodes by somehow labelling them -
+strategy - i.e. keeping track of visited nodes by labelling them -
 that contaminates the clarity of the algorithm, makes it harder to reason about
 it and to proof its correctness. The solution the paper proposes is to think
 about graphs in a new way.
@@ -399,7 +411,6 @@ an inductive graph? This is easier to understand with an example:
 
 <div class="figure centered">
   <img src="/images/sample_graph.png" alt="Sample graph">
-  <p class="caption">An inductive graph based on the given sample graph</p>
 </div>
 
 ```haskell
@@ -410,7 +421,7 @@ an inductive graph? This is easier to understand with an example:
 
 <div class="figure centered">
   <img src="/images/sample_inductive_graph123.png" alt="Inductive graph">
-  <p class="caption">An inductive graph based on the given sample graph</p>
+  <p class="caption">An inductive graph based on the given graph</p>
 </div>
 
 Note that given a set of input vertices and edges, multiple inductive graphs
@@ -423,7 +434,7 @@ can be built depending on the order of insertion of its vertices.
 
 <div class="figure centered">
   <img src="/images/sample_inductive_graph321.png" alt="Inductive graph">
-  <p class="caption">Another inductive graph based on the given sample graph</p>
+  <p class="caption">Another inductive graph based on the given graph</p>
 </div>
 
 Looking back at the definition of the `Graph` type, it might look quite
@@ -446,10 +457,10 @@ I made up to hopefully provide an intuition to the reader and **will not** type-
 
 ``` haskell
 deg :: Vertex -> Graph weight label -> Int
-deg v ((ins, _, _, outs) (:&: ! v) g) = length ins + length out
+deg v ((ins, _, _, outs) (:&: :!: v) g) = length ins + length out
 ```
 
-The expression `(:&: ! v)` can be interpreted as: *"find the `Context` for the
+The expression `(:&: :!: v)` can be interpreted as: *"find the `Context` for the
 vertex `v` in `g` if it exists and try to match the given pattern"*.
 Active graph patterns are not essential when implementing inductive graphs and
 it is possible do pattern matching without them, all that is needed is a function
