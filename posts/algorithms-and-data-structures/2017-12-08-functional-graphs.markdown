@@ -296,7 +296,6 @@ preorderForest = reverse . foldr (flip preorder)
 
 preOrd :: Graph -> [Vertex]
 preOrd = preorderForest [] . dff
-
 ```
 
 And how to build graphs by classifying the different types of edges in a graph
@@ -647,6 +646,20 @@ type Path = [Vertex]
 -- Roots tree
 type RTree = [Path]
 
+esp :: Vertex -> Vertex -> Graph weight label -> Path
+esp src dst = reverse . pathTo ((==dst) . head) . bft src
+
+pathTo :: (a -> Bool) -> [a] -> a
+pathTo p = head . filter p
+```
+
+The `esp` function looks for the path in which the first vertex is the destination
+of the path and reverses it (the reason why this is necessary will become clear
+in a moment). Notice that since Haskell has non-strict sematics,
+`esp` stops as soon as the path to the target destination vertex is found. Now
+let's have a look at the `bft` function:
+
+``` haskell
 bft :: Vertex -> Graph weight label -> RTree
 bft v =  bf [[v]]
 
@@ -666,16 +679,10 @@ bf paths = bf' paths
     (p@(v:_), ps') = first head (splitAt 1 ps)
 
 destvs :: Context label weight -> [Vertex]
-
-esp :: Vertex -> Vertex -> Graph weight label -> Path
-esp src dst = reverse . pathTo ((==dst) . head) . bft src
- where
-   pathTo :: (a -> Bool) -> [a] -> a
-   pathTo p = head . filter p
 ```
 
-Instead of explaining what the `bf` function does step-by-step, let's have a look
-at an example on a simple graph:
+Instead of explaining what the function does step-by-step, let's have a look
+at an example on a simple graph as it might be easier to understand:
 
 ``` haskell
 ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3)] [(1, 2, ()), (2, 1, ()), (2, 3, ()), (3, 1, ())]" :: Graph () Char
@@ -685,15 +692,13 @@ at an example on a simple graph:
 ```
 
 The resulting spanning tree contains the shortest path from the source vertex to all
-other vertices in reverse order. The `esp` function looks for the path in which
-the first vertex is the destination of the path and reverses it. Notice that
-since Haskell has non-strict sematics, `esp` stops as soon as the path to the target
-destination vertex is found and that `bf` builds complete paths from a source to
-a destination vertex without wasting any memory because list prefixes are shared.
+other vertices in *reverse order*. The `bf` function builds complete paths from
+a source to a destination vertex without wasting any memory because list prefixes
+are shared.
 
 #### Shortest path
 
-The last algorithm I want to mention is a bit more convoluted and it's
+The last algorithm I want to illustrate is a bit more convoluted and it's
 Dijkstra's shortest path. First let's define two new auxiliary types:
 
 ``` haskell
