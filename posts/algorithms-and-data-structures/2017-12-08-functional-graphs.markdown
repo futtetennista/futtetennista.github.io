@@ -372,17 +372,20 @@ like the following:
 
 ``` haskell
 infixr 5 :&:
-data Graph w l = Empty | (Context w l) :&: (Graph w l) deriving Show
+data Graph weight label
+  = Empty
+  | (Context weight label) :&: (Graph weight label)
+  deriving Show
 
-type Context w l =
-  ( Adj w  -- inbound edges
+type Context weight label =
+  ( Adj weight  -- inbound edges
   , Vertex
-  , l      -- label
-  , Adj w  -- outbound edges
+  , label
+  , Adj weight  -- outbound edges
   )
 
 -- adjacent weighted edges
-type Adj w = [(w, Vertex)]
+type Adj weight = [(weight, Vertex)]
 
 type Vertex = Int
 ```
@@ -442,7 +445,7 @@ This is not currently available in Haskell so the following code is something
 I made up to hopefully provide an intuition to the reader and **will not** type-check:
 
 ``` haskell
-deg :: Vertex -> Graph w l -> Int
+deg :: Vertex -> Graph weight label -> Int
 deg v ((ins, _, _, outs) (:&: ! v) g) = length ins + length out
 ```
 
@@ -453,7 +456,7 @@ it is possible do pattern matching without them, all that is needed is a functio
 `match`. An extremely naive implementation might look like:
 
 ``` haskell
-match :: Vertex -> Graph w l -> Maybe (Context w l, Graph w l)
+match :: Vertex -> Graph weight label -> Maybe (Context weight label, Graph weight label)
 match qv = matchHelp ([], [])
   where
     matchHelp _ Empty = Nothing
@@ -496,14 +499,14 @@ each vertex **once** and **visit successors before siblings**.
 Here's what the algorithm looks like:
 
 ``` haskell
-dfs :: [Vertex] -> Graph w l -> [Vertex]
+dfs :: [Vertex] -> Graph weight label -> [Vertex]
 dfs _ Empty = []
 dfs [] _ = []
 dfs (v:vs) g = case v `match` g of
   Nothing -> dfs vs g
   Just ((_,vtx,_,outs), g') -> vtx : dfs (nextvs outs ++ vs) g'
 
-nextvs :: Context l w -> [Vertex]
+nextvs :: Context label weight -> [Vertex]
 ```
 
 `dfs` is a recursicve function that takes a list of input vertices and a graph
@@ -549,10 +552,10 @@ data Tree a = Nil | Node !a (Forest a) deriving Show
 
 type Forest a = [Tree a]
 
-dff :: [Vertex] -> Graph w l -> Forest Vertex
+dff :: [Vertex] -> Graph weight label -> Forest Vertex
 dff vs = fst . dff' vs
 
-dff' :: [Vertex] -> Graph w l -> (Forest Vertex, Graph w l)
+dff' :: [Vertex] -> Graph weight label -> (Forest Vertex, Graph weight label)
 dff' [] g = ([], g)
 dff' (v:vs) g = case v `match` g of
   Nothing -> dff' vs g
@@ -560,7 +563,7 @@ dff' (v:vs) g = case v `match` g of
   where
     (ts, (forest, g'')) = second (dff' vs) (dff' (destvs ctx) g')
 
-destvs :: Context l w -> [Vertex]
+destvs :: Context label weight -> [Vertex]
 ```
 
 The `dff` function calls an auxiliary function `dff'` that does most of the work.
@@ -586,7 +589,7 @@ each vertex **once** and **visit siblings before successors**.
 Here's what the algorithm looks like:
 
 ``` haskell
-bfs :: Graph w l -> [Vertex] -> [Vertex]
+bfs :: Graph weight label -> [Vertex] -> [Vertex]
 bfs gr vs = bfs' gr vs
   where
     bfs' g svs
@@ -595,7 +598,7 @@ bfs gr vs = bfs' gr vs
           Nothing -> bfs' g vs
           Just ((_,vtx,_,outs), g') -> vtx : dfs (vs ++ destvs outs) g'
 
-destvs :: Context l w -> [Vertex]
+destvs :: Context label weight -> [Vertex]
 ```
 
 There key facts to notice about the algorithm are:
