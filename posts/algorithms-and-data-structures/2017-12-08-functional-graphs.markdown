@@ -633,26 +633,27 @@ type Path = [Vertex]
 -- Roots tree
 type RTree = [Path]
 
-bft :: Vertex -> Graph w l -> RTree
+bft :: Vertex -> Graph weight label -> RTree
 bft v =  bf [[v]]
 
-bf :: [Path] -> Graph w l -> RTree
+bf :: [Path] -> Graph weight label -> RTree
 bf paths = bf' paths
   where
-    bf' :: [Path] -> Graph w l -> RTree
+    bf' :: [Path] -> Graph weight label -> RTree
     bf' ps g
       | null ps || isEmpty g = []
       | otherwise = case v `match` g of
           Nothing -> bf' ps' g
           Just (ctx, g') -> p : bf' (ps' ++ map (:p) (destvs out)) g'
 
-    -- gets the query vertex from the first path in the list and the remaining paths.
-    -- Paths will always be non-empty because of how `bf` is called from `bft`
+    -- gets the query vertex from the first path in the list and the remaining paths
+    -- paths will always be non-empty because the initial call to `bf` uses a
+    -- non-empty list
     (p@(v:_), ps') = first head (splitAt 1 ps)
 
-destvs :: Context l w -> [Vertex]
+destvs :: Context label weight -> [Vertex]
 
-esp :: Vertex -> Vertex -> Graph w l -> Path
+esp :: Vertex -> Vertex -> Graph weight label -> Path
 esp src dst = reverse . pathTo ((==dst) . head) . bft src
  where
    pathTo :: (a -> Bool) -> [a] -> a
@@ -673,26 +674,107 @@ The resulting spanning tree contains the shortest path from the source vertex to
 other vertices in reverse order. The `esp` function looks for the path in which
 the first vertex is the destination of the path and reverses it. Notice that
 since Haskell has non-strict sematics, `esp` stops as soon as the path to the target
-destination vertex is found and that building complete paths from source and
-destination vertices the way `bf` does not waste any memory since list prefixes
-are shared.
+destination vertex is found and that `bf` builds complete paths from a source to
+a destination vertex without wasting any memory because list prefixes are shared.
 
 #### Shortest path
 
-The last algorithm I want to mention is Dijkstra's shortest path.
+The last algorithm I want to mention is a bit more convoluted and it's
+Dijkstra's shortest path. First let's define two new auxiliary types:
+
+``` haskell
+-- Labelled vertex
+type LVertex label = (label, Vertex)
+
+newtype LPath label = LPath { unwrap :: [LVertex label] }
+
+-- Labelled R-Tree (or Root Tree)
+type LRTree label = [LPath label]
+
+instance Eq label => Eq (LPath label) where ...
+
+instance Ord label => Ord (LPath label) where ...
+```
+
+The algorithm uses a min-heap and some auxiliary functions to keep track of the
+cheapest path
+
+``` haskell
+import qualified Data.Heap as Heap
+
+getPath :: Vertex -> LRTree label -> Path
+getPath v = reverse . map snd . unwrap . pathTo ((==v) . lv2v)
+  where
+    lv2v = snd . head . unwrap
+
+expand :: Monoid weight
+       => weight -> LPath weight -> Context weight label -> [LPath weight]
+expand d (LPath p) (_, _, _, outs) =
+  map (\(w, v) -> LPath ((w `mappend` d, v):p)) outs
+
+mergeAll p@((dist, _):_) h0 =
+  foldr Heap.insert h0 . expand dist (LPath p)
+```
+
+The `expand` function builds new `LPath`s whose label is the sum - let's assume
+weights are positive integers for simplicity - of the distance walked so far and
+the weight of the outbound edge. The `mergeAll` function takes these paths and
+inserts them in the heap. The `getPath` function just extracts the path to the
+given destination vertex from the list of paths.
+Now let's have a look at the core of the algorithm:
+
+``` haskell
+dijkstra :: (Monoid weight, Ord weight)
+         => Heap.Heap (LPath w) -> Graph weight label -> LRTree weight
+dijkstra h g
+  | isEmpty g = []
+  | otherwise = case Heap.viewMin h of
+      Nothing -> []
+      Just (p, h') -> dijkstra' (p, h')
+  where
+    dijkstra' (LPath p@((_, v):_), h') =
+      case v `match` g of
+        Nothing -> dijkstra h' g
+        Just (ctx, g') -> LPath p : dijkstra (mergeAll p h' ctx) g'
+
+-- shortest path tree
+spt :: (Monoid weight, Ord weight)
+    => Vertex -> Graph weight label -> LRTree weight
+spt src = dijkstra (Heap.singleton $ LPath [(mempty, src)])
+
+sp :: (Monoid weight, Ord weight)
+   => Vertex -> Vertex -> Graph weight label -> Path
+sp src dst = getPath dst . spt src
+```
+
+The `sp` function kicks off the algorithm by providing the source node to
+the `spt` function which in turn calls `dijkstra` with a singleton min-heap that
+contains a path to the source vertex with weight 0 - this is how expensive it is
+to walk from the source vertex to the source vertex. The `dijkstra` function is
+a recursive function that peeks the cheapest path from the min-heap, and if the
+current vertex `v` is contained in the graph - that is, the vertex hasn't been
+already visited - appends it to the resulting `LRTree` and calls itself recursively
+with a new min-heap that contains up-to-date paths and a new graph that doesn't
+contain `v`. The recursion stops if the graph is empty - that is all vertices has
+been visited - or the min-heap is empty - that is all edges have been traversed.
+This is definitely a bit more complex than the other algorithms but it's quite
+elegant and modular.
 
 ### A word on efficiency
 
-The goal of this blog post is not to show how to implement inductive graphs in the
-real-world but to give an intuition of how they work. An efficient implementation
-must use a more efficient data structure than the one shown above and more
-importantly pattern matching must run in linear time for graph algorithms to be
-performant. It's quite easy to notice that the toy implementations shown so far
-are not even close to that running time. A real-world implementation
-based on Martin Erwigs' paper is available on
+If you didn't get lost in the woods of recursion and made it this far you might
+have noticed that when talking about inductive graph and related algorithms I didn't
+mention efficiency. This is because the implementations I've shown so far are
+hopelessly inefficient but hopefully they provide an intuition about inductive
+graphs, the motivation behind them and their goals. An efficient, real-world
+implementation relies on more efficient data structures than lists and more
+importantly a key aspect to make the algorithms run with asymptotically optimal
+running times is that active patterns matching must have linear running times.
+It's quite easy to notice that the toy implementation shown so far is not.
+A real-world implementation based on Martin Erwigs' paper is available on
 [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1)
-so if you're curious to know how it is possible to implement inductive graphs
-efficiently I'll encourage to study the source code.
+and if you're curious to know how it is possible to implement inductive graphs
+efficiently I'll encourage to look at the source code.
 I'll possibly cover the topic in a future blog post.
 
 
