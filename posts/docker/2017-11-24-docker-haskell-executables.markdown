@@ -37,7 +37,7 @@ with all needed Haskell dependencies compiled and than used a multi-stage build
 to create the executable image. The `Dockerfile` for the base image is not that
 interesting:
 
-``` bash
+```Dockerfile
 # Dockerfile.builder
 # docker build -t futtetennista/serverless-validator-builder --file Dockerfile.builder .
 FROM haskell:8.0
@@ -61,7 +61,7 @@ RUN stack --resolver lts-9.14 install base \
 It just installs some Linux dependencies and builds the Haskell dependencies.
 The one for the executable image is a bit more exciting:
 
-``` bash
+```Dockerfile
 # Dockerfile
 # docker build -t futtetennista/serverless-validator .
 FROM futtetennista/serverless-validator-builder as builder

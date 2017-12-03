@@ -265,7 +265,7 @@ mkFromList' errRate xs =
 ```
 Let's test it in GHCI:
 
-```
+```haskell
 ƛ let !ebf'' = mkFromList' 0.01 ([1..10^6] :: [Int])
 ebf'' :: Either String (B.IBloom Int)
 (19.29 secs, 13819004104 bytes)
