@@ -408,8 +408,9 @@ trees algorithms clean and succint, the paper refers to an extension of pattern
 matching for graphs named *"active graph pattern"* whose main goal is as far as
 I understood to make the notation more compact, augmenting the classic pattern
 matching by allowing a function to be called before the matching is applied. It
-is very similar to [view patterns](???) but it's more powerful because the patter
-can access the outer scope.
+is very similar to
+[view patterns](https://ghc.haskell.org/trac/ghc/wiki/ViewPatterns)
+but it's more powerful because the patter can access the outer scope.
 This is not currently available in Haskell so the following code is something
 I made up to hopefully provide an intuition to the reader and **will not** type-check:
 
@@ -450,20 +451,6 @@ Having our inductive definitions of graphs, it's time to show how that can be
 leveraged to write graph algorithms that are elegant and composable.
 We'll have a look at three fundamental graph algorithms, in the paper you can find more of
 them: depth-first search (or DFS), breadth-first search (or BFS) and shortest path.
-
-##### Terminology
-
-Before digging into the description of the algorithms, these are some of the terms
-to keep in mind since I'll use frequently use them:
-
-- query vertex: the vertex the algorithm is currently processing
-- outbound edge: an edge whose source vertex is the query vertex
-- source vertex: the vertex at the left of an edge
-- destination vertex: the vertex at the right of an edge
-- successor (or successor vertex): the destination vertex of the next outbound
-edge (edge order is unspecified)
-- siblings (referring to vertices): all destination vertices of outbound edges
-except for the successor
 
 #### Depth-first search
 
