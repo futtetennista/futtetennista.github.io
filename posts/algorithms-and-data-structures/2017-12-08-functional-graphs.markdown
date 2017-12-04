@@ -362,9 +362,7 @@ The context contains information about a given vertex, namely its value,
 label (if any) and its adjacent edges classified as inbound or outbound.
 So far so good, now how can we build the following graph inductively?
 
-<div class="figure centered">
-  <img src="/images/sample_graph.png" alt="Sample graph">
-</div>
+<img class="figure centered" src="/images/sample_graph.png" alt="Sample graph" />
 
 One possible way of building an inductive graph is the following:
 
@@ -374,10 +372,7 @@ One possible way of building an inductive graph is the following:
 
 ```
 
-<div class="figure centered">
-  <img src="/images/sample_inductive_graph123.png" alt="Inductive graph">
-  <p class="caption">An inductive graph based on the given graph</p>
-</div>
+<img class="figure centered" src="/images/sample_inductive_graph123.png" alt="Inductive graph" />
 
 Another possible way is the following:
 
@@ -386,10 +381,7 @@ Another possible way is the following:
 ([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
 ```
 
-<div class="figure centered">
-  <img src="/images/sample_inductive_graph321.png" alt="Inductive graph">
-  <p class="caption">Another inductive graph based on the given graph</p>
-</div>
+<img class="figure centered" src="/images/sample_inductive_graph321.png" alt="Inductive graph" />
 
 Given some input vertices and edges, multiple inductive graphs
 can be built depending on the order of insertion of its vertices. From this
