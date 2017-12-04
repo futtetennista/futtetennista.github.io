@@ -214,14 +214,28 @@ include arr v = MA.writeArray arr v True
 ```
 
 Now let's understand what the generate and prune technique does at a high level:
-first the "generate" step describes how to create all possible possible trees
-from a given vertex and the "prune" step discards the trees that do not
-respect the invariants of the algorithm, namely (sub-)trees whose root is a vertex
-that has already been discovered. The approach guarantees the efficiency of the
-algorithm because the evaluation strategy of languages with non-strict semantics
-(call-by-need or lazy evaluation) assures that an expression is evaluated on-demand
-and since the discarded trees will never be used - that is traversed - they will
-never be created in the first place.
+the "generate" step describes how to create all possible possible trees
+from a given vertex, this is illustrated in the following picture where greyed
+out nodes are generated on-demand:
+
+<img class="figure centered" src="/images/generate_prune_1.png" alt="Inductive graph" />
+
+The "prune" step discards the trees that do not respect the invariants of
+DFS, namely (sub-)trees whose root is a node that has already been discovered.
+After `a` and `b` are traversed the sub-tree with root `a` is discarded because
+`a` has already been discovered
+
+<img class="figure centered" src="/images/generate_prune_3.png" alt="Inductive graph" />
+
+The same thing happens after `c` is traversed leaving the final DFS spanning tree:
+
+<img class="figure centered" src="/images/generate_prune_4.png" alt="Inductive graph" />
+
+The approach guarantees the efficiency of the algorithm because the evaluation
+strategy of languages with non-strict semantics (call-by-need or lazy evaluation)
+assures that an expression is evaluated on-demand and since the discarded trees
+will never be used - that is traversed - they will never be created in the first
+place. Let's have a look now at the code:
 
 ``` haskell
 dfs :: Graph -> [Vertex] -> Forest Vertex
@@ -238,6 +252,8 @@ dfs g = prune (bounds g) . map (generate g)
       chop ts s
 ```
 
+Notice that the type signature for the `mkEmpty bnds` is mandatory, more info
+can be found (here)[https://stackoverflow.com/a/9469942/].
 For performance reasons the `chop` function uses a mutable array to keep track
 of the state of each vertex, but the paper points out that it could be replaced
 by a `Set` in order to avoid the need for monadic code; the price to
@@ -262,12 +278,13 @@ chop (Node v ts:ns) arr = do
       return $ Node v ts' : ns'
 ```
 
-Also, note that even if the algorithm uses a functional style the data structure
+Notice that even if the algorithm uses a functional style the data structure
 used to represent a graph is an
 [adjacency list](https://en.wikipedia.org/wiki/Adjacency_list), which
-is usually the preferred way of representing graphs in the imperative world.
+is usually the preferred way of representing graphs in the imperative programming
+languages.
 
-#### Notes
+#### A little remark
 
 Section "5. Implementing depth-first search" states that
 
@@ -278,8 +295,6 @@ Section "5. Implementing depth-first search" states that
 but without providing any code for it and I honestly could not wrap my head around
 on how to write a breadth-first traversal with the algorithm proposed in the paper.
 If anybody has some pointers again please [let me know](/about.html)!
-Also, the code snippets above have been mostly copy and pasted from the paper,
-they only needed some tweaks when dealing with th `ST` monad.
 
 ## Functional graph algorithms using inductive graphs
 
