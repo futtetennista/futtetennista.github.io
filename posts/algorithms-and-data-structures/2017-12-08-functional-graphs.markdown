@@ -743,13 +743,106 @@ with a new min-heap that contains up-to-date paths and a new graph that doesn't
 contain `v`. The recursion stops if the graph is empty - that is all vertices has
 been visited - or the min-heap is empty - that is all edges have been traversed.
 This is definitely a bit more complex than the other algorithms but it's quite
-elegant and modular.
+elegant and modular. Let's have a look at an example on the following graph:
+
+<img class="figure centered" src="/images/sample_graph2.png" alt="Sample graph 2" />
+
+``` haskell
+ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]" :: Graph Int Char
+-- Make weights a monoid for addition on Ints
+ƛ: let g' = gmap (\(ins, l, v, outs) -> (map (first Sum) ins, l, v, map (first Sum) outs)) (undir g)
+```
+
+The `undir` function simply transforms a directed graph to an undirected one.
+
+```haskell
+ƛ: spt 1 g'
+-- forget about the `Sum` constructors around weights for a moment and the list
+-- will be something like
+[LPath {getLPath = [(0,1)]},LPath {getLPath = [(5,2),(0,1)]},LPath {getLPath = [(6,3),(5,2),(0,1)]}]
+ƛ: sp 1 3 mg
+[1,2,3]
+```
 
 ### Minimum spanning tree
 
-...
+Prim's algorithm to find the minimum spanning tree (MST) essentially chooses
+always the cheapest edge among the known edges (it's a greedy algorithm).
+Prim's and Dijkstra's algorithms are notoriously very similar: this similarity
+becomes evident using recursive functions. We'll re-use the same types defined
+for the shortest path algorithm but define different auxiliary functions:
 
-### A word on efficiency
+``` haskell
+mergeAll :: (Monoid weight, Ord weight)
+         => [LVertex weight]
+         -> Heap.Heap (LPath weight)
+         -> Context weight label
+         -> Heap.Heap (LPath weight)
+mergeAll p h = foldr Heap.insert h . addEdges (LPath p)
+
+addEdges :: Monoid weight => LPath weight -> Context weight label -> [LPath weight]
+addEdges (LPath p) (_, _, _, outs) = map (LPath . (:p)) outs
+```
+
+The `addEdges` function is very similar to the `expand` function but it doesn't
+take into account the distance walked so far, only the weight of the edges.
+The core of the algorithm shouldn't be anything new, it's basically the same as
+Dijkstra's:
+
+``` haskell
+mst :: (Monoid w, Ord w) => Vertex -> Graph w l -> LRTree w
+mst src = prim $ Heap.singleton (LPath [(mempty, src)])
+
+prim :: (Monoid w, Ord w) => Heap.Heap (LPath w) -> Graph w l -> LRTree w
+prim h g
+  | isEmpty g = []
+  | otherwise = case Heap.viewMin h of
+      Nothing -> []
+      Just (lpath, h') -> prim' lpath h'
+  where
+    prim' (LPath p@((_, v):_), h') =
+      case v `match` g of
+        Nothing -> prim h' g
+        Just (ctx, g') -> LPath p : prim (mergeAll p h' ctx) g')
+```
+
+Now that the MST can be build, let's find the path between two vertices:
+
+```haskell
+mstPath :: Vertex -> Vertex -> LRTree w -> Path
+mstPath src dst t = joinPaths (getPath src t) (getPath dst t)
+
+joinPaths :: Path -> Path -> Path
+joinPaths p2src p2dst = joinAt (head p2src) (tail p2src) (tail p2dst)
+
+joinAt :: Vertex -> Path -> Path -> Path
+joinAt _src (v:vs) (v':vs')
+  | v == v' = joinAt v vs vs'
+joinAt src ps ps' = reverse ps ++ (src:ps')
+```
+
+Let's try these algorithms out using this graph:
+
+<img class="figure centered" src="/images/sample_graph2.png" alt="Sample graph 2" />
+
+``` haskell
+ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]" :: Graph Int Char
+-- Make weights a monoid for addition on Ints
+ƛ: let g' = gmap (\(ins, l, v, outs) -> (map (first Sum) ins, l, v, map (first Sum) outs)) (undir g)
+```
+
+One of the existing minimum spanning trees for that graph is the following:
+
+<img class="figure centered" src="/images/prim.png" alt="Prim's MST" />
+
+``` haskell
+ƛ: let mstree = mst 1 g'
+[LPath {getLPath = [(0,1)]},LPath {getLPath = [(5,4),(0,1)]},LPath {getLPath = [(7,5),(5,4),(0,1)]},LPath {getLPath = [(2,7),(7,5),(5,4),(0,1)]},LPath {getLPath = [(2,6),(2,7),(7,5),(5,4),(0,1)]},LPath {getLPath = [(3,3),(2,7),(7,5),(5,4),(0,1)]},LPath {getLPath = [(4,2),(3,3),(2,7),(7,5),(5,4),(0,1)]}]
+ƛ: mstPath 3 5 mstree
+[3,7,5]
+```
+
+## A word on efficiency
 
 So far when talking about inductive graphs and related algorithms the word efficiency
 wasn't really mentioned. This is because the implementations shown so far are
@@ -757,14 +850,22 @@ hopelessly inefficient but hopefully they provide an intuition about inductive
 graphs. An efficient, real-world implementation relies on more efficient data
 structures than lists and more importantly a key aspect to make the algorithms
 having asymptotically optimal running times is that active patterns must
-match in linear times. A real-world implementation based on Martin Erwigs' paper
+match in linear times. A real-world implementation based on Martin Erwig's paper
 is available on
 [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1)
 and if you're curious to know how it is possible to implement inductive graphs
 efficiently I'll encourage to look at the source code.
-I'll possibly cover the topic in a future blog post.
+This could be a very topic for a separate blog post.
+
 
 ## Wrapping up
+
+One of the tradeoffs to achieve clear and elegant graph algorithms seems to be
+shifting the complexity from the algorithm itself to the supporting data
+structures: implementing an inductive graph and active patterns is more complex
+than implementing an adjacency lists, using a min-heap in the shortest path
+algorithm eliminates the need for bookkeeping when looking for the next cheapest
+path.
 
 The journey into graphs and related algorithm in functional programming
 started with a simple question that was surprisingly hard to answer:
@@ -772,17 +873,11 @@ started with a simple question that was surprisingly hard to answer:
 The plethora of resource about graphs in for imperative languages is not matched
 in the functional world, where adequate solution to the problem have surfaced
 only in the last 20 years or so and are restricted to the academic world.
-We started by analysing an unsatisfactory solution based on monads,
-then moved to a more satisfactory one that leverages monads only for perfomance
-reasons but had its roots in imperative programming and finally described a solution
+We started with an unsatisfactory solution based on monads,
+then illustated one that leverages ?? of functional programming languages but
+sill grounded in imperative programming and finally described a solution
 based on inductive graphs that manages to achieve an elegant, clear and modular
-solution by choosing a different representation for graphs. They also guarantee
-asymptotically optimal running times for most graph algorithms, provided that
-the implementation of some key operations is done efficiently.
-
-On last observation is that one of the trade-offs to achieve elegant and modular graph
-algorithms seems to be shifting complexity from the algorithm itself to the data
-structures: implementing an inductive graph and active patterns is more complex
-than implementing an adjacency lists, and using a min-heap in the shortest path
-algorithm eliminates the need for bookkeeping when looking for the next cheapest
-path.
+solution by choosing a different representation for graphs. Also, graph
+algorithms based on inductive graphs guarantee asymptotically optimal running
+times for most graph algorithms, provided that the implementation of some key
+operations is done efficiently.
