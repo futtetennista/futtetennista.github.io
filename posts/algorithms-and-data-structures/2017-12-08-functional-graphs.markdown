@@ -147,17 +147,16 @@ It probably is in some aspects better than an imperative-style implementation
 the code a bit clearer in some places - but one
 might argue that monadic code makes the algorithm even harder to follow.
 
-## Towards a functional solution
-
-My [DuckDuckGo](http://duckduckgo.com/)-ing around pointed me at some point to
-the [Haskell wiki](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
-where a few links to research papers that approach graphs and graph
-algorithms using a functional style can be found. I found particularly interesting
-two of those papers, namely
+This first attempt left me unsatisfied so I started doing some online research
+on the subject and at some point I found
+[this page](](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
+in the Haskell wiki with a few links to research papers that approach graphs and
+graph algorithms using a functional programming language. The rest of the blog
+post will focus on describing the solution proposed in two of those papers:
 ["Structuring Depth First Search Algorithms in Haskell"](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526)
 by David King and John Launchbury and
 ["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
-by Martin Erwig and I'd like to give some highlights of their content.
+by Martin Erwig.
 
 ## Functional depth-first search using adjacency lists
 
@@ -213,17 +212,23 @@ include :: (Ix i, MA.MArray a Bool m) => a i Bool -> i -> m ()
 include arr v = MA.writeArray arr v True
 ```
 
-Now let's understand what the generate and prune technique does at a high level:
-the "generate" step describes how to create all possible possible trees
-from a given vertex, this is illustrated in the following picture where greyed
-out nodes are generated on-demand:
+Let's consider this very simple graph:
+
+<img class="figure centered" src="/images/sample_graph.png" alt="Sample graph" />
+
+and now let's look at the generate and prune technique at a high level:
+the "generate" step describes how to create all possible trees
+from a given vertex. The following picture illustrates it for the sample graph
+above, notice that the greyed-out nodes are not yet generated but will be on-demand
+if necessary:
 
 <img class="figure centered" src="/images/generate_prune_1.png" alt="Inductive graph" />
 
-The "prune" step discards the trees that do not respect the invariants of
-DFS, namely (sub-)trees whose root is a node that has already been discovered.
-After `a` and `b` are traversed the sub-tree with root `a` is discarded because
-`a` has already been discovered
+The "prune" step discards the sub-trees that violate to the invariants of DFS,
+namely those that have already been discovered. Back to our example, after the
+trees labelled `a` and `b` are traversed, the tree with root `a` is discarded
+because a tree with the same label has already been discovered and the algorithm
+traverses the tree labelled `c`:
 
 <img class="figure centered" src="/images/generate_prune_3.png" alt="Inductive graph" />
 
@@ -233,9 +238,9 @@ The same thing happens after `c` is traversed leaving the final DFS spanning tre
 
 The approach guarantees the efficiency of the algorithm because the evaluation
 strategy of languages with non-strict semantics (call-by-need or lazy evaluation)
-assures that an expression is evaluated on-demand and since the discarded trees
-will never be used - that is traversed - they will never be created in the first
-place. Let's have a look now at the code:
+assures that an expression is evaluated once, on-demand and since the discarded
+trees will never be used - that is traversed - they will never be created in the
+first place. Let's have a look now at the code:
 
 ``` haskell
 dfs :: Graph -> [Vertex] -> Forest Vertex
@@ -253,11 +258,8 @@ dfs g = prune (bounds g) . map (generate g)
 ```
 
 Notice that the type signature for the `mkEmpty bnds` is mandatory, more info
-can be found (here)[https://stackoverflow.com/a/9469942/].
-For performance reasons the `chop` function uses a mutable array to keep track
-of the state of each vertex, but the paper points out that it could be replaced
-by a `Set` in order to avoid the need for monadic code; the price to
-pay is a logarithmic increase in its time complexity though.
+can be found [here](https://stackoverflow.com/a/9469942/).
+The `chop` function does the pruning of those trees that have already been discovered:
 
 ``` haskell
 chop :: (MA.MArray (MA.STUArray s) Bool m)
@@ -278,13 +280,18 @@ chop (Node v ts:ns) arr = do
       return $ Node v ts' : ns'
 ```
 
-Notice that even if the algorithm uses a functional style the data structure
-used to represent a graph is an
-[adjacency list](https://en.wikipedia.org/wiki/Adjacency_list), which
-is usually the preferred way of representing graphs in the imperative programming
-languages.
+I would like to highlight two qualities of this solution:
 
-#### A little remark
+- for performance reasons it uses a mutable array to keep track
+of the state of each vertex. The paper points out that this is not strictly necessary
+and if a logarithmic increase in the time complexity of the algorithm is acceptable,
+a `Set` data structure can be used to avoid the need for monadic code.
+- the algorithm does use a functional style but the data structure chosen to
+represent a graph is an [adjacency list](https://en.wikipedia.org/wiki/Adjacency_list),
+which is usually the preferred way of representing graphs in the imperative
+programming languages. Why this is important will become apparent in the next paragraph.
+
+##### A little remark
 
 Section "5. Implementing depth-first search" states that
 
@@ -298,36 +305,40 @@ If anybody has some pointers again please [let me know](/about.html)!
 
 ## Functional graph algorithms using inductive graphs
 
-In
+Martin Erwig's paper
 ["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
-Martin Erwig starts with this line
+asks the following question at the very beginning:
 
 > How should I implement a graph algorithm in a functional programming language?
 
-I must confess that this paper clicked with me from the git-go because it asked
-basically all the questions I had on the topic and provided adequate answers
-for most of them.
-It acknowledges lots of the functional algorithms already developed but also
-considers them all not completely satisfactory either because they use concepts
-not currently available
-in today's programming languages or because they entail some imperative-style
-strategy - i.e. keeping track of visited nodes by labelling them -
-that contaminates the clarity of the algorithm, makes it harder to reason about
-it and to proof its correctness. The solution the paper proposes is to think
-about graphs in a new way.
+which was exactly the one that started my journey. The main goals of the paper
+are:
+
+- describing an inductive definition of graphs and graph algorithms as recursive
+functions
+- providing efficient implementations of graph algorithms that can be used in
+real-world scenarios
+- providing clear algorithms that can be used to teach graph algorithms
+
+It acknowledges lots of the functional graph algorithms already developed but also
+considers them all not completely satisfactory either because they introduce
+constructs that are not currently available in today's programming languages
+or because they entail some imperative-style strategy - i.e. keeping track of
+visited nodes by labelling them - that contaminates the clarity of the algorithm,
+makes it harder to reason about it and to proof its correctness.
+The solution the paper proposes is to think about graphs in a new way.
 
 ### Enter inductive graphs
 
 The paper makes a very interesting observation: lists and trees
 algorithms are much simpler and more modular than graph algorithms
 and do not require additional bookkeeping: why is that? The answer is two-fold:
-their definition is inductive and function definitions using those
-data structures are also inductive and besides that pattern matching helps a
-great deal when it comes to clarity and succinctness.
-Now let's have a look at the definition of graphs: they are usually
+their definition and the definitions of functions on them  are inductive and
+besides that pattern matching helps a great deal when it comes to clarity and
+succinctness. Now let's have a look at the definition of graphs: they are usually
 defined as a pair `G = (V, E)` where `V` is the set of vertices and `E` the set
 of edges, where edge is defined as a pair of vertices in `V`.
-Imperative-style algorithms on graphs discover edges and vertices incrementally
+Imperative algorithms on graphs discover edges and vertices incrementally
 and usually need to keep track of the visited vertices either using a separate
 data structure or by storing more data in the graph itself.
 In this sense the usual definition of graphs is monolithical and this is the
@@ -358,13 +369,16 @@ type Vertex = Int
 
 The definition should look familiar if you've already seen one for trees or lists:
 a graph is either empty or it has a context and another graph.
-The context contains information about a given vertex, namely its value,
+A `Context` contains information about a given vertex, namely its value,
 label (if any) and its adjacent edges classified as inbound or outbound.
-So far so good, now how can we build the following graph inductively?
+So far so good: now taking the following graph as an example:
 
 <img class="figure centered" src="/images/sample_graph.png" alt="Sample graph" />
 
-One possible way of building an inductive graph is the following:
+how can we build an inductive graph from a list of vertices and edges?
+One possible way of building the inductive graph would be the following:
+
+<img class="figure centered" src="/images/sample_inductive_graph123.png" alt="Inductive graph" />
 
 ```haskell
 ƛ: read "mkG [('a', 1), ('b', 2), ('c', 3)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
@@ -372,26 +386,25 @@ One possible way of building an inductive graph is the following:
 
 ```
 
-<img class="figure centered" src="/images/sample_inductive_graph123.png" alt="Inductive graph" />
+But that's not the only valid representation of an inductive graph, another valid
+inductive graph is the following:
 
-Another possible way is the following:
+<img class="figure centered" src="/images/sample_inductive_graph321.png" alt="Inductive graph" />
 
 ``` haskell
 ƛ: read "mkG [('c', 3), ('b', 2), ('a', 1)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]"
 ([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
 ```
 
-<img class="figure centered" src="/images/sample_inductive_graph321.png" alt="Inductive graph" />
+That brings to defining some of the properties of inductive graphs:
 
-Given some input vertices and edges, multiple inductive graphs
-can be built depending on the order of insertion of its vertices. From this
-follows that equality on inductive graphs is not defined on their "shapes" but
-rather on the set of vertices and edges.
-Looking back at the definition of the `Graph` type, it might look quite
-similar to the one of lists but it's not quite the same because there are precise
-rules for the construction of a graph: the context of a given vertex
-contains the adjacent inbound and outbound edges only if the pair of vertices
-has *already been discovered*.
+- given a list of vertices and a list of edges, multiple inductive
+graphs can be built depending on the order of insertion of its vertices
+- equality is not defined by their "shapes" but rather by the set of vertices
+and edges they represent
+- the adjacent inbound and outbound edges in a `Context` are lists of vertices
+that have *already been discovered*
+- inductive graphs are fully persistent data structures
 
 ### Active graph patterns
 
@@ -403,15 +416,15 @@ matching by allowing a function to be called before the matching is applied. It
 is very similar to
 [view patterns](https://ghc.haskell.org/trac/ghc/wiki/ViewPatterns)
 but it's more powerful because the patter can access the outer scope.
-This is not currently available in Haskell so the following code is something
-I made up to hopefully provide an intuition to the reader and **will not** type-check:
+This is not currently available in Haskell as far as I know, the following code
+is made up to hopefully provide an intuition to the reader and **will not** type-check:
 
 ``` haskell
 deg :: Vertex -> Graph weight label -> Int
-deg v ((ins, _, _, outs) (:&: :!: v) g) = length ins + length out
+deg v ((ins, _, _, outs) (:&: <!> v) g) = length ins + length out
 ```
 
-The expression `(:&: :!: v)` can be interpreted as: *"find the `Context` for the
+The expression `(:&: <!> v)` can be interpreted as: *"find the `Context` for the
 vertex `v` in the graph `g` if it exists and try to match the given pattern"*.
 Active graph patterns are not essential when implementing inductive graphs and
 it is possible do pattern matching without them, all that is needed is a function
@@ -440,14 +453,15 @@ match qv = matchHelp ([], [])
 ### Functional graph algorithms
 
 Having our inductive definitions of graphs, it's time to show how that can be
-leveraged to write graph algorithms that are elegant and composable.
-We'll have a look at three fundamental graph algorithms, in the paper you can find more of
-them: depth-first search (or DFS), breadth-first search (or BFS) and shortest path.
+leveraged to write clear, recursive graph algorithms.
+Let's have a look at some fundamental graph algorithms: depth-first search (DFS),
+breadth-first search (BFS), Dijkstra's shortest path and Prims' algorithm to
+find the minimum spanning tree (MST).
 
 #### Depth-first search
 
-Using a depth-first search strategy to visit a graph essentially means: visit
-each vertex **once** and **visit successors before siblings**.
+Using a depth-first search strategy to visit a graph essentially means: traverse
+each vertex **once** and visit **successors before siblings**.
 Here's what the algorithm looks like:
 
 ``` haskell
@@ -456,31 +470,30 @@ dfs _ Empty = []
 dfs [] _ = []
 dfs (v:vs) g = case v `match` g of
   Nothing -> dfs vs g
-  Just ((_,vtx,_,outs), g') -> vtx : dfs (nextvs outs ++ vs) g'
+  Just ((_,vtx,_,outs), g') -> vtx : dfs (destvs outs ++ vs) g'
 
-nextvs :: Context label weight -> [Vertex]
+destvs :: Context label weight -> [Vertex]
 ```
 
 `dfs` is a recursive function that takes a list of input vertices and a graph
 and returns a list of vertices sorted by traversing the graph in DFS-style.
 If the graph or their input vertices are empty it returns the empty list,
-otherwise it takes the current vertex `v` and `match`es it against the graph.
-If `v` is a vertex in the graph,
-`match` will first return its context and a new graph without it, append
-`v` to the results list and finally the recursion will happen using as input
-the list of destination vertices for all outbound edges of `v` appended to
-the remaining source vertices and the new graph returned by the `match` function;
-if `v` is not a vertex in the graph then it is simply ignored and the algorithm
-recursively calls itself.
+otherwise it `match`es the current vertex `v` against the graph.
+If `v` is a vertex in the graph, `match` will first return its context and a new
+graph without it, append `v` to the results list and finally the recursion will
+happen using as input the list of destination vertices for all outbound edges of
+`v` appended to the remaining source vertices and the new graph returned by the
+`match` function; if `v` is not a vertex in the graph then it is simply ignored
+and the algorithm recursively calls itself.
 There key observations about the algorithm are:
 
-1. destination vertices are appended *in front of* the source vertices: this is what makes
-the algorithm traversing the input graph depth-first. This is exactly what the
-second invariant of DFS dictates: visit successors before sibilings.
+1. destination vertices are appended *in front of* the current vertex: this is
+what makes the algorithm traversing the input graph depth-first. This is exactly
+what the second invariant of DFS dictates: visit successors before sibilings.
 2. the `match` function returns a new graph *without* the query vertex: this is
-what the first invariant of DFS dictates - visit each vertex exectly once.
+what the first invariant of DFS dictates: visit each vertex exectly once.
 Since the new graph doesn't contain the query vertex there is no need for keeping
-track of the visited vertices.
+track of the visited vertices therefore no bookkeeping is necessary.
 
 Let's have a look at a very simple example using one of the sample graphs above:
 
@@ -495,7 +508,7 @@ One of the applications of DFS is finding the spanning forest (set of trees) of
 a graph. The algorithm needs to build the spanning forest by traversing the graph
 in such a way that only when DFS traversal is completed for a
 [connected component](https://en.wikipedia.org/wiki/Connected_component_(graph_theory))
-it will proceed with the next one. Here's what the algorithm looks like:
+it will proceed with the next one. Let's define some types first:
 
 ``` haskell
 import Control.Arrow (second)
@@ -506,29 +519,35 @@ type Forest a = [Tree a]
 
 dff :: [Vertex] -> Graph weight label -> Forest Vertex
 dff vs = fst . dff' vs
+```
 
+The `dff` function calls an auxiliary function `dff'` that does the heavy lifting,
+let's have a look at it:
+
+```haskell
 dff' :: [Vertex] -> Graph weight label -> (Forest Vertex, Graph weight label)
 dff' [] g = ([], g)
 dff' (v:vs) g = case v `match` g of
   Nothing -> dff' vs g
   Just (ctx, g') -> (Node v ts : forest, g'')
   where
+    -- `second` applies the function `dff' vs` to the second element of
+    -- the pair returned by `dff' (destvs ctx) g'`
     (ts, (forest, g'')) = second (dff' vs) (dff' (destvs ctx) g')
 
 destvs :: Context label weight -> [Vertex]
 ```
 
-The `dff` function calls an auxiliary function `dff'` that does most of the work.
-`dff'` is - as `dfs` - a recursive function: it first matches the vertex  `v` with
-the graph and if `match`ing succeeds the function calls itself recursively using
-its siblings and the new graph as arguments until the list of vertices is
-empty; when that happens the recursion continues using the remaining vertices
-and the most recent version of the graph.
+The `dff'` function is recursive: if `match`ing the vertex `v` with
+the graph `g` succeeds, `dff'` calls itself passing its siblings and
+the new graph as arguments until the list of vertices is empty; when the list is
+empty the recursion continues using the remaining vertices - if any - and the
+most recent version of the graph.
 Again let's have a look at a very simple example built on top of the previous one:
 
 ``` haskell
-ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4), (4, 5, 7)]"
-([(4,3),(3,2)],1,'a',[(5,2)]) :&: (([],2,'b',[(1,3)]) :&: (([],3,'c',[]) :&: Empty))
+ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4), (4, 5, 7)]" :: Graph Int Char
+([(4,3),(3,2)],1,'a',[(5,2)]) :&: (([],2,'b',[(1,3)]) :&: (([],3,'c',[]) :&: (([],4,'d',[(7,5)]) :&: (([],5,'e',[]) :&: Empty))))
 ƛ: dff (vertices g) g
 [Node 1 [Node 2 [Node 3 []]], Node 4 [Node 5 []]]
 ```
@@ -536,7 +555,7 @@ Again let's have a look at a very simple example built on top of the previous on
 #### Breadth-first search
 
 Using a breadth-first search strategy to visit a graph essentially means: traverse
-each vertex **once** and **visit siblings before successors**.
+each vertex **once** and visit **siblings before successors**.
 Here's what the algorithm looks like:
 
 ``` haskell
@@ -556,28 +575,28 @@ There key facts to notice about the algorithm are:
 
 1. siblings are appended *at the end of* the source vertices: this is what makes
 the algorithm traversing the input graph breadth-first. This is exactly what the
-second invariant of DFS dictates : visit siblings before the successor.
+second invariant of BFS dictates : visit siblings before the successor.
 2. the `match` function returns a new graph *without* the current vertex: this is
-what the first invariant of BFS dictates - visit each vertex exectly once.
+what the first invariant of BFS dictates: traverse each vertex exectly once.
 Since the new graph doesn't contain the current vertex there is no need for keeping
 track of the visited vertices.
-3. the algorithm is basically the same as the one in `dfs`, the only thing that
-changes is where siblings are appended: in case of BFS they're
-appended at the end of the list, in case of DFS in front of it. To fully appreciate
+3. the algorithm is mostly the same as `dfs`, the only thing that changes is
+where siblings are appended: in case of BFS they're appended at the end of the
+list, in case of DFS in front of it. To fully appreciate
 this it might be useful to think of these algorithms in terms of the defining
 strategies of the data structures they internally use: LIFO in case of DFS and a
 FIFO in case of BFS.
 
 One of the applications of BFS is finding the shortest path in a unweighted graph.
-This time the algorithm chooses a different representation for the spanning forest,
+This time the paper chooses a different representation for the spanning forest,
 the reason is that it's harder to build a tree of nodes because of the way
 BFS works: **its recursion logic delivers nodes in a top-down fashion whereas the one
 in DFS delivers them in a bottom-up fashion, which is the natural way of building
 a tree** [EXPLAIN THIS BETTER].
-The paper argues that representation is not that useful in some
-applications of BFS spanning trees - like for example finding the shortest path
-between two vertices in a unweighted graph - and that can be achieved representing
-the spanning tree with a list of paths. Let's have a look at the implementation:
+The paper argues that considering some of the applications of BFS spanning trees
+- for example finding the  shortest path between two vertices in a unweighted
+graph - a list of paths can be used to represent the BFS spanning tree.
+Let's have a look at the implementation of the shortest path algorithm:
 
 ``` haskell
 import Control.Arrow (first)
@@ -594,11 +613,11 @@ pathTo :: (a -> Bool) -> [a] -> a
 pathTo p = head . filter p
 ```
 
-The `esp` function looks for the path in which the first vertex is the destination
-of the path and reverses it (the reason why this is necessary will become clear
+The `esp` function requires a source vertex and a destination vertex, filters the
+path to the destination and reverses it (why this is necessary will become clear
 in a moment). Notice that since Haskell has non-strict sematics,
 `esp` stops as soon as the path to the target destination vertex is found. Now
-let's have a look at the `bft` function:
+let's have a look at the implementation of the `bft` function:
 
 ``` haskell
 bft :: Vertex -> Graph weight label -> RTree
@@ -614,9 +633,8 @@ bf paths = bf' paths
           Nothing -> bf' ps' g
           Just (ctx, g') -> p : bf' (ps' ++ map (:p) (destvs out)) g'
 
-    -- gets the query vertex from the first path in the list and the remaining paths
-    -- paths will always be non-empty because the initial call to `bf` uses a
-    -- non-empty list
+    -- gets the current vertex from the first path in the list and the remaining paths
+    -- paths will never be empty because `bf` is called using a non-empty list
     (p@(v:_), ps') = first head (splitAt 1 ps)
 
 destvs :: Context label weight -> [Vertex]
@@ -632,21 +650,25 @@ at an example on a simple graph as it might be easier to understand:
 [[1],[2,1],[3,2,1]]
 ```
 
-The resulting spanning tree contains the shortest path from the source vertex to all
+Notice that an unweighted graph is a graph whose weight is `()` and that the
+resulting spanning tree contains the shortest path from the source vertex to all
 other vertices in *reverse order*. The `bf` function builds complete paths from
-a source to a destination vertex without wasting any memory because list prefixes
+a source to a destination vertex but doesn't waste any memory because list prefixes
 are shared.
 
-#### Shortest path
+#### Dijkstra's shortest path
 
-The last algorithm I want to illustrate is a bit more convoluted and it's
-Dijkstra's shortest path. First let's define two new auxiliary types:
+Finding the shortest path between two vertices means finding the cheapest path
+between them (this means that there must exist a partial ordering for edge weights).
+Dijkstra's algorithm to find the shortest path in a weighted graph essentially
+chooses always the cheapest edge taking into account the distance traversed so
+far. First let's define two new auxiliary types:
 
 ``` haskell
 -- Labelled vertex
 type LVertex label = (label, Vertex)
 
-newtype LPath label = LPath { unwrap :: [LVertex label] }
+newtype LPath label = LPath { getLPath :: [LVertex label] }
 
 -- Labelled R-Tree (or Root Tree)
 type LRTree label = [LPath label]
@@ -657,23 +679,26 @@ instance Ord label => Ord (LPath label) where ...
 ```
 
 The algorithm uses a min-heap and some auxiliary functions to keep track of the
-cheapest path
+cheapest path:
 
 ``` haskell
 import qualified Data.Heap as Heap
 
 getPath :: Vertex -> LRTree label -> Path
-getPath v = reverse . map snd . unwrap . pathTo ((==v) . lv2v)
+getPath v = reverse . map snd . getLPath . pathTo ((==v) . lv2v)
   where
-    lv2v = snd . head . unwrap
+    lv2v = snd . head . getLPath
 
 expand :: Monoid weight
        => weight -> LPath weight -> Context weight label -> [LPath weight]
-expand d (LPath p) (_, _, _, outs) =
-  map (\(w, v) -> LPath ((w `mappend` d, v):p)) outs
+expand d (LPath p) (_, _, _, outs) = map (\(w, v) -> LPath ((w `mappend` d, v):p)) outs
 
-mergeAll p@((dist, _):_) h0 =
-  foldr Heap.insert h0 . expand dist (LPath p)
+mergeAll :: (Monoid weight, Ord weight)
+         => [LVertex weight]
+         -> Heap.Heap (LPath weight)
+         -> Context weight label
+         -> Heap.Heap (LPath weight)
+mergeAll p@((dist, _):_) h = foldr Heap.insert h . expand dist (LPath p)
 ```
 
 The `expand` function builds new `LPath`s whose label is the sum - let's assume
@@ -685,12 +710,12 @@ Now let's have a look at the core of the algorithm:
 
 ``` haskell
 dijkstra :: (Monoid weight, Ord weight)
-         => Heap.Heap (LPath w) -> Graph weight label -> LRTree weight
+         => Heap.Heap (LPath weight) -> Graph weight label -> LRTree weight
 dijkstra h g
   | isEmpty g = []
   | otherwise = case Heap.viewMin h of
       Nothing -> []
-      Just (p, h') -> dijkstra' (p, h')
+      Just (lpath, h') -> dijkstra' (lpath, h')
   where
     dijkstra' (LPath p@((_, v):_), h') =
       case v `match` g of
@@ -719,6 +744,10 @@ contain `v`. The recursion stops if the graph is empty - that is all vertices ha
 been visited - or the min-heap is empty - that is all edges have been traversed.
 This is definitely a bit more complex than the other algorithms but it's quite
 elegant and modular.
+
+### Minimum spanning tree
+
+...
 
 ### A word on efficiency
 
