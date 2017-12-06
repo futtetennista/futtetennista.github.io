@@ -9,9 +9,8 @@ problems can be modelled with them. Plenty of literature available on graphs and
 graph algorithms (graph traversal, shortest path between two vertices,
 minimum spanning trees etc.). Plenty of literature when we consider imperative
 programming languages that is, but when we consider functional programming languages
-the scenario changes dramatically for the worst. So let's start a journey to try to
-answer the following question:
-"How should I implement a graph algorithm in a functional programming language?".
+the scenario changes dramatically for the worst. So how should I implement a
+graph algorithm in a functional programming language?
 
 <!--more-->
 
@@ -140,7 +139,7 @@ dfs g =
 
 ```
 
-If you stopped reading I would not blame you. It is definitely **not** the best
+If you stopped reading I would not blame you. It is definitely not the best
 piece of code ever written using a functional programming languange.
 It probably is in some aspects better than an imperative-style implementation
 - for example state and side effects are now explicit and pattern matching makes
@@ -169,10 +168,9 @@ time
 2. achieving greater code modularity
 3. being able to formally prove the critical properties of the considered algorithms
 
-I would like to
-highlight this last aspect: it's probably the first time I encounter some material
-on graph algorithms that takes it into consideration and it can be really useful
-in property testing for example. The paper approaches graph traversal as a combinatorial
+I would like to highlight this last aspect: it's probably the first time I read material
+on graph algorithms that takes it into consideration and it can be really useful,
+for example in property testing. The paper approaches graph traversal as a combinatorial
 problem and employs a common technique in that kind of problems: generate and prune.
 Before illustrating the gist of that technique, let's define some types
 and auxiliary functions:
@@ -212,23 +210,22 @@ include :: (Ix i, MA.MArray a Bool m) => a i Bool -> i -> m ()
 include arr v = MA.writeArray arr v True
 ```
 
-Let's consider this very simple graph:
+Now let's consider this very simple graph:
 
 <img class="figure centered" src="/images/sample_graph.png" alt="Sample graph" />
 
-and now let's look at the generate and prune technique at a high level:
+and let's look at the generate and prune technique at a high level:
 the "generate" step describes how to create all possible trees
 from a given vertex. The following picture illustrates it for the sample graph
-above, notice that the greyed-out nodes are not yet generated but will be on-demand
-if necessary:
+above, notice that the generated tree is infinite. The nodes that are greyed-out
+are not yet generated and will be only if it's necessary:
 
 <img class="figure centered" src="/images/generate_prune_1.png" alt="Inductive graph" />
 
 The "prune" step discards the sub-trees that violate to the invariants of DFS,
-namely those that have already been discovered. Back to our example, after the
-trees labelled `a` and `b` are traversed, the tree with root `a` is discarded
-because a tree with the same label has already been discovered and the algorithm
-traverses the tree labelled `c`:
+namely those that have already been discovered. Back to our example, when the
+algorithm reaches `b`, it will discard the tree with root `a` because it has been
+already been discovered and traverses the tree whose root is labelled `c` instead:
 
 <img class="figure centered" src="/images/generate_prune_3.png" alt="Inductive graph" />
 
@@ -238,9 +235,9 @@ The same thing happens after `c` is traversed leaving the final DFS spanning tre
 
 The approach guarantees the efficiency of the algorithm because the evaluation
 strategy of languages with non-strict semantics (call-by-need or lazy evaluation)
-assures that an expression is evaluated once, on-demand and since the discarded
-trees will never be used - that is traversed - they will never be created in the
-first place. Let's have a look now at the code:
+assures that an expression is evaluated only once and on-demand; also, the discarded
+trees will never be used - that is traversed - so they will never be created in
+the first place. Let's have a look now at the implementation:
 
 ``` haskell
 dfs :: Graph -> [Vertex] -> Forest Vertex
@@ -259,7 +256,7 @@ dfs g = prune (bounds g) . map (generate g)
 
 Notice that the type signature for the `mkEmpty bnds` is mandatory, more info
 can be found [here](https://stackoverflow.com/a/9469942/).
-The `chop` function does the pruning of those trees that have already been discovered:
+The `chop` function discards the trees that have already been discovered:
 
 ``` haskell
 chop :: (MA.MArray (MA.STUArray s) Bool m)
@@ -280,7 +277,7 @@ chop (Node v ts:ns) arr = do
       return $ Node v ts' : ns'
 ```
 
-I would like to highlight two qualities of this solution:
+Two qualities of this solution that can be highlighted are:
 
 - for performance reasons it uses a mutable array to keep track
 of the state of each vertex. The paper points out that this is not strictly necessary
@@ -325,7 +322,7 @@ considers them all not completely satisfactory either because they introduce
 constructs that are not currently available in today's programming languages
 or because they entail some imperative-style strategy - i.e. keeping track of
 visited nodes by labelling them - that contaminates the clarity of the algorithm,
-makes it harder to reason about it and to proof its correctness.
+makes it harder to reason about it and to prove its correctness.
 The solution the paper proposes is to think about graphs in a new way.
 
 ### Enter inductive graphs
@@ -588,14 +585,11 @@ strategies of the data structures they internally use: LIFO in case of DFS and a
 FIFO in case of BFS.
 
 One of the applications of BFS is finding the shortest path in a unweighted graph.
-This time the paper chooses a different representation for the spanning forest,
-the reason is that it's harder to build a tree of nodes because of the way
-BFS works: **its recursion logic delivers nodes in a top-down fashion whereas the one
-in DFS delivers them in a bottom-up fashion, which is the natural way of building
-a tree** [EXPLAIN THIS BETTER].
-The paper argues that considering some of the applications of BFS spanning trees
-- for example finding the  shortest path between two vertices in a unweighted
-graph - a list of paths can be used to represent the BFS spanning tree.
+This time the paper chooses a different representation for the spanning forest:
+a list of labelled paths. It does that mainly for two reasons: it's easiest to
+implement than the previous representation in terms of BFS and it fits well the
+applications of BFS spanning trees - for example finding the  shortest path
+between two vertices in a unweighted graph.
 Let's have a look at the implementation of the shortest path algorithm:
 
 ``` haskell
@@ -659,15 +653,16 @@ are shared.
 #### Dijkstra's shortest path
 
 Finding the shortest path between two vertices means finding the cheapest path
-between them (this means that there must exist a partial ordering for edge weights).
+between them (where "cheap" is dependent upon the weight or cost of the edges).
 Dijkstra's algorithm to find the shortest path in a weighted graph essentially
-chooses always the cheapest edge taking into account the distance traversed so
-far. First let's define two new auxiliary types:
+chooses always the next cheapest edge taking into account the distance traversed
+so far. First let's define two new auxiliary types:
 
 ``` haskell
 -- Labelled vertex
 type LVertex label = (label, Vertex)
 
+-- Only needed to be able to define `Eq` and `Ord` instances
 newtype LPath label = LPath { getLPath :: [LVertex label] }
 
 -- Labelled R-Tree (or Root Tree)
@@ -734,12 +729,12 @@ sp src dst = getPath dst . spt src
 
 The `sp` function kicks off the algorithm by providing the source node to
 the `spt` function which in turn calls `dijkstra` with a singleton min-heap that
-contains a path to the source vertex with weight 0 - this is how expensive it is
-to walk from the source vertex to the source vertex. The `dijkstra` function is
+contains a path to the source vertex with weight zero - this is how expensive it
+is to walk from the source vertex to the source vertex. The `dijkstra` function is
 a recursive function that peeks the cheapest path from the min-heap, and if the
 current vertex `v` is contained in the graph - that is, the vertex hasn't been
 already visited - appends it to the resulting `LRTree` and calls itself recursively
-with a new min-heap that contains up-to-date paths and a new graph that doesn't
+with a new min-heap that contains up-to-date costs and a new graph that doesn't
 contain `v`. The recursion stops if the graph is empty - that is all vertices has
 been visited - or the min-heap is empty - that is all edges have been traversed.
 This is definitely a bit more complex than the other algorithms but it's quite
@@ -749,25 +744,20 @@ elegant and modular. Let's have a look at an example on the following graph:
 
 ``` haskell
 ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]" :: Graph Int Char
--- Make weights a monoid for addition on Ints
-ƛ: let g' = gmap (\(ins, l, v, outs) -> (map (first Sum) ins, l, v, map (first Sum) outs)) (undir g)
+-- weights should be wrapped in a `Sum` constructor to form a monoid for addition on Ints but let's forget about that for the sake of simplicity
+-- `undir` simply transforms a directed graph to an undirected one
+ƛ: spt 1 (undir g)
+[LPath {getLPath = [(0,1)]},LPath {getLPath = [(5,4),(0,1)]},LPath {getLPath = [(7,3),(0,1)]},LPath {getLPath = [(10,7),(7,3),(0,1)]},LPath {getLPath = [(11,5),(7,3),(0,1)]},LPath {getLPath = [(11,2),(7,3),(0,1)]},LPath {getLPath = [(12,6),(10,7),(7,3),(0,1)]}]
+ƛ: sp 1 6 paths(undir g)
+[1,3,7,6]
 ```
 
-The `undir` function simply transforms a directed graph to an undirected one.
-
-```haskell
-ƛ: spt 1 g'
--- forget about the `Sum` constructors around weights for a moment and the list
--- will be something like
-[LPath {getLPath = [(0,1)]},LPath {getLPath = [(5,2),(0,1)]},LPath {getLPath = [(6,3),(5,2),(0,1)]}]
-ƛ: sp 1 3 mg
-[1,2,3]
-```
+<img class="figure centered" src="/images/dijkstra.png" alt="Dijkstra's shortest path" />
 
 ### Minimum spanning tree
 
-Prim's algorithm to find the minimum spanning tree (MST) essentially chooses
-always the cheapest edge among the known edges (it's a greedy algorithm).
+Prim's algorithm to find the minimum spanning tree (MST) always traverses
+the cheapest edge among the discovered edges - it's a greedy algorithm.
 Prim's and Dijkstra's algorithms are notoriously very similar: this similarity
 becomes evident using recursive functions. We'll re-use the same types defined
 for the shortest path algorithm but define different auxiliary functions:
@@ -786,13 +776,9 @@ addEdges (LPath p) (_, _, _, outs) = map (LPath . (:p)) outs
 
 The `addEdges` function is very similar to the `expand` function but it doesn't
 take into account the distance walked so far, only the weight of the edges.
-The core of the algorithm shouldn't be anything new, it's basically the same as
-Dijkstra's:
+The core of the algorithm shouldn't be anything new:
 
 ``` haskell
-mst :: (Monoid w, Ord w) => Vertex -> Graph w l -> LRTree w
-mst src = prim $ Heap.singleton (LPath [(mempty, src)])
-
 prim :: (Monoid w, Ord w) => Heap.Heap (LPath w) -> Graph w l -> LRTree w
 prim h g
   | isEmpty g = []
@@ -804,6 +790,9 @@ prim h g
       case v `match` g of
         Nothing -> prim h' g
         Just (ctx, g') -> LPath p : prim (mergeAll p h' ctx) g')
+
+mst :: (Monoid w, Ord w) => Vertex -> Graph w l -> LRTree w
+mst src = prim $ Heap.singleton (LPath [(mempty, src)])
 ```
 
 Now that the MST can be build, let's find the path between two vertices:
@@ -821,63 +810,55 @@ joinAt _src (v:vs) (v':vs')
 joinAt src ps ps' = reverse ps ++ (src:ps')
 ```
 
-Let's try these algorithms out using this graph:
+Let’s again have a look at an example on the following graph:
 
 <img class="figure centered" src="/images/sample_graph2.png" alt="Sample graph 2" />
 
 ``` haskell
 ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]" :: Graph Int Char
--- Make weights a monoid for addition on Ints
-ƛ: let g' = gmap (\(ins, l, v, outs) -> (map (first Sum) ins, l, v, map (first Sum) outs)) (undir g)
-```
-
-One of the existing minimum spanning trees for that graph is the following:
-
-<img class="figure centered" src="/images/prim.png" alt="Prim's MST" />
-
-``` haskell
-ƛ: let mstree = mst 1 g'
+-- weights should be wrapped in a `Sum` constructor to form a monoid for addition on Ints but let's forget about that for the sake of simplicity
+ƛ: let mstTrees = mst 1 (undir g)
 [LPath {getLPath = [(0,1)]},LPath {getLPath = [(5,4),(0,1)]},LPath {getLPath = [(7,5),(5,4),(0,1)]},LPath {getLPath = [(2,7),(7,5),(5,4),(0,1)]},LPath {getLPath = [(2,6),(2,7),(7,5),(5,4),(0,1)]},LPath {getLPath = [(3,3),(2,7),(7,5),(5,4),(0,1)]},LPath {getLPath = [(4,2),(3,3),(2,7),(7,5),(5,4),(0,1)]}]
-ƛ: mstPath 3 5 mstree
+ƛ: mstPath 3 5 mstTrees
 [3,7,5]
 ```
 
-## A word on efficiency
+<img class="figure centered" src="/images/prim.png" alt="Prim's MST" />
 
-So far when talking about inductive graphs and related algorithms the word efficiency
-wasn't really mentioned. This is because the implementations shown so far are
-hopelessly inefficient but hopefully they provide an intuition about inductive
-graphs. An efficient, real-world implementation relies on more efficient data
-structures than lists and more importantly a key aspect to make the algorithms
-having asymptotically optimal running times is that active patterns must
-match in linear times. A real-world implementation based on Martin Erwig's paper
-is available on
-[Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1)
-and if you're curious to know how it is possible to implement inductive graphs
-efficiently I'll encourage to look at the source code.
-This could be a very topic for a separate blog post.
+## A quick word on efficiency
+
+I mentioned that inductive graphs and related algorithms are meant to be as
+efficient as the non-inductive counterparts. The implementations shown so far are
+not though and they were not meant to be in the first place; but hopefully they
+provided a good intuition about inductive graphs.
+An efficient implementation would rely on more efficient data
+structures, and a key aspect to make the algorithms shown so far having
+asymptotically optimal running times is that active patterns must
+execute in linear times.
+A real-world implementation based on Martin Erwig's paper is actually available
+on [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1), if you're
+curious to know how it is possible to implement inductive graphs efficiently
+I'll encourage to look at the source code; digging into the internals of the
+library is a whole different topic, possibly for a future blog post.
 
 
 ## Wrapping up
 
-One of the tradeoffs to achieve clear and elegant graph algorithms seems to be
+One of the tradeoffs to achieve clear and elegant graph algorithms seemed to be
 shifting the complexity from the algorithm itself to the supporting data
-structures: implementing an inductive graph and active patterns is more complex
-than implementing an adjacency lists, using a min-heap in the shortest path
-algorithm eliminates the need for bookkeeping when looking for the next cheapest
-path.
+structures: for example implementing an inductive graph is more complex than
+implementing  an adjacency list, and using a min-heap in the shortest path or MST
+algorithms eliminates the need for bookkeeping when deciding which edge shoul be
+traversed next.
 
-The journey into graphs and related algorithm in functional programming
+My exploration into graphs and related algorithm in functional programming
 started with a simple question that was surprisingly hard to answer:
-*"How should I implement a graph algorithm in a functional programming language?"*.
+*How should I implement a graph algorithm in a functional programming language?*
 The plethora of resource about graphs in for imperative languages is not matched
 in the functional world, where adequate solution to the problem have surfaced
 only in the last 20 years or so and are restricted to the academic world.
 We started with an unsatisfactory solution based on monads,
-then illustated one that leverages ?? of functional programming languages but
-sill grounded in imperative programming and finally described a solution
-based on inductive graphs that manages to achieve an elegant, clear and modular
-solution by choosing a different representation for graphs. Also, graph
-algorithms based on inductive graphs guarantee asymptotically optimal running
-times for most graph algorithms, provided that the implementation of some key
-operations is done efficiently.
+then illustrated one that leverages a mix of functional and imperative constructs
+and finally described a solution based on inductive graphs that manages to be
+elegant, clear and efficient - with some caveats - by leveraging inductive data
+structures and functions.
