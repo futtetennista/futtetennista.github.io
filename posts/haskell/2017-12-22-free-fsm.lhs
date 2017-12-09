@@ -30,12 +30,12 @@ from functors with the help of a special type, the `Free` type.
 When writing a program using free monads usually we think of it as a grammar, and 
 need to define:
 
-* te data type that expresses its symbols - this data type will be our functor instance
+* the data type that expresses its symbols - this data type will be our functor instance
 * the program itself and usually a dsl to build it using smart constructors and
 * one or more interpreters to "translate" the program in a specific way, for example 
 there could be an interpreter for a command-line app, one for tests, one for a remote API etc.
 
-Back to the example in [Oskar's posts][2], we can look at the 
+Back to the original example, we can look at the 
 [state machine diagram](https://wickstrom.tech/generated/uml/checkout.svg) 
 that describes the protocol and think of it in terms of a grammar, legal symbols are
 
@@ -199,7 +199,7 @@ Wrapping up
 This post show an alternative way to express what [Oskar's article][2] calls
 "explicit typed state transitions" using finite-state machines on top of free
 monads. Keeping in mind [the][8] [tradeoffs][9] of solutions based
-on free monadsm, I must admit that it does appeal to me more than a
+on free monads, I must admit that it does appeal to me more than a
 solution based on type classes and monad transformers because I feel it
 expresses the protocol more explicitly and it enforces a better separation
 between protocol and interactions with the real-world; or maybe I just got 
