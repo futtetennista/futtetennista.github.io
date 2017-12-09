@@ -234,14 +234,14 @@ ways of running it.
 Wrapping up
 ---
 
-This post show an alternative way to express what [Oskar's article][2] calls
+This post show an alternative way to express what [the original article][2] calls
 "explicit typed state transitions" using finite-state machines on top of free
 monads. Keeping in mind [the][8] [tradeoffs][9] of solutions based
 on free monads, I must admit that it does appeal to me more than a
 solution based on type classes and monad transformers because I feel it
 expresses the protocol more explicitly and it enforces a better separation
 between protocol and interactions with the real-world; or maybe I just got 
-influenced too deeply by [John A De Goes'][6] [articles][7] where he vigorously
+influenced too deeply by [John De Goes'][6] [articles][7] where he vigorously
 exposes why he thinks free monads are the way modern functional programs should
 be written. That said, this solution is not necessarily better than the one based
 on type classes and monad transformer stacks and doesn't change the core benefit of 
