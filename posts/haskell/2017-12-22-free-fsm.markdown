@@ -1,0 +1,33 @@
+---
+title: Free Finite-State Machines
+author: futtetennista
+tags: fsm, free+monads, haskell
+---
+
+In a series of [blog][1] [posts][2] [Oskar Wickström][3] explains how to make state
+transitions explicit using types. Those are brilliant articles in my opinion and
+I encourage you to read them first before diving into this article; particularly
+in the second installment he shows how to separate a *program* from its *protocol*
+in such a way that
+
+> the set of states, and the associated state transitions for certain events,
+will be encoded separately from the implementation of the automaton
+
+to have compile-time guarantees that the program respects the given protocol, and
+that transitioning to illegal states doesn't type-check. He does it using a mix
+of type classes, monad transformers stacks, GADTs and type-level functions.
+An alternative way to achieve the same goal is to build a finite-state machine on
+top of a free monad: it's just an alternative way of expressing effects in Haskell.
+One of the nice consequences of this choice is that not only we'll have compile-time
+guarantees of the correctness of our code, but by expressing the protocol as a
+grammar, its actions and user interactions are expressed in a clean and explicit
+way.
+
+<!--more-->
+
+
+
+
+[1]: https://wickstrom.tech/finite-state-machines/2017/11/10/finite-state-machines-part-1-modeling-with-haskell.html
+[2]: https://wickstrom.tech/finite-state-machines/2017/11/19/finite-state-machines-part-2.html
+[3]: https://twitter.com/owickstrom
