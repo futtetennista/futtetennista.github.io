@@ -98,6 +98,44 @@ The checkout now can be modelled as:
 use to create our free monad `CheckoutM`. The program is amost identical to
 the one described in [Oskar's article][2]:
 
+\ignore{
+> initial :: CheckoutM s (CheckoutState NoItems)
+> initial = liftF $ Protocol (Start NoItems)
+> 
+> askSelectMore :: SelectState s -> CheckoutM s Bool
+> askSelectMore sst =liftF $ Interaction (AskSelectMore sst id)
+>
+> select :: SelectState s -> CheckoutM s (CheckoutState HasItems)
+> select (NoItemsSelect NoItems) = liftF $ Protocol $ Select (\i -> HasItems (i :| []))
+> select (HasItemsSelect (HasItems is)) = liftF $ Protocol $ Select (\i -> HasItems (i <| is))
+> 
+> checkout :: CheckoutState HasItems -> CheckoutM s (CheckoutState NoCard)
+> checkout items@(HasItems is) = liftF $ Protocol $ Checkout items (NoCard is)
+> 
+> selectCard :: CheckoutState NoCard -> CheckoutM s (CheckoutState CardSelected)
+> selectCard cst@(NoCard is) = liftF $ Protocol $ SelectCard cst (CardSelected is)
+>
+> askConfirm :: CheckoutState CardSelected -> CheckoutM s Bool
+> askConfirm (CardSelected _ cc) = liftF $ Interaction $ AskConfirmCard cc id
+>
+> confirm :: CheckoutState CardSelected -> CheckoutM s (CheckoutState CardConfirmed)
+> confirm st@(CardSelected is cc) = liftF $ Protocol $ Confirm st (CardConfirmed is cc)
+>
+> placeOrder :: CheckoutState CardConfirmed -> CheckoutM s (CheckoutState OrderPlaced)
+> placeOrder st = liftF $ Protocol $ PlaceOrder st OrderPlaced
+>
+> cancel :: CancelState s -> CheckoutM s (CheckoutState HasItems)
+> cancel (NoCardCancel (NoCard items)) =
+>   select $ HasItemsSelect (HasItems items)
+> cancel (CardSelectedCancel (CardSelected items _card)) =
+>   select $ HasItemsSelect (HasItems items)
+> cancel (CardConfirmedCancel (CardConfirmed cart _)) =
+>   select $ HasItemsSelect (HasItems cart)
+>
+> end :: CheckoutState OrderPlaced -> CheckoutM s OrderId
+> end (OrderPlaced oid) = liftF $ Protocol (Finish oid)
+}
+
 > checkoutProgram :: CheckoutM s OrderId
 > checkoutProgram =
 >   initial >>= fillCart >>= startCheckout >>= end
