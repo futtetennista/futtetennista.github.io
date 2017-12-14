@@ -31,9 +31,11 @@ please [let me know](/about.html)! - but basically the only book on the subject
 of functional data structures out there is
 [Purely Functional Data Structures](https://www.goodreads.com/book/show/594288.Purely_Functional_Data_Structures)
 by Chris Okasaki, released in 2008 (and it's pretty advanced material)
-and I couldn't find any book that focused on functional algorithms. Graphs and
-graph algorithms are no exception: there is a massive amount of literature
-available for imperative languages but it takes some [DuckDuckGo](http://duckduckgo.com/)-fu
+and the only book I am aware of that focused on functional algorithms is
+[Pearls of Functional Algorithm Design](https://www.goodreads.com/book/show/8693802-pearls-of-functional-algorithm-design)
+by Richard Bird. Graphs and graph algorithms are no exception:
+there is a massive amount of literature available for imperative languages but
+it takes some [DuckDuckGo](http://duckduckgo.com/)-fu
 to find literature on the topic for purely functional languages, and more often
 than not that literature comes in the form of academic papers. After a decent amount
 of digging my understanding is that lots of purely functional algorithms do exist
@@ -139,28 +141,26 @@ dfs g =
 
 ```
 
-If you stopped reading I would not blame you. It is definitely not the best
-piece of code ever written using a functional programming languange.
+Possibly a few of closed this tab horrfied. I would not blame you.
+It is definitely not the bestpiece of code ever written using a functional
+programming languange.
 It probably is in some aspects better than an imperative-style implementation
 - for example state and side effects are now explicit and pattern matching makes
 the code a bit clearer in some places - but one
 might argue that monadic code makes the algorithm even harder to follow.
 
-This first attempt left me unsatisfied so I started doing some online research
-on the subject and at some point I found
-[this page](](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
+There **must** be a better way of doing this! I started doing some online
+research on the subject and at some point I found
+[this page](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
 in the Haskell wiki with a few links to research papers that approach graphs and
-graph algorithms using a functional programming language. The rest of the blog
-post will focus on describing the solution proposed in two of those papers:
-["Structuring Depth First Search Algorithms in Haskell"](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526)
-by David King and John Launchbury and
-["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
-by Martin Erwig.
+graph algorithms using a functional programming language. Two of them caught my
+attention and I'd like to illustrate the solutions proposed in those papers.
 
 ## Functional depth-first search using adjacency lists
 
-In ["Structuring Depth First Search Algorithms in Haskell"](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526)
-David King's and John Launchbury's main goals are:
+The first paper is titled ["Structuring Depth First Search Algorithms in Haskell"](http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526)
+, written by David King's and John Launchbury's in 1995. The main goals
+of the paper are:
 
 1. implementing depth-first search and related algorithms using a functional
 style without any performance penalty - this means traversing the graph in linear
@@ -302,14 +302,9 @@ If anybody has some pointers again please [let me know](/about.html)!
 
 ## Functional graph algorithms using inductive graphs
 
-Martin Erwig's paper
+The second paper is Martin Erwig's
 ["Inductive Graphs and Functional Graph Algorithms"](http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01)
-asks the following question at the very beginning:
-
-> How should I implement a graph algorithm in a functional programming language?
-
-which was exactly the one that started my journey. The main goals of the paper
-are:
+and it was published in 2001. The main goals of the paper are:
 
 - describing an inductive definition of graphs and graph algorithms as recursive
 functions
@@ -317,7 +312,12 @@ functions
 real-world scenarios
 - providing clear algorithms that can be used to teach graph algorithms
 
-It acknowledges lots of the functional graph algorithms already developed but also
+At the very beginning of the paper Martin Erwig asks the following question:
+
+> How should I implement a graph algorithm in a functional programming language?
+
+which was exactly the one that started my exploration of the topic. The paper
+acknowledges lots of the functional graph algorithms already developed but also
 considers them all not completely satisfactory either because they introduce
 constructs that are not currently available in today's programming languages
 or because they entail some imperative-style strategy - i.e. keeping track of
@@ -327,11 +327,11 @@ The solution the paper proposes is to think about graphs in a new way.
 
 ### Enter inductive graphs
 
-The paper makes a very interesting observation: lists and trees
+An observation in the paper particularly caught my attention: lists and trees
 algorithms are much simpler and more modular than graph algorithms
 and do not require additional bookkeeping: why is that? The answer is two-fold:
-their definition and the definitions of functions on them  are inductive and
-besides that pattern matching helps a great deal when it comes to clarity and
+their definition and the definitions of functions on them  are *inductive* and
+besides that *pattern matching* helps a great deal when it comes to clarity and
 succinctness. Now let's have a look at the definition of graphs: they are usually
 defined as a pair `G = (V, E)` where `V` is the set of vertices and `E` the set
 of edges, where edge is defined as a pair of vertices in `V`.
@@ -393,7 +393,7 @@ inductive graph is the following:
 ([(1,2)],3,'c',[(4,1)]) :&: (([(5,1)],2,'b',[(3,1)]) :&: (([],1,'a',[]) :&: Empty))
 ```
 
-That brings to defining some of the properties of inductive graphs:
+At this point we can start defining some of the properties of inductive graphs:
 
 - given a list of vertices and a list of edges, multiple inductive
 graphs can be built depending on the order of insertion of its vertices
@@ -411,10 +411,9 @@ matching for graphs named *"active graph pattern"* whose main goal is as far as
 I understood to make the notation more compact, augmenting the classic pattern
 matching by allowing a function to be called before the matching is applied. It
 is very similar to
-[view patterns](https://ghc.haskell.org/trac/ghc/wiki/ViewPatterns)
-but it's more powerful because the patter can access the outer scope.
-This is not currently available in Haskell as far as I know, the following code
-is made up to hopefully provide an intuition to the reader and **will not** type-check:
+[view patterns](https://ghc.haskell.org/trac/ghc/wiki/ViewPatterns) but it is
+not currently available in Haskell as far as I know; the following code
+is made up and __will not__ type-check but hopefully will provide a good intuitio:
 
 ``` haskell
 deg :: Vertex -> Graph weight label -> Int
@@ -449,7 +448,7 @@ match qv = matchHelp ([], [])
 
 ### Functional graph algorithms
 
-Having our inductive definitions of graphs, it's time to show how that can be
+Now that we defined graphs inductively, it's time to show how that can be
 leveraged to write clear, recursive graph algorithms.
 Let's have a look at some fundamental graph algorithms: depth-first search (DFS),
 breadth-first search (BFS), Dijkstra's shortest path and Prims' algorithm to
@@ -480,8 +479,7 @@ If `v` is a vertex in the graph, `match` will first return its context and a new
 graph without it, append `v` to the results list and finally the recursion will
 happen using as input the list of destination vertices for all outbound edges of
 `v` appended to the remaining source vertices and the new graph returned by the
-`match` function; if `v` is not a vertex in the graph then it is simply ignored
-and the algorithm recursively calls itself.
+`match` function; if `v` is not a vertex in the graph then it is simply ignored.
 There key observations about the algorithm are:
 
 1. destination vertices are appended *in front of* the current vertex: this is
@@ -535,10 +533,10 @@ dff' (v:vs) g = case v `match` g of
 destvs :: Context label weight -> [Vertex]
 ```
 
-The `dff'` function is recursive: if `match`ing the vertex `v` with
-the graph `g` succeeds, `dff'` calls itself passing its siblings and
+The `dff'` function is another recursive function: if `match`ing the vertex `v`
+with the graph `g` succeeds, `dff'` calls itself passing its siblings and
 the new graph as arguments until the list of vertices is empty; when the list is
-empty the recursion continues using the remaining vertices - if any - and the
+empty the recursion continues for the remaining vertices `vs` and the
 most recent version of the graph.
 Again let's have a look at a very simple example built on top of the previous one:
 
@@ -563,7 +561,7 @@ bfs gr vs = bfs' gr vs
       | isEmpty g || null svs = []
       | otherwise = case v `match` g of
           Nothing -> bfs' g vs
-          Just ((_,vtx,_,outs), g') -> vtx : dfs (vs ++ destvs outs) g'
+          Just ((_,v,_,outs), g') -> v : dfs (vs ++ destvs outs) g'
 
 destvs :: Context label weight -> [Vertex]
 ```
@@ -579,18 +577,14 @@ Since the new graph doesn't contain the current vertex there is no need for keep
 track of the visited vertices.
 3. the algorithm is mostly the same as `dfs`, the only thing that changes is
 where siblings are appended: in case of BFS they're appended at the end of the
-list, in case of DFS in front of it. To fully appreciate
-this it might be useful to think of these algorithms in terms of the defining
-strategies of the data structures they internally use: LIFO in case of DFS and a
-FIFO in case of BFS.
+list, in case of DFS in front of it. To fully appreciate this it might be useful
+to think of these algorithms in terms of the data structures  they use:
+LIFO in case of DFS and a FIFO in case of BFS.
 
 One of the applications of BFS is finding the shortest path in a unweighted graph.
-This time the paper chooses a different representation for the spanning forest:
-a list of labelled paths. It does that mainly for two reasons: it's easiest to
-implement than the previous representation in terms of BFS and it fits well the
-applications of BFS spanning trees - for example finding the  shortest path
-between two vertices in a unweighted graph.
-Let's have a look at the implementation of the shortest path algorithm:
+For convenience the paper chooses a different representation for the spanning forest:
+a list of labelled paths. Let's have a look at the implementation of the shortest
+path algorithm:
 
 ``` haskell
 import Control.Arrow (first)
@@ -621,15 +615,15 @@ bf :: [Path] -> Graph weight label -> RTree
 bf paths = bf' paths
   where
     bf' :: [Path] -> Graph weight label -> RTree
-    bf' ps g
-      | null ps || isEmpty g = []
+    bf' paths g
+      | null paths || isEmpty g = []
       | otherwise = case v `match` g of
-          Nothing -> bf' ps' g
-          Just (ctx, g') -> p : bf' (ps' ++ map (:p) (destvs out)) g'
+          Nothing -> bf' paths' g
+          Just ((_,_,_,outs), g') -> path : bf' (paths' ++ map (:path) (destvs outs)) g'
 
     -- gets the current vertex from the first path in the list and the remaining paths
     -- paths will never be empty because `bf` is called using a non-empty list
-    (p@(v:_), ps') = first head (splitAt 1 ps)
+    (path@(v:_), paths') = first head (splitAt 1 paths)
 
 destvs :: Context label weight -> [Vertex]
 ```
@@ -696,8 +690,8 @@ mergeAll :: (Monoid weight, Ord weight)
 mergeAll p@((dist, _):_) h = foldr Heap.insert h . expand dist (LPath p)
 ```
 
-The `expand` function builds new `LPath`s whose label is the sum - let's assume
-weights are positive integers for simplicity - of the distance walked so far and
+The `expand` function builds new `LPath`s whose label is the sum of the distance
+walked so far - let's assume weights are positive integers for simplicity - and
 the weight of the outbound edge. The `mergeAll` function takes these paths and
 inserts them in the heap. The `getPath` function just extracts the path to the
 given destination vertex from the list of paths.
@@ -718,12 +712,10 @@ dijkstra h g
         Just (ctx, g') -> LPath p : dijkstra (mergeAll p h' ctx) g'
 
 -- shortest path tree
-spt :: (Monoid weight, Ord weight)
-    => Vertex -> Graph weight label -> LRTree weight
+spt :: (Monoid weight, Ord weight) => Vertex -> Graph weight label -> LRTree weight
 spt src = dijkstra (Heap.singleton $ LPath [(mempty, src)])
 
-sp :: (Monoid weight, Ord weight)
-   => Vertex -> Vertex -> Graph weight label -> Path
+sp :: (Monoid weight, Ord weight) => Vertex -> Vertex -> Graph weight label -> Path
 sp src dst = getPath dst . spt src
 ```
 
@@ -757,8 +749,8 @@ elegant and modular. Let's have a look at an example on the following graph:
 ### Minimum spanning tree
 
 Prim's algorithm to find the minimum spanning tree (MST) always traverses
-the cheapest edge among the discovered edges - it's a greedy algorithm.
-Prim's and Dijkstra's algorithms are notoriously very similar: this similarity
+the cheapest edge among the discovered edges - like Dijkstra's it's a greedy
+algorithm. The two algrithms are notoriously very similar and this
 becomes evident using recursive functions. We'll re-use the same types defined
 for the shortest path algorithm but define different auxiliary functions:
 
@@ -768,7 +760,7 @@ mergeAll :: (Monoid weight, Ord weight)
          -> Heap.Heap (LPath weight)
          -> Context weight label
          -> Heap.Heap (LPath weight)
-mergeAll p h = foldr Heap.insert h . addEdges (LPath p)
+mergeAll lvs h = foldr Heap.insert h . addEdges (LPath lvs)
 
 addEdges :: Monoid weight => LPath weight -> Context weight label -> [LPath weight]
 addEdges (LPath p) (_, _, _, outs) = map (LPath . (:p)) outs
@@ -829,12 +821,12 @@ Let’s again have a look at an example on the following graph:
 
 I mentioned that inductive graphs and related algorithms are meant to be as
 efficient as the non-inductive counterparts. The implementations shown so far are
-not though and they were not meant to be in the first place; but hopefully they
+not - and they were not meant to be in the first place - but hopefully they
 provided a good intuition about inductive graphs.
-An efficient implementation would rely on more efficient data
-structures, and a key aspect to make the algorithms shown so far having
-asymptotically optimal running times is that active patterns must
-execute in linear times.
+An efficient implementation would rely internally on more efficient data
+structures, and a key aspect to achieve asymptotically optimal running times
+for the algorithms showm above is that active patterns must execute in constant
+time.
 A real-world implementation based on Martin Erwig's paper is actually available
 on [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1), if you're
 curious to know how it is possible to implement inductive graphs efficiently
@@ -851,14 +843,13 @@ implementing  an adjacency list, and using a min-heap in the shortest path or MS
 algorithms eliminates the need for bookkeeping when deciding which edge shoul be
 traversed next.
 
-My exploration into graphs and related algorithm in functional programming
+This exploration into graphs and related algorithm in functional programming
 started with a simple question that was surprisingly hard to answer:
 *How should I implement a graph algorithm in a functional programming language?*
-The plethora of resource about graphs in for imperative languages is not matched
-in the functional world, where adequate solution to the problem have surfaced
-only in the last 20 years or so and are restricted to the academic world.
-We started with an unsatisfactory solution based on monads,
-then illustrated one that leverages a mix of functional and imperative constructs
-and finally described a solution based on inductive graphs that manages to be
-elegant, clear and efficient - with some caveats - by leveraging inductive data
-structures and functions.
+The plethora of resources about graphs in the imperative world is not matched
+in the functional world, where adequate solutions to the problem have surfaced
+only in the last 20 years. Starting with an unsatisfactory monadic implementation,
+we had a look at a better solution that leverages a mix of functional and imperative
+constructs and finally described an implementation based on inductive graphs that
+manages to be elegant, clear and efficient - with some caveats - by leveraging
+inductive data structures and functions.
