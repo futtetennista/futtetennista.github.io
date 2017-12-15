@@ -843,3 +843,12 @@ we had a look at a better solution that leverages a mix of functional and impera
 constructs and finally described an implementation based on inductive graphs that
 manages to be elegant, clear and efficient - with some caveats - by leveraging
 inductive data structures and functions.
+
+
+#### UPDATE
+
+[2017-12-15]: This blog post is an expanded version of a
+[presentation](https://prezi.com/p/jplozqursbfo/)
+I gave at the [Berlin Haskell User Group](https://www.meetup.com/berlinhug/events/wfhdrnywpbtb/)
+in November 2017 where I gathered lots of valuable feedback that made it into this
+post. A special thanks goes to Matthias, Ben & Adrian.
