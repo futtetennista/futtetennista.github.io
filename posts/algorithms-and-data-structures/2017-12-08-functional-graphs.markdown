@@ -5,12 +5,13 @@ categories: data+strutures, algorithms
 ---
 
 Graphs are a fundamental data structure in computer science because *a lot* of
-problems can be modelled with them. Plenty of literature available on graphs and
-graph algorithms (graph traversal, shortest path between two vertices,
-minimum spanning trees etc.). Plenty of literature when we consider imperative
-programming languages that is, but when we consider functional programming languages
-the scenario changes dramatically for the worst. So how should I implement a
-graph algorithm in a functional programming language?
+problems can be modelled with them. Graph traversal, shortest path between two
+vertices, minimum spanning trees are all well-known algorithms and there is plenty
+of literature available. This applies to imperative languages but is it the same
+for functional languages? My first-hand experience is that this is not quite the
+case and answering a seemingly simple question like "how should I implement a
+graph algorithm in a functional programming language?" ends up being unexpectedly
+challenging.
 
 <!--more-->
 
@@ -42,8 +43,8 @@ of digging my understanding is that lots of purely functional algorithms do exis
 but they are not as efficient as the imperative counterparts; this might be
 one of the reasons why they are basically shovelled under the carpet and not used
 in practice.
-So let's try to answer a slightly different question first: ""How can I
-implement a graph algorithm in a functional programming language?"
+So let's try to answer a slightly different question first: How *can* I
+implement a graph algorithm in a functional programming language?
 
 ## Imperative-style algorithms with monads
 
@@ -51,11 +52,11 @@ One option could be "translating" graph algorithms from the imperative
 world to the functional world but that turns out to be unsurprisingly
 unpleasant: one of the main reasons is that imperative graph algorithms
 rely heavily on state and side effects (sometimes for efficiency reasons).
-To prove this, let's translate
-[depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search)
-as in
+Let's take Haskell as our functional programming language of choice, and try to
+translate the [depth-first search (DFS)](https://en.wikipedia.org/wiki/Depth-first_search)
+algorithm as in
 [The Algorithm Design Manual](https://www.goodreads.com/book/show/425208.The_Algorithm_Design_Manual)
-by Steven S. Skiena using Haskell:
+by Steven S. Skiena:
 
 ``` haskell
 {-# LANGUAGE KindSignatures #-}
@@ -142,20 +143,16 @@ dfs g =
 
 ```
 
-Possibly a few of closed this tab horrfied. I would not blame you.
-It is definitely not the bestpiece of code ever written using a functional
-programming languange.
-It probably is in some aspects better than an imperative-style implementation
+This code is possibly better than an imperative-style implementation in some aspects
 - for example state and side effects are now explicit and pattern matching makes
-the code a bit clearer in some places - but one
-might argue that monadic code makes the algorithm even harder to follow.
+the code a bit clearer in some places - but one might argue that monadic code
+makes the algorithm even harder to follow.
 
-There **must** be a better way of doing this! I started doing some online
-research on the subject and at some point I found
-[this page](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
-in the Haskell wiki with a few links to research papers that approach graphs and
-graph algorithms using a functional programming language. Two of them caught my
-attention and I'd like to illustrate the solutions proposed in those papers.
+There **must** be a better way of doing this! Some online research on the subject
+led me to [this page](https://wiki.haskell.org/Research_papers/Data_structures#Graphs)
+in the Haskell wiki that has a few links to research papers that tackle graphs
+and graph algorithms using a functional programming language. Two of them caught
+my attention and I'd like to illustrate the solutions proposed in those papers.
 
 ## Functional depth-first search using adjacency lists
 
