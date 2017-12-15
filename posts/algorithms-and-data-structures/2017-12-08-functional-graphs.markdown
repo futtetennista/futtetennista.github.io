@@ -667,7 +667,7 @@ instance Eq label => Eq (LPath label) where ...
 
 instance Ord label => Ord (LPath label) where ...
 
-typ Weight = Int
+type Weight = Int
 ```
 
 The algorithm uses a min-heap and some auxiliary functions to keep track of the
@@ -708,7 +708,6 @@ dijkstra h g
         Nothing -> dijkstra h' g
         Just (ctx, g') -> LPath p : dijkstra (mergeAll p h' ctx) g'
 
--- shortest path tree
 shortestPathTree :: Vertex -> Graph Weight label -> LRTree Weight
 shortestPathTree src = dijkstra (Heap.singleton $ LPath [(mempty, src)])
 
@@ -735,9 +734,9 @@ elegant and modular. Let's have a look at an example on the following graph:
 ƛ: let g = read "mkG [('a', 1), ('b', 2), ('c', 3), ('d', 4), ('e', 5), ('f', 6), ('g', 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]" :: Graph Int Char
 -- weights should be wrapped in a `Sum` constructor to form a monoid for addition on Ints but let's forget about that for the sake of simplicity
 -- `undir` simply transforms a directed graph to an undirected one
-ƛ: spt 1 (undir g)
+ƛ: shortestPathTree 1 (undir g)
 [LPath {getLPath = [(0,1)]},LPath {getLPath = [(5,4),(0,1)]},LPath {getLPath = [(7,3),(0,1)]},LPath {getLPath = [(10,7),(7,3),(0,1)]},LPath {getLPath = [(11,5),(7,3),(0,1)]},LPath {getLPath = [(11,2),(7,3),(0,1)]},LPath {getLPath = [(12,6),(10,7),(7,3),(0,1)]}]
-ƛ: sp 1 6 paths(undir g)
+ƛ: shortestPath 1 6 (undir g)
 [1,3,7,6]
 ```
 
@@ -818,14 +817,12 @@ not - and they were not meant to be in the first place - but hopefully they
 provided a good intuition about inductive graphs.
 An efficient implementation would rely internally on more efficient data
 structures, and a key aspect to achieve asymptotically optimal running times
-for the algorithms showm above is that active patterns must execute in constant
-time.
-A real-world implementation based on Martin Erwig's paper is actually available
-on [Stackage](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1), if you're
+for the algorithms shown above is that active patterns must execute in constant
+time. The [fgl](https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1) library is
+a real-world implementation based on Martin Erwig's paper, and if you're
 curious to know how it is possible to implement inductive graphs efficiently
 I'll encourage to look at the source code; digging into the internals of the
 library is a whole different topic, possibly for a future blog post.
-
 
 ## Wrapping up
 
@@ -836,9 +833,9 @@ implementing  an adjacency list, and using a min-heap in the shortest path or MS
 algorithms eliminates the need for bookkeeping when deciding which edge shoul be
 traversed next.
 
-This exploration into graphs and related algorithm in functional programming
+This exploration into graphs and related algorithms in functional programming
 started with a simple question that was surprisingly hard to answer:
-*How should I implement a graph algorithm in a functional programming language?*
+*"How should I implement a graph algorithm in a functional programming language?"*
 The plethora of resources about graphs in the imperative world is not matched
 in the functional world, where adequate solutions to the problem have surfaced
 only in the last 20 years. Starting with an unsatisfactory monadic implementation,
