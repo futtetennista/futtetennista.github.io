@@ -412,7 +412,7 @@ matching by allowing a function to be called before the matching is applied. It
 is very similar to
 [view patterns](https://ghc.haskell.org/trac/ghc/wiki/ViewPatterns) but it is
 not currently available in Haskell as far as I know; the following code
-is made up and __will not__ type-check but hopefully will provide a good intuitio:
+is made up and __will not__ type-check but hopefully will provide a good intuition:
 
 ``` haskell
 deg :: Vertex -> Graph weight label -> Int
@@ -742,7 +742,7 @@ elegant and modular. Let's have a look at an example on the following graph:
 
 <img class="figure centered" src="/images/dijkstra.png" alt="Dijkstra's shortest path" />
 
-### Minimum spanning tree
+#### Minimum spanning tree
 
 Prim's algorithm to find the minimum spanning tree (MST) always traverses
 the cheapest edge among the discovered edges - like Dijkstra's it's a greedy
