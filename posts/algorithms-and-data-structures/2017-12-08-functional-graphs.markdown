@@ -83,7 +83,8 @@ data DFSState s a weight =
            , dfsVertexState :: VertexState s
            }
 
-data VState = Undiscovered | Discovered | Processed deriving (Show, Eq, Ord)
+-- undiscovered, discovered or processed
+data VState = U | D | P deriving (Show, Eq, Ord)
 
 type ConnectedComponent weight a = Tree weight a
 
@@ -110,13 +111,13 @@ dfs g =
     dfs' :: StateT (DFSState s Int Int) (ST s) (ConnectedComponent Int Int)
     dfs' = do
       DFSState v tree vstates' <- get
-      MV.write vstates' v Discovered
+      MV.write vstates' v D
       tree' <- foldlM (\tree' edge@(v', _) -> do
                           vstate <- MV.read vstates' v'
                           lift $ processEdgeNode v tree' vstate edge)
                       tree
                       (adjacent v g)
-      MV.write vstates v Processed
+      MV.write vstates v P
       modify' (\s -> s{ dfsConnectedComponent = tree' })
       gets dfsConnectedComponent
 
@@ -136,7 +137,7 @@ dfs g =
           | otherwise = do
               vstate <- MV.read vstates idx
               case vstate of
-                Undiscovered -> return (Just idx)
+                U -> return (Just idx)
                 _ -> go (idx + 1) size
 
 ```
@@ -196,10 +197,11 @@ type Weight = Int
 type Bounds = (Vertex, Vertex)
 
 buildG :: Bounds -> [(Vertex, EdgeNode)] -> Graph
-buildG = accumArray (flip (:)) []
+buildG bounds = accumArray (flip (:)) [] bounds
 
 mkEmpty :: (Ix i, MA.MArray (MA.STUArray s) Bool m)
-        => (i, i) -> m (MA.STUArray s i Bool)
+        => (i, i) -- min & max bound
+        -> m (MA.STUArray s i Bool)
 mkEmpty bnds = MA.newArray bnds False
 
 contains :: (Ix i, MA.MArray (MA.STUArray s) Bool m)
@@ -468,6 +470,7 @@ dfs (v:vs) g = case v `match` g of
   Nothing -> dfs vs g
   Just ((_,vtx,_,outs), g') -> vtx : dfs (destvs outs ++ vs) g'
 
+-- extracts destination vertices from the outbound edges of a context
 destvs :: Context label weight -> [Vertex]
 ```
 
@@ -506,14 +509,12 @@ in such a way that only when DFS traversal is completed for a
 it will proceed with the next one. Let's define some types first:
 
 ``` haskell
-import Control.Arrow (second)
-
 data Tree a = Nil | Node !a (Forest a) deriving Show
 
 type Forest a = [Tree a]
 
 dff :: [Vertex] -> Graph weight label -> Forest Vertex
-dff vs = fst . dff' vs
+dff vs g = fst (dff' vs g)
 ```
 
 The `dff` function calls an auxiliary function `dff'` that does the heavy lifting,
@@ -528,8 +529,10 @@ dff' (v:vs) g = case v `match` g of
   where
     -- `second` applies the function `dff' vs` to the second element of
     -- the pair returned by `dff' (destvs ctx) g'`
-    (ts, (forest, g'')) = second (dff' vs) (dff' (destvs ctx) g')
+    (ts, (forest, g'')) = let (_,g'') = dff' (destvs ctx) g' in (ts, dff' vs g'')
+    -- or more succinctly: (ts, (forest, g'')) = second (dff' vs) (dff' (destvs ctx) g')
 
+-- extracts destination vertices from the outbound edges of a context
 destvs :: Context label weight -> [Vertex]
 ```
 
@@ -563,6 +566,7 @@ bfs gr vs = bfs' gr vs
           Nothing -> bfs' g vs
           Just ((_,v,_,outs), g') -> v : dfs (vs ++ destvs outs) g'
 
+-- extracts destination vertices from the outbound edges of a context
 destvs :: Context label weight -> [Vertex]
 ```
 
@@ -587,15 +591,13 @@ a list of labelled paths. Let's have a look at the implementation of the shortes
 path algorithm:
 
 ``` haskell
-import Control.Arrow (first)
-
 type Path = [Vertex]
 
 -- Roots tree
 type RTree = [Path]
 
-esp :: Vertex -> Vertex -> Graph weight label -> Path
-esp src dst = reverse . pathTo ((==dst) . head) . bft src
+shortestPath :: Vertex -> Vertex -> Graph weight label -> Path
+shortestPath src dst = reverse . pathTo ((==dst) . head) . bft src
 
 pathTo :: (a -> Bool) -> [a] -> a
 pathTo p = head . filter p
@@ -623,8 +625,10 @@ bf paths = bf' paths
 
     -- gets the current vertex from the first path in the list and the remaining paths
     -- paths will never be empty because `bf` is called using a non-empty list
-    (path@(v:_), paths') = first head (splitAt 1 paths)
+    (path@(v:_), paths') = let (pss, pss') = splitAt 1 paths in (head pss, pss')
+    -- more succinctly: (path@(v:_), paths') = first head (splitAt 1 paths)
 
+-- extracts destination vertices from the outbound edges of a context
 destvs :: Context label weight -> [Vertex]
 ```
 
@@ -665,6 +669,8 @@ type LRTree label = [LPath label]
 instance Eq label => Eq (LPath label) where ...
 
 instance Ord label => Ord (LPath label) where ...
+
+typ Weight = Int
 ```
 
 The algorithm uses a min-heap and some auxiliary functions to keep track of the
@@ -678,16 +684,11 @@ getPath v = reverse . map snd . getLPath . pathTo ((==v) . lv2v)
   where
     lv2v = snd . head . getLPath
 
-expand :: Monoid weight
-       => weight -> LPath weight -> Context weight label -> [LPath weight]
-expand d (LPath p) (_, _, _, outs) = map (\(w, v) -> LPath ((w `mappend` d, v):p)) outs
+expand :: Int -> LPath Weight -> Context Weight label -> [LPath Weight]
+expand d (LPath p) (_, _, _, outs) = map (\(w, v) -> LPath ((w + d, v):p)) outs
 
-mergeAll :: (Monoid weight, Ord weight)
-         => [LVertex weight]
-         -> Heap.Heap (LPath weight)
-         -> Context weight label
-         -> Heap.Heap (LPath weight)
-mergeAll p@((dist, _):_) h = foldr Heap.insert h . expand dist (LPath p)
+mergeAll :: [LVertex Weight] -> Heap.Heap (LPath Weight) -> Context Weight label -> Heap.Heap (LPath Weight)
+mergeAll p@((dist, _):_) h ctx = foldr Heap.insert h (expand dist (LPath p) ctx)
 ```
 
 The `expand` function builds new `LPath`s whose label is the sum of the distance
@@ -698,8 +699,7 @@ given destination vertex from the list of paths.
 Now let's have a look at the core of the algorithm:
 
 ``` haskell
-dijkstra :: (Monoid weight, Ord weight)
-         => Heap.Heap (LPath weight) -> Graph weight label -> LRTree weight
+dijkstra :: Heap.Heap (LPath Weight) -> Graph Weight label -> LRTree Weight
 dijkstra h g
   | isEmpty g = []
   | otherwise = case Heap.viewMin h of
@@ -712,11 +712,11 @@ dijkstra h g
         Just (ctx, g') -> LPath p : dijkstra (mergeAll p h' ctx) g'
 
 -- shortest path tree
-spt :: (Monoid weight, Ord weight) => Vertex -> Graph weight label -> LRTree weight
-spt src = dijkstra (Heap.singleton $ LPath [(mempty, src)])
+shortestPathTree :: Vertex -> Graph Weight label -> LRTree Weight
+shortestPathTree src = dijkstra (Heap.singleton $ LPath [(mempty, src)])
 
-sp :: (Monoid weight, Ord weight) => Vertex -> Vertex -> Graph weight label -> Path
-sp src dst = getPath dst . spt src
+shortestPath :: Vertex -> Vertex -> Graph Weight label -> Path
+shortestPath src dst g = getPath dst (shortestPathTree src g)
 ```
 
 The `sp` function kicks off the algorithm by providing the source node to
@@ -755,14 +755,10 @@ becomes evident using recursive functions. We'll re-use the same types defined
 for the shortest path algorithm but define different auxiliary functions:
 
 ``` haskell
-mergeAll :: (Monoid weight, Ord weight)
-         => [LVertex weight]
-         -> Heap.Heap (LPath weight)
-         -> Context weight label
-         -> Heap.Heap (LPath weight)
-mergeAll lvs h = foldr Heap.insert h . addEdges (LPath lvs)
+mergeAll :: [LVertex Weight] -> Heap.Heap (LPath Weight) -> Context Weight label -> Heap.Heap (LPath Weight)
+mergeAll lvs h ctx = foldr Heap.insert h (addEdges (LPath lvs) ctx)
 
-addEdges :: Monoid weight => LPath weight -> Context weight label -> [LPath weight]
+addEdges :: LPath Weight -> Context Weight label -> [LPath Weight]
 addEdges (LPath p) (_, _, _, outs) = map (LPath . (:p)) outs
 ```
 
@@ -771,7 +767,7 @@ take into account the distance walked so far, only the weight of the edges.
 The core of the algorithm shouldn't be anything new:
 
 ``` haskell
-prim :: (Monoid w, Ord w) => Heap.Heap (LPath w) -> Graph w l -> LRTree w
+prim :: Heap.Heap (LPath Weight) -> Graph Weight label -> LRTree Weight
 prim h g
   | isEmpty g = []
   | otherwise = case Heap.viewMin h of
@@ -783,14 +779,14 @@ prim h g
         Nothing -> prim h' g
         Just (ctx, g') -> LPath p : prim (mergeAll p h' ctx) g')
 
-mst :: (Monoid w, Ord w) => Vertex -> Graph w l -> LRTree w
-mst src = prim $ Heap.singleton (LPath [(mempty, src)])
+mst :: Vertex -> Graph Weight label -> LRTree Weight
+mst src = prim (Heap.singleton (LPath [(0, src)]))
 ```
 
 Now that the MST can be build, let's find the path between two vertices:
 
 ```haskell
-mstPath :: Vertex -> Vertex -> LRTree w -> Path
+mstPath :: Vertex -> Vertex -> LRTree weight -> Path
 mstPath src dst t = joinPaths (getPath src t) (getPath dst t)
 
 joinPaths :: Path -> Path -> Path
