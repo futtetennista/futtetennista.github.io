@@ -274,16 +274,16 @@ mkFromList' errRate xs <span class="fu">=</span>
       <span class="kw">let</span> bfilt <span class="fu">=</span> B.fromList (doubleHash numHashes) bits xs
       <span class="kw">in</span> array bfilt <span class="ot">`seq`</span> bfilt</code></pre></div>
 <p>Let’s test it in GHCI:</p>
-<pre><code>ƛ let !ebf'' = mkFromList' 0.01 ([1..10^6] :: [Int])
-ebf'' :: Either String (B.IBloom Int)
-(19.29 secs, 13819004104 bytes)
-ƛ :print ebf''
-ebf'' = Right
-         (B.IB
-            (_t1::Int -&gt; [Word32])
-            (Data.Array.Base.UArray
-               (GHC.Word.W32# 0) (GHC.Word.W32# 9592954) 9592955
-               (_t2::ghc-prim-0.5.0.0:GHC.Prim.ByteArray#)))</code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="kw">let</span> <span class="fu">!</span>ebf'' <span class="fu">=</span> mkFromList' <span class="fl">0.01</span> ([<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span><span class="fu">^</span><span class="dv">6</span>]<span class="ot"> ::</span> [<span class="dt">Int</span>])
+<span class="ot">ebf'' ::</span> <span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> <span class="dt">Int</span>)
+(<span class="fl">19.29</span> secs, <span class="dv">13819004104</span> bytes)
+ƛ <span class="fu">:</span>print ebf''
+ebf'' <span class="fu">=</span> <span class="dt">Right</span>
+         (<span class="dt">B.IB</span>
+            (<span class="ot">_t1::</span><span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Word32</span>])
+            (<span class="dt">Data.Array.Base.UArray</span>
+               (<span class="dt">GHC.Word.W32</span><span class="fu">#</span> <span class="dv">0</span>) (<span class="dt">GHC.Word.W32</span><span class="fu">#</span> <span class="dv">9592954</span>) <span class="dv">9592955</span>
+               (<span class="ot">_t2::</span>ghc<span class="fu">-</span>prim<span class="fu">-</span><span class="fl">0.5</span><span class="fu">.</span><span class="fl">0.0</span><span class="fu">:</span><span class="dt">GHC.Prim.ByteArray</span><span class="fu">#</span>)))</code></pre></div>
 <p>And YES! We finally managed to fully evaluate our Bloom filter before its first use in our code.</p>
 <h2 id="wrapping-up">Wrapping up</h2>
 <ol style="list-style-type: decimal">

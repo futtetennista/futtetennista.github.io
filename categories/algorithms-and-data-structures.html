@@ -12,10 +12,10 @@
   <!-- Metadata. -->
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"><link rel="shortcut icon" href="../images/favicons/favicon32.png"><link rel="apple-touch-icon-precomposed" sizes="144x144" href="../images/favicons/favicon144.png"><link rel="apple-touch-icon-precomposed" sizes="114x114" href="../images/favicons/favicon114.png"><link rel="apple-touch-icon-precomposed" sizes="72x72" href="../images/favicons/favicon72.png"><link rel="apple-touch-icon-precomposed" sizes="57x57" href="../images/favicons/favicon57.png">
   <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
-  <title>Posts tagged "haskell"</title>
+  <title>Posts categorised as "algorithms-and-data-structures"</title>
   <meta name="description" content="Futtennismo">
-  <link rel="canonical" href="../tags/haskell.html">
-  <link rel="alternate" type="application/atom+xml" title="Posts tagged " haskell"" href="../feed.xml" />
+  <link rel="canonical" href="../categories/algorithms-and-data-structures.html">
+  <link rel="alternate" type="application/atom+xml" title="Posts categorised as " algorithms-and-data-structures"" href="../feed.xml" />
 
   <!-- Stylesheets. -->
   <link rel="stylesheet" href="../lib/materialize/css/materialize.min.css">
@@ -142,87 +142,6 @@
           </div>
           <div class="modal-footer">
             <a href="../posts/algorithms-and-data-structures/2017-12-08-functional-graphs.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
-            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
-          </div>
-        </div>
-      </li>
-    
-      <li class="card-panel hoverable">
-        <span class="grey-text right">November 24, 2017</span>
-        <a class="post-link" href="../posts/docker/2017-11-24-docker-haskell-executables.html">Building slim Docker images for Haskell applications</a>
-
-        <button data-target=".posts/docker/2017-11-24-docker-haskell-executables.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
-          <i class="mdi mdi-send right"></i>
-        </button>
-
-        <div id=".posts/docker/2017-11-24-docker-haskell-executables.markdown" class="modal modal-fixed-footer">
-          <div class="modal-content">
-            <h4>Building slim Docker images for Haskell applications</h4>
-            <p><p>Providing an application as a <a href="https://www.infoq.com/articles/docker-executable-images">Docker executable image</a> is a handy way to distribute an application: no need to install toolchains, frameworks and dependencies. One can just pull a Docker image and run it. It’s really that simple. Docker images can grow wildly in size because they need to install all the dependecies needed to run the application: this as a user can be quite annoying. Imagine you want to use a tiny application that solves a very specific problem and you have to download a 2GB Docker image! It’s undesirable. And it’s actually not needed: why not shipping only the executable in a very compact Docker image? How can this be achieved if the application is built in Haskell?</p>
-</p>
-            <div>
-              
-                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
-                <div class="chip">docker, haskell, snippet</div>
-              
-            </div>
-          </div>
-          <div class="modal-footer">
-            <a href="../posts/docker/2017-11-24-docker-haskell-executables.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
-            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
-          </div>
-        </div>
-      </li>
-    
-      <li class="card-panel hoverable">
-        <span class="grey-text right">October 21, 2017</span>
-        <a class="post-link" href="../posts/haskell/2017-10-21-lazy-io-to-conduit.html">Migrating from lazy IO to Conduit</a>
-
-        <button data-target=".posts/haskell/2017-10-21-lazy-io-to-conduit.lhs" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
-          <i class="mdi mdi-send right"></i>
-        </button>
-
-        <div id=".posts/haskell/2017-10-21-lazy-io-to-conduit.lhs" class="modal modal-fixed-footer">
-          <div class="modal-content">
-            <h4>Migrating from lazy IO to Conduit</h4>
-            <p>
-<p>Lazy IO is so tricky to get right and has some intrinsic limitations that the usual recommendation is to simply avoid it. On the other hand sometimes it’s not desirable (or even possible) to use strict IO, mostly for memory efficiency reasons. This is the kind of problems that streaming libraries like <a href="https://hackage.haskell.org/package/conduit">conduit</a> or <a href="https://hackage.haskell.org/package/pipes">pipes</a> are designed to solve. In this post I want to show how I refactored a piece of code that uses lazy IO to use the conduit library (for those not familiar with it, please read this <a href="https://haskell-lang.org/library/conduit">conduit tutorial</a> first). </p>
-            <div>
-              
-                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
-                <div class="chip">lazy+io, conduit, real+world+haskell, haskell</div>
-              
-            </div>
-          </div>
-          <div class="modal-footer">
-            <a href="../posts/haskell/2017-10-21-lazy-io-to-conduit.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
-            <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
-          </div>
-        </div>
-      </li>
-    
-      <li class="card-panel hoverable">
-        <span class="grey-text right">October 14, 2017</span>
-        <a class="post-link" href="../posts/haskell/2017-10-14-strictness.html">Being lazy with consciousness</a>
-
-        <button data-target=".posts/haskell/2017-10-14-strictness.markdown" class="waves-effect waves-light btn modal-trigger" style="padding: 0 1.2rem;">overview
-          <i class="mdi mdi-send right"></i>
-        </button>
-
-        <div id=".posts/haskell/2017-10-14-strictness.markdown" class="modal modal-fixed-footer">
-          <div class="modal-content">
-            <h4>Being lazy with consciousness</h4>
-            <p><p>Lazy evaluation sometimes makes it trickier to really understand how a piece of code for folks used to languages with strict semantics (as I am). Sometimes introducing strictness is necessary to avoid space leaks and to make memory allocations more predictable in certain parts of our code. The usual suggestion is to “carefully sprinkle strict evaluation” in our code; one of the classic examples of memory leak is using <code>foldl</code> to sum a list of ints, with the result that instead of returning a result using constant space, it ends up taking an outrageous amount of memory before returning a result because thunks pile up (this behaviour is known as space leak). Most of the times I personally find it tricky to add strictness to a piece of Haskell code, so I’d like to share my latest experience doing that.</p>
-<p>We’ll be using the Bloom filter implemented in chapter 26 of Real World Haskell as an example, the version contained in the book creates the filter lazily: our goal will be to create a strict version of that particular piece of code. </p>
-            <div>
-              
-                <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
-                <div class="chip">lazy+evaluation, ghci, haskell</div>
-              
-            </div>
-          </div>
-          <div class="modal-footer">
-            <a href="../posts/haskell/2017-10-14-strictness.html" class="waves-effect btn-flat grey-text text-darken-4 right">read more</a>
             <a class="modal-action modal-close waves-effect btn-flat grey-text text-darken-4 left">close</a>
           </div>
         </div>

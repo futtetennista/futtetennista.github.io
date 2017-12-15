@@ -149,15 +149,15 @@
       <article class="post-content">
         <p>Docker containers can commmunicate with each other either using the deprecated links machinery or using user-defined networks. The latter also is the way to go when using <code>docker-compose</code> since a user-defined network is created by default (at least in recent versions). <!--more--></p>
 <p>The postgres official image on <a href="https://hub.docker.com/_/postgres/">Docker Hub</a> contains an example for the former case: when creating the container running the <code>psql</code> command using the default <code>bridge</code> network interface, we need to supply the <code>--link</code> option with the name (and optionally alias) of the postgres instance and the <code>--host</code> option with its <strong>alias</strong> (if no alias is supplied the name is also the alias):</p>
-<pre><code>$ docker run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres</code></pre></div>
 <p>There is no example for the latter case though, so let’s see how it can be achieved. First let’s create a user-defined network and give it an arbitrary name - i.e. <code>my_bridge</code> - by simply typing: <code>docker network create my_bridge</code>. When using user-defined networks is essential to know the <strong>IP</strong> of the container running the postgres instance, this can be retrieved like this:</p>
-<pre><code>$ docker run -itd --name=postgres-instance postgres # Make sure there's an instance running
-$ docker inspect --format='{{ .NetworkSettings.Networks.my_bridge.IPAddress }}' postgres-instance
-172.19.0.2</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -itd --name=postgres-instance postgres <span class="co"># Make sure there's an instance running</span>
+$ <span class="ex">docker</span> inspect --format=<span class="st">'{{ .NetworkSettings.Networks.my_bridge.IPAddress }}'</span> postgres-instance
+<span class="ex">172.19.0.2</span></code></pre></div>
 <p>Now let’s create another container that connects to the postgres instance and runs the <code>psql</code> command, and use the configuration options to set the user-defined network and to provide the IP of the postgres instance the container has to connect to:</p>
-<pre><code>$ docker run -it --rm --network=my_bridge postgres psql --host=172.19.0.2 --username=postgres</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --network=my_bridge postgres psql --host=172.19.0.2 --username=postgres</code></pre></div>
 <p>Alternatively, if we leverage the <code>--add-host</code> option, the command is going to look very similar to the one we used when connecting containers using links:</p>
-<pre><code>$ docker run -it --rm --network=my_bridge --add-host=postgres-instance:172.19.0.2 postgres psql --host=postgres-instance --username=postgres</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --network=my_bridge --add-host=postgres-instance:172.19.0.2 postgres psql --host=postgres-instance --username=postgres</code></pre></div>
 <p>The <code>--add-host</code> option simply adds an entry to the <code>/etc/hosts</code> file of the container.</p>
       </article>
 

@@ -8,8 +8,478 @@
         <name>futtetennista</name>
         <email>futtetennista@gmail.com</email>
     </author>
-    <updated>2017-11-24T00:00:00Z</updated>
+    <updated>2017-12-08T00:00:00Z</updated>
     <entry>
+    <title>Functional programming with graphs</title>
+    <link href="https://futtetennismo.me/posts/algorithms-and-data-structures/2017-12-08-functional-graphs.html" />
+    <id>https://futtetennismo.me/posts/algorithms-and-data-structures/2017-12-08-functional-graphs.html</id>
+    <published>2017-12-08T00:00:00Z</published>
+    <updated>2017-12-08T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p>Graphs are a fundamental data structure in computer science because <em>a lot</em> of problems can be modelled with them. Graph traversal, shortest path between two vertices, minimum spanning trees are all well-known algorithms and there is plenty of literature available. This applies to imperative languages but is it the same for functional languages? My first-hand experience is that this is not quite the case and answering a seemingly simple question like “how should I implement a graph algorithm in a functional programming language?” ends up being unexpectedly challenging.</p>
+<!--more-->
+<p>The following table gives a pretty good idea of how pervasive graphs are and why anyone should care to answer the question in the first place.</p>
+<div class="figure">
+<img src="/images/graph_applications.png" alt="Graph applications (image taken from a slide of the Algorithms part 2 MOOC on Coursera by Bob Sedgwick and Kevin Wayne)" />
+<p class="caption">Graph applications (image taken from a slide of the Algorithms part 2 MOOC on <a href="https://www.coursera.org/learn/algorithms-part2/">Coursera</a> by Bob Sedgwick and Kevin Wayne)</p>
+</div>
+<p>Problems involving graphs are also not unusual during job interviews and this is actually where my curiosity about functional graph algorithms really took off: I was eager to learn how to approach those kind of problems functionally. When I started searching I honestly didn’t expect to have such a hard time finding material, and I do not even mean <em>good</em> material but any material at all! Maybe I didn’t look for it hard enough - if that’s the case please <a href="/about.html">let me know</a>! - but basically the only book on the subject of functional data structures out there is <a href="https://www.goodreads.com/book/show/594288.Purely_Functional_Data_Structures">Purely Functional Data Structures</a> by Chris Okasaki, released in 2008 (and it’s pretty advanced material) and the only book I am aware of that focused on functional algorithms is <a href="https://www.goodreads.com/book/show/8693802-pearls-of-functional-algorithm-design">Pearls of Functional Algorithm Design</a> by Richard Bird. Graphs and graph algorithms are no exception: there is a massive amount of literature available for imperative languages but it takes some <a href="http://duckduckgo.com/">DuckDuckGo</a>-fu to find literature on the topic for purely functional languages, and more often than not that literature comes in the form of academic papers. After a decent amount of digging my understanding is that lots of purely functional algorithms do exist but they are not as efficient as the imperative counterparts; this might be one of the reasons why they are basically shovelled under the carpet and not used in practice. So let’s try to answer a slightly different question first: How <em>can</em> I implement a graph algorithm in a functional programming language?</p>
+<h2 id="imperative-style-algorithms-with-monads">Imperative-style algorithms with monads</h2>
+<p>One option could be “translating” graph algorithms from the imperative world to the functional world but that turns out to be unsurprisingly unpleasant: one of the main reasons is that imperative graph algorithms rely heavily on state and side effects (sometimes for efficiency reasons). Let’s take Haskell as our functional programming language of choice, and try to translate the <a href="https://en.wikipedia.org/wiki/Depth-first_search">depth-first search (DFS)</a> algorithm as in <a href="https://www.goodreads.com/book/show/425208.The_Algorithm_Design_Manual">The Algorithm Design Manual</a> by Steven S. Skiena:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE KindSignatures #-}</span>
+<span class="ot">{-# LANGUAGE BangPatterns #-}</span>
+<span class="ot">{-# LANGUAGE RankNTypes #-}</span>
+<span class="ot">{-# LANGUAGE ScopedTypeVariables #-}</span>
+
+<span class="kw">import </span><span class="dt">Data.Foldable</span> (foldlM)
+<span class="kw">import qualified</span> <span class="dt">Data.Vector.Mutable</span> <span class="kw">as</span> <span class="dt">MV</span>
+<span class="kw">import qualified</span> <span class="dt">Data.Sequence</span> <span class="kw">as</span> <span class="dt">Seq</span>
+<span class="kw">import </span><span class="dt">Control.Monad.State.Strict</span> (<span class="dt">StateT</span>, evalStateT, gets, modify&#39;, get, lift)
+<span class="kw">import </span><span class="dt">Control.Monad.ST</span> (<span class="dt">ST</span>, runST)
+<span class="kw">import </span><span class="dt">Control.Applicative</span> (liftA2)
+<span class="kw">import </span><span class="dt">Control.Monad.Primitive</span> (<span class="dt">PrimMonad</span>)
+
+<span class="kw">data</span> <span class="dt">Graph</span> weight a <span class="fu">=</span> <span class="dt">Graph</span> [(a, [<span class="dt">EdgeNode</span> weight a])] <span class="dt">Directed</span> <span class="dt">Int</span> <span class="kw">deriving</span> <span class="dt">Eq</span>
+
+<span class="kw">type</span> <span class="dt">EdgeNode</span> weight a <span class="fu">=</span> (a, weight)
+
+<span class="kw">type</span> <span class="dt">VertexState</span> s <span class="fu">=</span> <span class="dt">MV.MVector</span> s <span class="dt">VState</span>
+
+<span class="kw">data</span> <span class="dt">DFSState</span> s a weight <span class="fu">=</span>
+  <span class="dt">DFSState</span> {<span class="ot"> dfsVertex ::</span> a
+           ,<span class="ot"> dfsConnectedComponent ::</span> <span class="dt">ConnectedComponent</span> a weight
+           ,<span class="ot"> dfsVertexState ::</span> <span class="dt">VertexState</span> s
+           }
+
+<span class="co">-- undiscovered, discovered or processed</span>
+<span class="kw">data</span> <span class="dt">VState</span> <span class="fu">=</span> <span class="dt">U</span> <span class="fu">|</span> <span class="dt">D</span> <span class="fu">|</span> <span class="dt">P</span> <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>, <span class="dt">Ord</span>)
+
+<span class="kw">type</span> <span class="dt">ConnectedComponent</span> weight a <span class="fu">=</span> <span class="dt">Tree</span> weight a
+
+<span class="kw">data</span> <span class="dt">Tree</span> weight a <span class="fu">=</span> <span class="dt">Nil</span> <span class="fu">|</span> <span class="dt">Node</span> <span class="fu">!</span>a [(weight, <span class="dt">Tree</span> weight a)] <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>)
+
+<span class="co">-- Let&#39;s assume for simplicity that vertices and weights are integers</span>
+<span class="ot">dfs ::</span> <span class="dt">Graph</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">ConnectedComponent</span> <span class="dt">Int</span> <span class="dt">Int</span>]
+dfs g <span class="fu">=</span>
+  runST <span class="fu">$</span> <span class="kw">do</span>
+    vstates <span class="ot">&lt;-</span> MV.replicate (verticesCount g) <span class="dt">Undiscovered</span>
+    loop (vertices g) vstates
+  <span class="kw">where</span>
+<span class="ot">    loop ::</span> forall s<span class="fu">.</span> [<span class="dt">Int</span>]
+         <span class="ot">-&gt;</span> <span class="dt">MV.MVector</span> s <span class="dt">VState</span>
+         <span class="ot">-&gt;</span> <span class="dt">ST</span> s [<span class="dt">ConnectedComponent</span> <span class="dt">Int</span> <span class="dt">Int</span>]
+    loop vs vstates <span class="fu">=</span> <span class="kw">do</span>
+      mv <span class="ot">&lt;-</span> findNextUndiscoveredVertex vstates
+      maybe (return []) processVertex mv
+        <span class="kw">where</span>
+          processVertex v <span class="fu">=</span>
+            liftA2 (<span class="fu">:</span>) (evalStateT dfs&#39; (<span class="dt">DFSState</span> v (<span class="dt">Node</span> v []) vstates))
+                       (loop vs vstates)
+
+<span class="ot">    dfs&#39; ::</span> <span class="dt">StateT</span> (<span class="dt">DFSState</span> s <span class="dt">Int</span> <span class="dt">Int</span>) (<span class="dt">ST</span> s) (<span class="dt">ConnectedComponent</span> <span class="dt">Int</span> <span class="dt">Int</span>)
+    dfs&#39; <span class="fu">=</span> <span class="kw">do</span>
+      <span class="dt">DFSState</span> v tree vstates&#39; <span class="ot">&lt;-</span> get
+      MV.write vstates&#39; v <span class="dt">D</span>
+      tree&#39; <span class="ot">&lt;-</span> foldlM (\tree&#39; edge<span class="fu">@</span>(v&#39;, _) <span class="ot">-&gt;</span> <span class="kw">do</span>
+                          vstate <span class="ot">&lt;-</span> MV.read vstates&#39; v&#39;
+                          lift <span class="fu">$</span> processEdgeNode v tree&#39; vstate edge)
+                      tree
+                      (adjacent v g)
+      MV.write vstates v <span class="dt">P</span>
+      modify&#39; (\s <span class="ot">-&gt;</span> s{ dfsConnectedComponent <span class="fu">=</span> tree&#39; })
+      gets dfsConnectedComponent
+
+<span class="ot">    processEdgeNode ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">VState</span> <span class="ot">-&gt;</span> <span class="dt">EdgeNode</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">ST</span> s (<span class="dt">Tree</span> <span class="dt">Int</span> <span class="dt">Int</span>)
+    processEdgeNode v tree <span class="dt">Undiscovered</span> edgeNode<span class="fu">@</span>(v&#39;, _) <span class="fu">=</span>
+      evalStateT dfs&#39; (<span class="dt">DFSState</span> v&#39; (buildTree v edgeNode tree) vstates)
+    processEdgeNode _ tree _ _ <span class="fu">=</span> return tree
+
+<span class="ot">    findNextUndiscoveredVertex ::</span> forall (<span class="ot">m ::</span> <span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>)<span class="fu">.</span> <span class="dt">PrimMonad</span> m
+                               <span class="ot">=&gt;</span> <span class="dt">MV.MVector</span> (<span class="dt">PrimState</span> m) <span class="dt">VState</span>
+                               <span class="ot">-&gt;</span> m (<span class="dt">Maybe</span> <span class="dt">Int</span>)
+    findNextUndiscoveredVertex vstates <span class="fu">=</span>
+      go <span class="dv">0</span> (MV.length vstates)
+      <span class="kw">where</span>
+        go idx size
+          <span class="fu">|</span> idx <span class="fu">==</span> size <span class="fu">=</span> return <span class="dt">Nothing</span>
+          <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">do</span>
+              vstate <span class="ot">&lt;-</span> MV.read vstates idx
+              <span class="kw">case</span> vstate <span class="kw">of</span>
+                <span class="dt">U</span> <span class="ot">-&gt;</span> return (<span class="dt">Just</span> idx)
+                _ <span class="ot">-&gt;</span> go (idx <span class="fu">+</span> <span class="dv">1</span>) size</code></pre></div>
+<p>This code is possibly better than an imperative-style implementation in some aspects - for example state and side effects are now explicit and pattern matching makes the code a bit clearer in some places - but one might argue that monadic code makes the algorithm even harder to follow.</p>
+<p>There <strong>must</strong> be a better way of doing this! Some online research on the subject led me to <a href="https://wiki.haskell.org/Research_papers/Data_structures#Graphs">this page</a> in the Haskell wiki that has a few links to research papers that tackle graphs and graph algorithms using a functional programming language. Two of them caught my attention and I’d like to illustrate the solutions proposed in those papers.</p>
+<h2 id="functional-depth-first-search-using-adjacency-lists">Functional depth-first search using adjacency lists</h2>
+<p>The first paper is titled <a href="http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526">“Structuring Depth First Search Algorithms in Haskell”</a> , written by David King’s and John Launchbury’s in 1995. The main goals of the paper are:</p>
+<ol style="list-style-type: decimal">
+<li>implementing depth-first search and related algorithms using a functional style without any performance penalty - this means traversing the graph in linear time</li>
+<li>achieving greater code modularity</li>
+<li>being able to formally prove the critical properties of the considered algorithms</li>
+</ol>
+<p>I would like to highlight this last aspect: it’s probably the first time I read material on graph algorithms that takes it into consideration and it can be really useful, for example in property testing. The paper approaches graph traversal as a combinatorial problem and employs a common technique in that kind of problems: generate and prune. Before illustrating the gist of that technique, let’s define some types and auxiliary functions:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">{-# LANGUAGE RankNTypes #-}</span>
+<span class="ot">{-# LANGUAGE FlexibleContexts #-}</span>
+<span class="ot">{-# LANGUAGE BangPatterns #-}</span>
+
+<span class="kw">import </span><span class="dt">Data.Array</span> (accumArray, bounds, indices)
+<span class="kw">import qualified</span> <span class="dt">Data.Array.ST</span> <span class="kw">as</span> <span class="dt">MA</span>
+<span class="kw">import </span><span class="dt">Control.Monad.ST</span>
+
+<span class="kw">type</span> <span class="dt">Table</span> <span class="fu">=</span> <span class="dt">Array</span> <span class="dt">Vertex</span>
+
+<span class="kw">type</span> <span class="dt">Graph</span> <span class="fu">=</span> <span class="dt">Table</span> [<span class="dt">EdgeNode</span>]
+
+<span class="co">-- Let&#39;s assume for simplicity that vertices and weights are integers</span>
+<span class="kw">type</span> <span class="dt">Vertex</span> <span class="fu">=</span> <span class="dt">Int</span>
+
+<span class="kw">type</span> <span class="dt">Weight</span> <span class="fu">=</span> <span class="dt">Int</span>
+
+<span class="kw">type</span> <span class="dt">Bounds</span> <span class="fu">=</span> (<span class="dt">Vertex</span>, <span class="dt">Vertex</span>)
+
+<span class="ot">buildG ::</span> <span class="dt">Bounds</span> <span class="ot">-&gt;</span> [(<span class="dt">Vertex</span>, <span class="dt">EdgeNode</span>)] <span class="ot">-&gt;</span> <span class="dt">Graph</span>
+buildG bounds <span class="fu">=</span> accumArray (flip (<span class="fu">:</span>)) [] bounds
+
+<span class="ot">mkEmpty ::</span> (<span class="dt">Ix</span> i, <span class="dt">MA.MArray</span> (<span class="dt">MA.STUArray</span> s) <span class="dt">Bool</span> m)
+        <span class="ot">=&gt;</span> (i, i) <span class="co">-- min &amp; max bound</span>
+        <span class="ot">-&gt;</span> m (<span class="dt">MA.STUArray</span> s i <span class="dt">Bool</span>)
+mkEmpty bnds <span class="fu">=</span> MA.newArray bnds <span class="dt">False</span>
+
+<span class="ot">contains ::</span> (<span class="dt">Ix</span> i, <span class="dt">MA.MArray</span> (<span class="dt">MA.STUArray</span> s) <span class="dt">Bool</span> m)
+         <span class="ot">=&gt;</span> <span class="dt">MA.STUArray</span> s i <span class="dt">Bool</span> <span class="ot">-&gt;</span> i <span class="ot">-&gt;</span> m <span class="dt">Bool</span>
+contains <span class="fu">=</span> MA.readArray
+
+<span class="ot">include ::</span> (<span class="dt">Ix</span> i, <span class="dt">MA.MArray</span> a <span class="dt">Bool</span> m) <span class="ot">=&gt;</span> a i <span class="dt">Bool</span> <span class="ot">-&gt;</span> i <span class="ot">-&gt;</span> m ()
+include arr v <span class="fu">=</span> MA.writeArray arr v <span class="dt">True</span></code></pre></div>
+<p>Now let’s consider this very simple graph:</p>
+<p><img class="figure centered" src="/images/sample_graph.png" alt="Sample graph" /></p>
+<p>and let’s look at the generate and prune technique at a high level: the “generate” step describes how to create all possible trees from a given vertex. The following picture illustrates it for the sample graph above, notice that the generated tree is infinite. The nodes that are greyed-out are not yet generated and will be only if it’s necessary:</p>
+<p><img class="figure centered" src="/images/generate_prune_1.png" alt="Inductive graph" /></p>
+<p>The “prune” step discards the sub-trees that violate to the invariants of DFS, namely those that have already been discovered. Back to our example, when the algorithm reaches <code>b</code>, it will discard the tree with root <code>a</code> because it has been already been discovered and traverses the tree whose root is labelled <code>c</code> instead:</p>
+<p><img class="figure centered" src="/images/generate_prune_3.png" alt="Inductive graph" /></p>
+<p>The same thing happens after <code>c</code> is traversed leaving the final DFS spanning tree:</p>
+<p><img class="figure centered" src="/images/generate_prune_4.png" alt="Inductive graph" /></p>
+<p>The approach guarantees the efficiency of the algorithm because the evaluation strategy of languages with non-strict semantics (call-by-need or lazy evaluation) assures that an expression is evaluated only once and on-demand; also, the discarded trees will never be used - that is traversed - so they will never be created in the first place. Let’s have a look now at the implementation:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">dfs ::</span> <span class="dt">Graph</span> <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> <span class="dt">Forest</span> <span class="dt">Vertex</span>
+dfs g <span class="fu">=</span> prune (bounds g) <span class="fu">.</span> map (generate g)
+  <span class="kw">where</span>
+    <span class="co">-- create all possible trees for each vertex...</span>
+<span class="ot">    generate ::</span> <span class="dt">Graph</span> <span class="ot">-&gt;</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Tree</span> <span class="dt">Vertex</span>
+    generate g v <span class="fu">=</span> <span class="dt">Node</span> v (map (generate g <span class="fu">.</span> fst) (g <span class="fu">!</span> v))
+
+    <span class="co">-- ...and discard the ones that are unused</span>
+<span class="ot">    prune ::</span> <span class="dt">Bounds</span> <span class="ot">-&gt;</span> <span class="dt">Forest</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Forest</span> <span class="dt">Vertex</span>
+    prune bnds ts <span class="fu">=</span> runST <span class="fu">$</span> <span class="kw">do</span>
+      s <span class="ot">&lt;-</span> mkEmpty<span class="ot"> bnds ::</span> forall s<span class="fu">.</span> <span class="dt">ST</span> s (<span class="dt">MA.STUArray</span> s <span class="dt">Vertex</span> <span class="dt">Bool</span>)
+      chop ts s</code></pre></div>
+<p>Notice that the type signature for the <code>mkEmpty bnds</code> is mandatory, more info can be found <a href="https://stackoverflow.com/a/9469942/">here</a>. The <code>chop</code> function discards the trees that have already been discovered:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">chop ::</span> (<span class="dt">MA.MArray</span> (<span class="dt">MA.STUArray</span> s) <span class="dt">Bool</span> m)
+     <span class="ot">=&gt;</span> <span class="dt">Forest</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">MA.STUArray</span> s <span class="dt">Vertex</span> <span class="dt">Bool</span> <span class="ot">-&gt;</span> m (<span class="dt">Forest</span> <span class="dt">Vertex</span>)
+chop [] _arr <span class="fu">=</span> return []
+chop (<span class="dt">Node</span> v ts<span class="fu">:</span>ns) arr <span class="fu">=</span> <span class="kw">do</span>
+  visited <span class="ot">&lt;-</span> contains arr v
+  <span class="kw">if</span> visited
+    <span class="co">-- prune ts</span>
+    <span class="kw">then</span> chop ns arr
+    <span class="kw">else</span> <span class="kw">do</span>
+      <span class="co">-- label vertex</span>
+      include arr v
+      <span class="co">-- traverse left-to-right</span>
+      ts&#39; <span class="ot">&lt;-</span> chop ts arr
+      <span class="co">-- traverse top-to-bottom</span>
+      ns&#39; <span class="ot">&lt;-</span> chop ns arr
+      return <span class="fu">$</span> <span class="dt">Node</span> v ts&#39; <span class="fu">:</span> ns&#39;</code></pre></div>
+<p>Two qualities of this solution that can be highlighted are:</p>
+<ul>
+<li>for performance reasons it uses a mutable array to keep track of the state of each vertex. The paper points out that this is not strictly necessary and if a logarithmic increase in the time complexity of the algorithm is acceptable, a <code>Set</code> data structure can be used to avoid the need for monadic code.</li>
+<li>the algorithm does use a functional style but the data structure chosen to represent a graph is an <a href="https://en.wikipedia.org/wiki/Adjacency_list">adjacency list</a>, which is usually the preferred way of representing graphs in the imperative programming languages. Why this is important will become apparent in the next paragraph.</li>
+</ul>
+<h5 id="a-little-remark">A little remark</h5>
+<p>Section “5. Implementing depth-first search” states that</p>
+<blockquote>
+<p>The choice of pruning patterns determines whether the forest ends up being depth-first (traverse in a left-most, top-most fashion) or breadth-first ( top-most, left-most)</p>
+</blockquote>
+<p>but without providing any code for it and I honestly could not wrap my head around on how to write a breadth-first traversal with the algorithm proposed in the paper. If anybody has some pointers again please <a href="/about.html">let me know</a>!</p>
+<h2 id="functional-graph-algorithms-using-inductive-graphs">Functional graph algorithms using inductive graphs</h2>
+<p>The second paper is Martin Erwig’s <a href="http://web.engr.oregonstate.edu/~erwig/papers/abstracts.html#JFP01">“Inductive Graphs and Functional Graph Algorithms”</a> and it was published in 2001. The main goals of the paper are:</p>
+<ul>
+<li>describing an inductive definition of graphs and graph algorithms as recursive functions</li>
+<li>providing efficient implementations of graph algorithms that can be used in real-world scenarios</li>
+<li>providing clear algorithms that can be used to teach graph algorithms</li>
+</ul>
+<p>At the very beginning of the paper Martin Erwig asks the following question:</p>
+<blockquote>
+<p>How should I implement a graph algorithm in a functional programming language?</p>
+</blockquote>
+<p>which was exactly the one that started my exploration of the topic. The paper acknowledges lots of the functional graph algorithms already developed but also considers them all not completely satisfactory either because they introduce constructs that are not currently available in today’s programming languages or because they entail some imperative-style strategy - i.e. keeping track of visited nodes by labelling them - that contaminates the clarity of the algorithm, makes it harder to reason about it and to prove its correctness. The solution the paper proposes is to think about graphs in a new way.</p>
+<h3 id="enter-inductive-graphs">Enter inductive graphs</h3>
+<p>An observation in the paper particularly caught my attention: lists and trees algorithms are much simpler and more modular than graph algorithms and do not require additional bookkeeping: why is that? The answer is two-fold: their definition and the definitions of functions on them are <em>inductive</em> and besides that <em>pattern matching</em> helps a great deal when it comes to clarity and succinctness. Now let’s have a look at the definition of graphs: they are usually defined as a pair <code>G = (V, E)</code> where <code>V</code> is the set of vertices and <code>E</code> the set of edges, where edge is defined as a pair of vertices in <code>V</code>. Imperative algorithms on graphs discover edges and vertices incrementally and usually need to keep track of the visited vertices either using a separate data structure or by storing more data in the graph itself. In this sense the usual definition of graphs is monolithical and this is the reasons why algorithms that use this API are doomed if what they strive for is clarity and modularity. Would it be possible to define graphs inductively? If so how? A valid definition for a graph data structure defined inductively might look like the following:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">infixr</span> <span class="dv">5</span> <span class="fu">:&amp;:</span>
+<span class="kw">data</span> <span class="dt">Graph</span> weight label
+  <span class="fu">=</span> <span class="dt">Empty</span>
+  <span class="fu">|</span> (<span class="dt">Context</span> weight label) <span class="fu">:&amp;:</span> (<span class="dt">Graph</span> weight label)
+  <span class="kw">deriving</span> <span class="dt">Show</span>
+
+<span class="kw">type</span> <span class="dt">Context</span> weight label <span class="fu">=</span>
+  ( <span class="dt">Adj</span> weight  <span class="co">-- inbound edges</span>
+  , <span class="dt">Vertex</span>
+  , label
+  , <span class="dt">Adj</span> weight  <span class="co">-- outbound edges</span>
+  )
+
+<span class="co">-- adjacent weighted edges</span>
+<span class="kw">type</span> <span class="dt">Adj</span> weight <span class="fu">=</span> [(weight, <span class="dt">Vertex</span>)]
+
+<span class="kw">type</span> <span class="dt">Vertex</span> <span class="fu">=</span> <span class="dt">Int</span></code></pre></div>
+<p>The definition should look familiar if you’ve already seen one for trees or lists: a graph is either empty or it has a context and another graph. A <code>Context</code> contains information about a given vertex, namely its value, label (if any) and its adjacent edges classified as inbound or outbound. So far so good: now taking the following graph as an example:</p>
+<p><img class="figure centered" src="/images/sample_graph.png" alt="Sample graph" /></p>
+<p>how can we build an inductive graph from a list of vertices and edges? One possible way of building the inductive graph would be the following:</p>
+<p><img class="figure centered" src="/images/sample_inductive_graph123.png" alt="Inductive graph" /></p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> read <span class="st">&quot;mkG [(&#39;a&#39;, 1), (&#39;b&#39;, 2), (&#39;c&#39;, 3)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]&quot;</span>
+([(<span class="dv">4</span>,<span class="dv">3</span>),(<span class="dv">3</span>,<span class="dv">2</span>)],<span class="dv">1</span>,<span class="ch">&#39;a&#39;</span>,[(<span class="dv">5</span>,<span class="dv">2</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">2</span>,<span class="ch">&#39;b&#39;</span>,[(<span class="dv">1</span>,<span class="dv">3</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">3</span>,<span class="ch">&#39;c&#39;</span>,[]) <span class="fu">:&amp;:</span> <span class="dt">Empty</span>))</code></pre></div>
+<p>But that’s not the only valid representation of an inductive graph, another valid inductive graph is the following:</p>
+<p><img class="figure centered" src="/images/sample_inductive_graph321.png" alt="Inductive graph" /></p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> read <span class="st">&quot;mkG [(&#39;c&#39;, 3), (&#39;b&#39;, 2), (&#39;a&#39;, 1)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]&quot;</span>
+([(<span class="dv">1</span>,<span class="dv">2</span>)],<span class="dv">3</span>,<span class="ch">&#39;c&#39;</span>,[(<span class="dv">4</span>,<span class="dv">1</span>)]) <span class="fu">:&amp;:</span> (([(<span class="dv">5</span>,<span class="dv">1</span>)],<span class="dv">2</span>,<span class="ch">&#39;b&#39;</span>,[(<span class="dv">3</span>,<span class="dv">1</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">1</span>,<span class="ch">&#39;a&#39;</span>,[]) <span class="fu">:&amp;:</span> <span class="dt">Empty</span>))</code></pre></div>
+<p>At this point we can start defining some of the properties of inductive graphs:</p>
+<ul>
+<li>given a list of vertices and a list of edges, multiple inductive graphs can be built depending on the order of insertion of its vertices</li>
+<li>equality is not defined by their “shapes” but rather by the set of vertices and edges they represent</li>
+<li>the adjacent inbound and outbound edges in a <code>Context</code> are lists of vertices that have <em>already been discovered</em></li>
+<li>inductive graphs are fully persistent data structures</li>
+</ul>
+<h3 id="active-graph-patterns">Active graph patterns</h3>
+<p>Pattern matching was identified as one of the ingredients that made lists and trees algorithms clean and succint, the paper refers to an extension of pattern matching for graphs named <em>“active graph pattern”</em> whose main goal is as far as I understood to make the notation more compact, augmenting the classic pattern matching by allowing a function to be called before the matching is applied. It is very similar to <a href="https://ghc.haskell.org/trac/ghc/wiki/ViewPatterns">view patterns</a> but it is not currently available in Haskell as far as I know; the following code is made up and <strong>will not</strong> type-check but hopefully will provide a good intuitio:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">deg ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">Int</span>
+deg v ((ins, _, _, outs) (<span class="fu">:&amp;:</span> <span class="fu">&lt;!&gt;</span> v) g) <span class="fu">=</span> length ins <span class="fu">+</span> length out</code></pre></div>
+<p>The expression <code>(:&amp;: &lt;!&gt; v)</code> can be interpreted as: <em>“find the <code>Context</code> for the vertex <code>v</code> in the graph <code>g</code> if it exists and try to match the given pattern”</em>. Active graph patterns are not essential when implementing inductive graphs and it is possible do pattern matching without them, all that is needed is a function <code>match</code>. An extremely naive implementation might look like:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">match ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">Maybe</span> (<span class="dt">Context</span> weight label, <span class="dt">Graph</span> weight label)
+match qv <span class="fu">=</span> matchHelp ([], [])
+  <span class="kw">where</span>
+    matchHelp _ <span class="dt">Empty</span> <span class="fu">=</span> <span class="dt">Nothing</span>
+    matchHelp (lvs, wes) ((ins, v, l, outs) <span class="fu">:&amp;:</span> g)
+      <span class="fu">|</span> qv <span class="fu">==</span> v <span class="fu">=</span>
+          <span class="co">-- rebuild the graph inserting `v` last</span>
+          <span class="kw">let</span> (<span class="fu">:&amp;:</span>) <span class="fu">!</span>ctx <span class="fu">!</span>g&#39; <span class="fu">=</span> mkG g ((l, v)<span class="fu">:</span>lvs) es&#39;
+          <span class="co">-- return `v`&#39;s context and the new inductive graph</span>
+          <span class="kw">in</span> <span class="dt">Just</span> (ctx, g&#39;)
+      <span class="fu">|</span> otherwise <span class="fu">=</span> matchHelp ((l, v)<span class="fu">:</span>lvs, es&#39;) g
+      <span class="kw">where</span>
+        <span class="co">-- build a list of edges to rebuild the graph</span>
+        es&#39; <span class="fu">=</span>
+          map (\(w, fromv) <span class="ot">-&gt;</span> (fromv, v, w)) ins
+            <span class="fu">++</span> map (\(w, tov) <span class="ot">-&gt;</span> (v, tov, w)) outs
+            <span class="fu">++</span> wes</code></pre></div>
+<h3 id="functional-graph-algorithms">Functional graph algorithms</h3>
+<p>Now that we defined graphs inductively, it’s time to show how that can be leveraged to write clear, recursive graph algorithms. Let’s have a look at some fundamental graph algorithms: depth-first search (DFS), breadth-first search (BFS), Dijkstra’s shortest path and Prims’ algorithm to find the minimum spanning tree (MST).</p>
+<h4 id="depth-first-search">Depth-first search</h4>
+<p>Using a depth-first search strategy to visit a graph essentially means: traverse each vertex <strong>once</strong> and visit <strong>successors before siblings</strong>. Here’s what the algorithm looks like:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">dfs ::</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]
+dfs _ <span class="dt">Empty</span> <span class="fu">=</span> []
+dfs [] _ <span class="fu">=</span> []
+dfs (v<span class="fu">:</span>vs) g <span class="fu">=</span> <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+  <span class="dt">Nothing</span> <span class="ot">-&gt;</span> dfs vs g
+  <span class="dt">Just</span> ((_,vtx,_,outs), g&#39;) <span class="ot">-&gt;</span> vtx <span class="fu">:</span> dfs (destvs outs <span class="fu">++</span> vs) g&#39;
+
+<span class="co">-- extracts destination vertices from the outbound edges of a context</span>
+<span class="ot">destvs ::</span> <span class="dt">Context</span> label weight <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]</code></pre></div>
+<p><code>dfs</code> is a recursive function that takes a list of input vertices and a graph and returns a list of vertices sorted by traversing the graph in DFS-style. If the graph or their input vertices are empty it returns the empty list, otherwise it <code>match</code>es the current vertex <code>v</code> against the graph. If <code>v</code> is a vertex in the graph, <code>match</code> will first return its context and a new graph without it, append <code>v</code> to the results list and finally the recursion will happen using as input the list of destination vertices for all outbound edges of <code>v</code> appended to the remaining source vertices and the new graph returned by the <code>match</code> function; if <code>v</code> is not a vertex in the graph then it is simply ignored. There key observations about the algorithm are:</p>
+<ol style="list-style-type: decimal">
+<li>destination vertices are appended <em>in front of</em> the current vertex: this is what makes the algorithm traversing the input graph depth-first. This is exactly what the second invariant of DFS dictates: visit successors before sibilings.</li>
+<li>the <code>match</code> function returns a new graph <em>without</em> the query vertex: this is what the first invariant of DFS dictates: visit each vertex exectly once. Since the new graph doesn’t contain the query vertex there is no need for keeping track of the visited vertices therefore no bookkeeping is necessary.</li>
+</ol>
+<p>Let’s have a look at a very simple example using one of the sample graphs above:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> <span class="kw">let</span> g <span class="fu">=</span> read <span class="st">&quot;mkG [(&#39;c&#39;, 3), (&#39;b&#39;, 2), (&#39;a&#39;, 1)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4)]&quot;</span>
+([(<span class="dv">1</span>,<span class="dv">2</span>)],<span class="dv">3</span>,<span class="ch">&#39;c&#39;</span>,[(<span class="dv">4</span>,<span class="dv">1</span>)]) <span class="fu">:&amp;:</span> (([(<span class="dv">5</span>,<span class="dv">1</span>)],<span class="dv">2</span>,<span class="ch">&#39;b&#39;</span>,[(<span class="dv">3</span>,<span class="dv">1</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">1</span>,<span class="ch">&#39;a&#39;</span>,[]) <span class="fu">:&amp;:</span> <span class="dt">Empty</span>))
+ƛ<span class="fu">:</span> dfs (vertices g) g
+[<span class="dv">1</span>, <span class="dv">2</span>, <span class="dv">3</span>]</code></pre></div>
+<p>One of the applications of DFS is finding the spanning forest (set of trees) of a graph. The algorithm needs to build the spanning forest by traversing the graph in such a way that only when DFS traversal is completed for a <a href="https://en.wikipedia.org/wiki/Connected_component_(graph_theory)">connected component</a> it will proceed with the next one. Let’s define some types first:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">data</span> <span class="dt">Tree</span> a <span class="fu">=</span> <span class="dt">Nil</span> <span class="fu">|</span> <span class="dt">Node</span> <span class="fu">!</span>a (<span class="dt">Forest</span> a) <span class="kw">deriving</span> <span class="dt">Show</span>
+
+<span class="kw">type</span> <span class="dt">Forest</span> a <span class="fu">=</span> [<span class="dt">Tree</span> a]
+
+<span class="ot">dff ::</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">Forest</span> <span class="dt">Vertex</span>
+dff vs g <span class="fu">=</span> fst (dff&#39; vs g)</code></pre></div>
+<p>The <code>dff</code> function calls an auxiliary function <code>dff'</code> that does the heavy lifting, let’s have a look at it:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">dff&#39; ::</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> (<span class="dt">Forest</span> <span class="dt">Vertex</span>, <span class="dt">Graph</span> weight label)
+dff&#39; [] g <span class="fu">=</span> ([], g)
+dff&#39; (v<span class="fu">:</span>vs) g <span class="fu">=</span> <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+  <span class="dt">Nothing</span> <span class="ot">-&gt;</span> dff&#39; vs g
+  <span class="dt">Just</span> (ctx, g&#39;) <span class="ot">-&gt;</span> (<span class="dt">Node</span> v ts <span class="fu">:</span> forest, g&#39;&#39;)
+  <span class="kw">where</span>
+    <span class="co">-- `second` applies the function `dff&#39; vs` to the second element of</span>
+    <span class="co">-- the pair returned by `dff&#39; (destvs ctx) g&#39;`</span>
+    (ts, (forest, g&#39;&#39;)) <span class="fu">=</span> <span class="kw">let</span> (_,g&#39;&#39;) <span class="fu">=</span> dff&#39; (destvs ctx) g&#39; <span class="kw">in</span> (ts, dff&#39; vs g&#39;&#39;)
+    <span class="co">-- or more succinctly: (ts, (forest, g&#39;&#39;)) = second (dff&#39; vs) (dff&#39; (destvs ctx) g&#39;)</span>
+
+<span class="co">-- extracts destination vertices from the outbound edges of a context</span>
+<span class="ot">destvs ::</span> <span class="dt">Context</span> label weight <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]</code></pre></div>
+<p>The <code>dff'</code> function is another recursive function: if <code>match</code>ing the vertex <code>v</code> with the graph <code>g</code> succeeds, <code>dff'</code> calls itself passing its siblings and the new graph as arguments until the list of vertices is empty; when the list is empty the recursion continues for the remaining vertices <code>vs</code> and the most recent version of the graph. Again let’s have a look at a very simple example built on top of the previous one:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> <span class="kw">let</span> g <span class="fu">=</span> read <span class="st">&quot;mkG [(&#39;a&#39;, 1), (&#39;b&#39;, 2), (&#39;c&#39;, 3), (&#39;d&#39;, 4), (&#39;e&#39;, 5)] [(1, 2, 5), (2, 1, 3), (2, 3, 1), (3, 1, 4), (4, 5, 7)]&quot;</span><span class="ot"> ::</span> <span class="dt">Graph</span> <span class="dt">Int</span> <span class="dt">Char</span>
+([(<span class="dv">4</span>,<span class="dv">3</span>),(<span class="dv">3</span>,<span class="dv">2</span>)],<span class="dv">1</span>,<span class="ch">&#39;a&#39;</span>,[(<span class="dv">5</span>,<span class="dv">2</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">2</span>,<span class="ch">&#39;b&#39;</span>,[(<span class="dv">1</span>,<span class="dv">3</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">3</span>,<span class="ch">&#39;c&#39;</span>,[]) <span class="fu">:&amp;:</span> (([],<span class="dv">4</span>,<span class="ch">&#39;d&#39;</span>,[(<span class="dv">7</span>,<span class="dv">5</span>)]) <span class="fu">:&amp;:</span> (([],<span class="dv">5</span>,<span class="ch">&#39;e&#39;</span>,[]) <span class="fu">:&amp;:</span> <span class="dt">Empty</span>))))
+ƛ<span class="fu">:</span> dff (vertices g) g
+[<span class="dt">Node</span> <span class="dv">1</span> [<span class="dt">Node</span> <span class="dv">2</span> [<span class="dt">Node</span> <span class="dv">3</span> []]], <span class="dt">Node</span> <span class="dv">4</span> [<span class="dt">Node</span> <span class="dv">5</span> []]]</code></pre></div>
+<h4 id="breadth-first-search">Breadth-first search</h4>
+<p>Using a breadth-first search strategy to visit a graph essentially means: traverse each vertex <strong>once</strong> and visit <strong>siblings before successors</strong>. Here’s what the algorithm looks like:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">bfs ::</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]
+bfs gr vs <span class="fu">=</span> bfs&#39; gr vs
+  <span class="kw">where</span>
+    bfs&#39; g svs
+      <span class="fu">|</span> isEmpty g <span class="fu">||</span> null svs <span class="fu">=</span> []
+      <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> bfs&#39; g vs
+          <span class="dt">Just</span> ((_,v,_,outs), g&#39;) <span class="ot">-&gt;</span> v <span class="fu">:</span> dfs (vs <span class="fu">++</span> destvs outs) g&#39;
+
+<span class="co">-- extracts destination vertices from the outbound edges of a context</span>
+<span class="ot">destvs ::</span> <span class="dt">Context</span> label weight <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]</code></pre></div>
+<p>There key facts to notice about the algorithm are:</p>
+<ol style="list-style-type: decimal">
+<li>siblings are appended <em>at the end of</em> the source vertices: this is what makes the algorithm traversing the input graph breadth-first. This is exactly what the second invariant of BFS dictates : visit siblings before the successor.</li>
+<li>the <code>match</code> function returns a new graph <em>without</em> the current vertex: this is what the first invariant of BFS dictates: traverse each vertex exectly once. Since the new graph doesn’t contain the current vertex there is no need for keeping track of the visited vertices.</li>
+<li>the algorithm is mostly the same as <code>dfs</code>, the only thing that changes is where siblings are appended: in case of BFS they’re appended at the end of the list, in case of DFS in front of it. To fully appreciate this it might be useful to think of these algorithms in terms of the data structures they use: LIFO in case of DFS and a FIFO in case of BFS.</li>
+</ol>
+<p>One of the applications of BFS is finding the shortest path in a unweighted graph. For convenience the paper chooses a different representation for the spanning forest: a list of labelled paths. Let’s have a look at the implementation of the shortest path algorithm:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">type</span> <span class="dt">Path</span> <span class="fu">=</span> [<span class="dt">Vertex</span>]
+
+<span class="co">-- Roots tree</span>
+<span class="kw">type</span> <span class="dt">RTree</span> <span class="fu">=</span> [<span class="dt">Path</span>]
+
+<span class="ot">shortestPath ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">Path</span>
+shortestPath src dst <span class="fu">=</span> reverse <span class="fu">.</span> pathTo ((<span class="fu">==</span>dst) <span class="fu">.</span> head) <span class="fu">.</span> bft src
+
+<span class="ot">pathTo ::</span> (a <span class="ot">-&gt;</span> <span class="dt">Bool</span>) <span class="ot">-&gt;</span> [a] <span class="ot">-&gt;</span> a
+pathTo p <span class="fu">=</span> head <span class="fu">.</span> filter p</code></pre></div>
+<p>The <code>esp</code> function requires a source vertex and a destination vertex, filters the path to the destination and reverses it (why this is necessary will become clear in a moment). Notice that since Haskell has non-strict sematics, <code>esp</code> stops as soon as the path to the target destination vertex is found. Now let’s have a look at the implementation of the <code>bft</code> function:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">bft ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">RTree</span>
+bft v <span class="fu">=</span>  bf [[v]]
+
+<span class="ot">bf ::</span> [<span class="dt">Path</span>] <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">RTree</span>
+bf paths <span class="fu">=</span> bf&#39; paths
+  <span class="kw">where</span>
+<span class="ot">    bf&#39; ::</span> [<span class="dt">Path</span>] <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> <span class="dt">RTree</span>
+    bf&#39; paths g
+      <span class="fu">|</span> null paths <span class="fu">||</span> isEmpty g <span class="fu">=</span> []
+      <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> bf&#39; paths&#39; g
+          <span class="dt">Just</span> ((_,_,_,outs), g&#39;) <span class="ot">-&gt;</span> path <span class="fu">:</span> bf&#39; (paths&#39; <span class="fu">++</span> map (<span class="fu">:</span>path) (destvs outs)) g&#39;
+
+    <span class="co">-- gets the current vertex from the first path in the list and the remaining paths</span>
+    <span class="co">-- paths will never be empty because `bf` is called using a non-empty list</span>
+    (path<span class="fu">@</span>(v<span class="fu">:</span>_), paths&#39;) <span class="fu">=</span> <span class="kw">let</span> (pss, pss&#39;) <span class="fu">=</span> splitAt <span class="dv">1</span> paths <span class="kw">in</span> (head pss, pss&#39;)
+    <span class="co">-- more succinctly: (path@(v:_), paths&#39;) = first head (splitAt 1 paths)</span>
+
+<span class="co">-- extracts destination vertices from the outbound edges of a context</span>
+<span class="ot">destvs ::</span> <span class="dt">Context</span> label weight <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]</code></pre></div>
+<p>Instead of explaining what the function does step-by-step, let’s have a look at an example on a simple graph as it might be easier to understand:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> <span class="kw">let</span> g <span class="fu">=</span> read <span class="st">&quot;mkG [(&#39;a&#39;, 1), (&#39;b&#39;, 2), (&#39;c&#39;, 3)] [(1, 2, ()), (2, 1, ()), (2, 3, ()), (3, 1, ())]&quot;</span><span class="ot"> ::</span> <span class="dt">Graph</span> () <span class="dt">Char</span>
+([(<span class="dv">4</span>,()),(<span class="dv">3</span>,())],<span class="dv">1</span>,<span class="ch">&#39;a&#39;</span>,[(<span class="dv">5</span>,())]) <span class="fu">:&amp;:</span> (([],<span class="dv">2</span>,<span class="ch">&#39;b&#39;</span>,[(<span class="dv">1</span>,())]) <span class="fu">:&amp;:</span> (([],<span class="dv">3</span>,<span class="ch">&#39;c&#39;</span>,[]) <span class="fu">:&amp;:</span> <span class="dt">Empty</span>))
+ƛ<span class="fu">:</span> bf [[<span class="dv">1</span>]] g
+[[<span class="dv">1</span>],[<span class="dv">2</span>,<span class="dv">1</span>],[<span class="dv">3</span>,<span class="dv">2</span>,<span class="dv">1</span>]]</code></pre></div>
+<p>Notice that an unweighted graph is a graph whose weight is <code>()</code> and that the resulting spanning tree contains the shortest path from the source vertex to all other vertices in <em>reverse order</em>. The <code>bf</code> function builds complete paths from a source to a destination vertex but doesn’t waste any memory because list prefixes are shared.</p>
+<h4 id="dijkstras-shortest-path">Dijkstra’s shortest path</h4>
+<p>Finding the shortest path between two vertices means finding the cheapest path between them (where “cheap” is dependent upon the weight or cost of the edges). Dijkstra’s algorithm to find the shortest path in a weighted graph essentially chooses always the next cheapest edge taking into account the distance traversed so far. First let’s define two new auxiliary types:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="co">-- Labelled vertex</span>
+<span class="kw">type</span> <span class="dt">LVertex</span> label <span class="fu">=</span> (label, <span class="dt">Vertex</span>)
+
+<span class="co">-- Only needed to be able to define `Eq` and `Ord` instances</span>
+<span class="kw">newtype</span> <span class="dt">LPath</span> label <span class="fu">=</span> <span class="dt">LPath</span> {<span class="ot"> getLPath ::</span> [<span class="dt">LVertex</span> label] }
+
+<span class="co">-- Labelled R-Tree (or Root Tree)</span>
+<span class="kw">type</span> <span class="dt">LRTree</span> label <span class="fu">=</span> [<span class="dt">LPath</span> label]
+
+<span class="kw">instance</span> <span class="dt">Eq</span> label <span class="ot">=&gt;</span> <span class="dt">Eq</span> (<span class="dt">LPath</span> label) <span class="kw">where</span> <span class="fu">...</span>
+
+<span class="kw">instance</span> <span class="dt">Ord</span> label <span class="ot">=&gt;</span> <span class="dt">Ord</span> (<span class="dt">LPath</span> label) <span class="kw">where</span> <span class="fu">...</span>
+
+<span class="kw">type</span> <span class="dt">Weight</span> <span class="fu">=</span> <span class="dt">Int</span></code></pre></div>
+<p>The algorithm uses a min-heap and some auxiliary functions to keep track of the cheapest path:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="kw">import qualified</span> <span class="dt">Data.Heap</span> <span class="kw">as</span> <span class="dt">Heap</span>
+
+<span class="ot">getPath ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">LRTree</span> label <span class="ot">-&gt;</span> <span class="dt">Path</span>
+getPath v <span class="fu">=</span> reverse <span class="fu">.</span> map snd <span class="fu">.</span> getLPath <span class="fu">.</span> pathTo ((<span class="fu">==</span>v) <span class="fu">.</span> lv2v)
+  <span class="kw">where</span>
+    lv2v <span class="fu">=</span> snd <span class="fu">.</span> head <span class="fu">.</span> getLPath
+
+<span class="ot">expand ::</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> <span class="dt">LPath</span> <span class="dt">Weight</span> <span class="ot">-&gt;</span> <span class="dt">Context</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> [<span class="dt">LPath</span> <span class="dt">Weight</span>]
+expand d (<span class="dt">LPath</span> p) (_, _, _, outs) <span class="fu">=</span> map (\(w, v) <span class="ot">-&gt;</span> <span class="dt">LPath</span> ((w <span class="fu">+</span> d, v)<span class="fu">:</span>p)) outs
+
+<span class="ot">mergeAll ::</span> [<span class="dt">LVertex</span> <span class="dt">Weight</span>] <span class="ot">-&gt;</span> <span class="dt">Heap.Heap</span> (<span class="dt">LPath</span> <span class="dt">Weight</span>) <span class="ot">-&gt;</span> <span class="dt">Context</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">Heap.Heap</span> (<span class="dt">LPath</span> <span class="dt">Weight</span>)
+mergeAll p<span class="fu">@</span>((dist, _)<span class="fu">:</span>_) h ctx <span class="fu">=</span> foldr Heap.insert h (expand dist (<span class="dt">LPath</span> p) ctx)</code></pre></div>
+<p>The <code>expand</code> function builds new <code>LPath</code>s whose label is the sum of the distance walked so far - let’s assume weights are positive integers for simplicity - and the weight of the outbound edge. The <code>mergeAll</code> function takes these paths and inserts them in the heap. The <code>getPath</code> function just extracts the path to the given destination vertex from the list of paths. Now let’s have a look at the core of the algorithm:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">dijkstra ::</span> <span class="dt">Heap.Heap</span> (<span class="dt">LPath</span> <span class="dt">Weight</span>) <span class="ot">-&gt;</span> <span class="dt">Graph</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">LRTree</span> <span class="dt">Weight</span>
+dijkstra h g
+  <span class="fu">|</span> isEmpty g <span class="fu">=</span> []
+  <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">case</span> Heap.viewMin h <span class="kw">of</span>
+      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> []
+      <span class="dt">Just</span> (lpath, h&#39;) <span class="ot">-&gt;</span> dijkstra&#39; (lpath, h&#39;)
+  <span class="kw">where</span>
+    dijkstra&#39; (<span class="dt">LPath</span> p<span class="fu">@</span>((_, v)<span class="fu">:</span>_), h&#39;) <span class="fu">=</span>
+      <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> dijkstra h&#39; g
+        <span class="dt">Just</span> (ctx, g&#39;) <span class="ot">-&gt;</span> <span class="dt">LPath</span> p <span class="fu">:</span> dijkstra (mergeAll p h&#39; ctx) g&#39;
+
+<span class="ot">shortestPathTree ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">LRTree</span> <span class="dt">Weight</span>
+shortestPathTree src <span class="fu">=</span> dijkstra (Heap.singleton <span class="fu">$</span> <span class="dt">LPath</span> [(mempty, src)])
+
+<span class="ot">shortestPath ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">Path</span>
+shortestPath src dst g <span class="fu">=</span> getPath dst (shortestPathTree src g)</code></pre></div>
+<p>The <code>sp</code> function kicks off the algorithm by providing the source node to the <code>spt</code> function which in turn calls <code>dijkstra</code> with a singleton min-heap that contains a path to the source vertex with weight zero - this is how expensive it is to walk from the source vertex to the source vertex. The <code>dijkstra</code> function is a recursive function that peeks the cheapest path from the min-heap, and if the current vertex <code>v</code> is contained in the graph - that is, the vertex hasn’t been already visited - appends it to the resulting <code>LRTree</code> and calls itself recursively with a new min-heap that contains up-to-date costs and a new graph that doesn’t contain <code>v</code>. The recursion stops if the graph is empty - that is all vertices has been visited - or the min-heap is empty - that is all edges have been traversed. This is definitely a bit more complex than the other algorithms but it’s quite elegant and modular. Let’s have a look at an example on the following graph:</p>
+<p><img class="figure centered" src="/images/sample_graph2.png" alt="Sample graph 2" /></p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> <span class="kw">let</span> g <span class="fu">=</span> read <span class="st">&quot;mkG [(&#39;a&#39;, 1), (&#39;b&#39;, 2), (&#39;c&#39;, 3), (&#39;d&#39;, 4), (&#39;e&#39;, 5), (&#39;f&#39;, 6), (&#39;g&#39;, 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]&quot;</span><span class="ot"> ::</span> <span class="dt">Graph</span> <span class="dt">Int</span> <span class="dt">Char</span>
+<span class="co">-- weights should be wrapped in a `Sum` constructor to form a monoid for addition on Ints but let&#39;s forget about that for the sake of simplicity</span>
+<span class="co">-- `undir` simply transforms a directed graph to an undirected one</span>
+ƛ<span class="fu">:</span> shortestPathTree <span class="dv">1</span> (undir g)
+[<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">7</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">10</span>,<span class="dv">7</span>),(<span class="dv">7</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">11</span>,<span class="dv">5</span>),(<span class="dv">7</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">11</span>,<span class="dv">2</span>),(<span class="dv">7</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">12</span>,<span class="dv">6</span>),(<span class="dv">10</span>,<span class="dv">7</span>),(<span class="dv">7</span>,<span class="dv">3</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]}]
+ƛ<span class="fu">:</span> shortestPath <span class="dv">1</span> <span class="dv">6</span> (undir g)
+[<span class="dv">1</span>,<span class="dv">3</span>,<span class="dv">7</span>,<span class="dv">6</span>]</code></pre></div>
+<p><img class="figure centered" src="/images/dijkstra.png" alt="Dijkstra's shortest path" /></p>
+<h3 id="minimum-spanning-tree">Minimum spanning tree</h3>
+<p>Prim’s algorithm to find the minimum spanning tree (MST) always traverses the cheapest edge among the discovered edges - like Dijkstra’s it’s a greedy algorithm. The two algrithms are notoriously very similar and this becomes evident using recursive functions. We’ll re-use the same types defined for the shortest path algorithm but define different auxiliary functions:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">mergeAll ::</span> [<span class="dt">LVertex</span> <span class="dt">Weight</span>] <span class="ot">-&gt;</span> <span class="dt">Heap.Heap</span> (<span class="dt">LPath</span> <span class="dt">Weight</span>) <span class="ot">-&gt;</span> <span class="dt">Context</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">Heap.Heap</span> (<span class="dt">LPath</span> <span class="dt">Weight</span>)
+mergeAll lvs h ctx <span class="fu">=</span> foldr Heap.insert h (addEdges (<span class="dt">LPath</span> lvs) ctx)
+
+<span class="ot">addEdges ::</span> <span class="dt">LPath</span> <span class="dt">Weight</span> <span class="ot">-&gt;</span> <span class="dt">Context</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> [<span class="dt">LPath</span> <span class="dt">Weight</span>]
+addEdges (<span class="dt">LPath</span> p) (_, _, _, outs) <span class="fu">=</span> map (<span class="dt">LPath</span> <span class="fu">.</span> (<span class="fu">:</span>p)) outs</code></pre></div>
+<p>The <code>addEdges</code> function is very similar to the <code>expand</code> function but it doesn’t take into account the distance walked so far, only the weight of the edges. The core of the algorithm shouldn’t be anything new:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">prim ::</span> <span class="dt">Heap.Heap</span> (<span class="dt">LPath</span> <span class="dt">Weight</span>) <span class="ot">-&gt;</span> <span class="dt">Graph</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">LRTree</span> <span class="dt">Weight</span>
+prim h g
+  <span class="fu">|</span> isEmpty g <span class="fu">=</span> []
+  <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">case</span> Heap.viewMin h <span class="kw">of</span>
+      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> []
+      <span class="dt">Just</span> (lpath, h&#39;) <span class="ot">-&gt;</span> prim&#39; lpath h&#39;
+  <span class="kw">where</span>
+    prim&#39; (<span class="dt">LPath</span> p<span class="fu">@</span>((_, v)<span class="fu">:</span>_), h&#39;) <span class="fu">=</span>
+      <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+        <span class="dt">Nothing</span> <span class="ot">-&gt;</span> prim h&#39; g
+        <span class="dt">Just</span> (ctx, g&#39;) <span class="ot">-&gt;</span> <span class="dt">LPath</span> p <span class="fu">:</span> prim (mergeAll p h&#39; ctx) g&#39;)
+
+<span class="ot">mst ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Graph</span> <span class="dt">Weight</span> label <span class="ot">-&gt;</span> <span class="dt">LRTree</span> <span class="dt">Weight</span>
+mst src <span class="fu">=</span> prim (Heap.singleton (<span class="dt">LPath</span> [(<span class="dv">0</span>, src)]))</code></pre></div>
+<p>Now that the MST can be build, let’s find the path between two vertices:</p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">mstPath ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">LRTree</span> weight <span class="ot">-&gt;</span> <span class="dt">Path</span>
+mstPath src dst t <span class="fu">=</span> joinPaths (getPath src t) (getPath dst t)
+
+<span class="ot">joinPaths ::</span> <span class="dt">Path</span> <span class="ot">-&gt;</span> <span class="dt">Path</span> <span class="ot">-&gt;</span> <span class="dt">Path</span>
+joinPaths p2src p2dst <span class="fu">=</span> joinAt (head p2src) (tail p2src) (tail p2dst)
+
+<span class="ot">joinAt ::</span> <span class="dt">Vertex</span> <span class="ot">-&gt;</span> <span class="dt">Path</span> <span class="ot">-&gt;</span> <span class="dt">Path</span> <span class="ot">-&gt;</span> <span class="dt">Path</span>
+joinAt _src (v<span class="fu">:</span>vs) (v&#39;<span class="fu">:</span>vs&#39;)
+  <span class="fu">|</span> v <span class="fu">==</span> v&#39; <span class="fu">=</span> joinAt v vs vs&#39;
+joinAt src ps ps&#39; <span class="fu">=</span> reverse ps <span class="fu">++</span> (src<span class="fu">:</span>ps&#39;)</code></pre></div>
+<p>Let’s again have a look at an example on the following graph:</p>
+<p><img class="figure centered" src="/images/sample_graph2.png" alt="Sample graph 2" /></p>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ<span class="fu">:</span> <span class="kw">let</span> g <span class="fu">=</span> read <span class="st">&quot;mkG [(&#39;a&#39;, 1), (&#39;b&#39;, 2), (&#39;c&#39;, 3), (&#39;d&#39;, 4), (&#39;e&#39;, 5), (&#39;f&#39;, 6), (&#39;g&#39;, 7)] [(1,2,12),(1,3,7),(1,4,5),(2,3,4),(2,7,7),(3,4,9),(3,5,4),(3,7,3),(4,5,7),(5,6,5),(5,7,2),(6,7,2)]&quot;</span><span class="ot"> ::</span> <span class="dt">Graph</span> <span class="dt">Int</span> <span class="dt">Char</span>
+<span class="co">-- weights should be wrapped in a `Sum` constructor to form a monoid for addition on Ints but let&#39;s forget about that for the sake of simplicity</span>
+ƛ<span class="fu">:</span> <span class="kw">let</span> mstTrees <span class="fu">=</span> mst <span class="dv">1</span> (undir g)
+[<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">7</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">2</span>,<span class="dv">7</span>),(<span class="dv">7</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">2</span>,<span class="dv">6</span>),(<span class="dv">2</span>,<span class="dv">7</span>),(<span class="dv">7</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">3</span>,<span class="dv">3</span>),(<span class="dv">2</span>,<span class="dv">7</span>),(<span class="dv">7</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]},<span class="dt">LPath</span> {getLPath <span class="fu">=</span> [(<span class="dv">4</span>,<span class="dv">2</span>),(<span class="dv">3</span>,<span class="dv">3</span>),(<span class="dv">2</span>,<span class="dv">7</span>),(<span class="dv">7</span>,<span class="dv">5</span>),(<span class="dv">5</span>,<span class="dv">4</span>),(<span class="dv">0</span>,<span class="dv">1</span>)]}]
+ƛ<span class="fu">:</span> mstPath <span class="dv">3</span> <span class="dv">5</span> mstTrees
+[<span class="dv">3</span>,<span class="dv">7</span>,<span class="dv">5</span>]</code></pre></div>
+<p><img class="figure centered" src="/images/prim.png" alt="Prim's MST" /></p>
+<h2 id="a-quick-word-on-efficiency">A quick word on efficiency</h2>
+<p>I mentioned that inductive graphs and related algorithms are meant to be as efficient as the non-inductive counterparts. The implementations shown so far are not - and they were not meant to be in the first place - but hopefully they provided a good intuition about inductive graphs. An efficient implementation would rely internally on more efficient data structures, and a key aspect to achieve asymptotically optimal running times for the algorithms shown above is that active patterns must execute in constant time. The <a href="https://www.stackage.org/lts-9.14/package/fgl-5.5.3.1">fgl</a> library is a real-world implementation based on Martin Erwig’s paper, and if you’re curious to know how it is possible to implement inductive graphs efficiently I’ll encourage to look at the source code; digging into the internals of the library is a whole different topic, possibly for a future blog post.</p>
+<h2 id="wrapping-up">Wrapping up</h2>
+<p>One of the tradeoffs to achieve clear and elegant graph algorithms seemed to be shifting the complexity from the algorithm itself to the supporting data structures: for example implementing an inductive graph is more complex than implementing an adjacency list, and using a min-heap in the shortest path or MST algorithms eliminates the need for bookkeeping when deciding which edge shoul be traversed next.</p>
+<p>This exploration into graphs and related algorithms in functional programming started with a simple question that was surprisingly hard to answer: <em>“How should I implement a graph algorithm in a functional programming language?”</em> The plethora of resources about graphs in the imperative world is not matched in the functional world, where adequate solutions to the problem have surfaced only in the last 20 years. Starting with an unsatisfactory monadic implementation, we had a look at a better solution that leverages a mix of functional and imperative constructs and finally described an implementation based on inductive graphs that manages to be elegant, clear and efficient - with some caveats - by leveraging inductive data structures and functions.</p>]]></summary>
+</entry>
+<entry>
     <title>Building slim Docker images for Haskell applications</title>
     <link href="https://futtetennismo.me/posts/docker/2017-11-24-docker-haskell-executables.html" />
     <id>https://futtetennismo.me/posts/docker/2017-11-24-docker-haskell-executables.html</id>
@@ -18,16 +488,16 @@
     <summary type="html"><![CDATA[<p>Providing an application as a <a href="https://www.infoq.com/articles/docker-executable-images">Docker executable image</a> is a handy way to distribute an application: no need to install toolchains, frameworks and dependencies. One can just pull a Docker image and run it. It’s really that simple. Docker images can grow wildly in size because they need to install all the dependecies needed to run the application: this as a user can be quite annoying. Imagine you want to use a tiny application that solves a very specific problem and you have to download a 2GB Docker image! It’s undesirable. And it’s actually not needed: why not shipping only the executable in a very compact Docker image? How can this be achieved if the application is built in Haskell?</p>
 <!--more-->
 <p>I faced the problem I while ago while working on a <a href="https://github.com/futtetennista/ServerlessValidator">pet-project</a>: the Docker image was almost 2GB(!) but the only thing the application was doing was validating a YAML file. I didn’t find a good solution until a few days ago the <a href="http://feram.io/">feram.io</a> folks pointed me to this <a href="https://blog.alexellis.io/mutli-stage-docker-builds/">blog post</a> (thanks guys!). Multi-stage builds?!…I didn’t even know that was possible! So I got back to my pet-project and see how that would work out in Haskell (the application in the blog post is written in Go lang). The final solution I ended up implementing after some painful and time-consuming trial and error was a bit more involved than what is described in that post but it was worthy: the final size of the <a href="https://hub.docker.com/r/futtetennista/serverless-validator/">Docker image</a> dropped <strong>from 2GB to 17.1MB - 5MB compressed size!</strong> I first used plain multi-stage builds but that had an issue: since all the Haskell dependencies have to be compiled, the first part of the multi-stage build was taking a long time to complete while the second part was taking only a few seconds. For this reason I ended up splitting the two, basically going back to the builder patter the blog post mentions: I first built a base image with all needed Haskell dependencies compiled and than used a multi-stage build to create the executable image. The <code>Dockerfile</code> for the base image is not that interesting:</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># Dockerfile.builder</span>
+<div class="sourceCode"><pre class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span class="co"># Dockerfile.builder</span>
 <span class="co"># docker build -t futtetennista/serverless-validator-builder --file Dockerfile.builder .</span>
-<span class="ex">FROM</span> haskell:8.0
+<span class="kw">FROM</span> haskell:8.0
 
 <span class="co"># Install dependecies needed to compile Haskell libraries</span>
-<span class="ex">RUN</span> apt-get update <span class="kw">&amp;&amp;</span> <span class="ex">apt-get</span> install --yes \
+<span class="kw">RUN</span> apt-get update &amp;&amp; apt-get install --yes \
     xz-utils \
     make
 
-<span class="ex">RUN</span> stack --resolver lts-9.14 install base \
+<span class="kw">RUN</span> stack --resolver lts-9.14 install base \
     protolude \
     text \
     aeson \
@@ -36,24 +506,24 @@
     case-insensitive \
     regex-compat</code></pre></div>
 <p>It just installs some Linux dependencies and builds the Haskell dependencies. The one for the executable image is a bit more exciting:</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># Dockerfile</span>
+<div class="sourceCode"><pre class="sourceCode dockerfile"><code class="sourceCode dockerfile"><span class="co"># Dockerfile</span>
 <span class="co"># docker build -t futtetennista/serverless-validator .</span>
-<span class="ex">FROM</span> futtetennista/serverless-validator-builder as builder
+<span class="kw">FROM</span> futtetennista/serverless-validator-builder as builder
 
-<span class="ex">WORKDIR</span> <span class="st">&quot;/home/serverless-validator/&quot;</span>
+<span class="kw">WORKDIR</span> <span class="st">&quot;/home/serverless-validator/&quot;</span>
 
 <span class="co"># copy the contents of the current directory in the working directory</span>
-<span class="ex">COPY</span> . .
+<span class="kw">COPY</span> . .
 
-<span class="ex">RUN</span> stack --resolver lts-9.14 install <span class="kw">&amp;&amp;</span> <span class="kw">\</span>
-    <span class="fu">strip</span> /root/.local/bin/serverless-validator
+<span class="kw">RUN</span> stack --resolver lts-9.14 install &amp;&amp; \
+    strip /root/.local/bin/serverless-validator
 
 
-<span class="ex">FROM</span> fpco/haskell-scratch:integer-gmp
+<span class="kw">FROM</span> fpco/haskell-scratch:integer-gmp
 
-<span class="ex">COPY</span> --from=builder /root/.local/bin/serverless-validator /bin/
+<span class="kw">COPY</span> --from=builder /root/.local/bin/serverless-validator /bin/
 
-<span class="ex">ENTRYPOINT</span> [<span class="st">&quot;/bin/serverless-validator&quot;</span>]</code></pre></div>
+<span class="kw">ENTRYPOINT</span> [<span class="st">&quot;/bin/serverless-validator&quot;</span>]</code></pre></div>
 <p>First it compiles and links the executable in the base container, removes some unwanted piece of data as <code>man strip</code> illustrates</p>
 <blockquote>
 <p>strip removes or modifies the symbol table attached to the output of the assembler and link editor. This is useful to save space after a program has been debugged and to limit dynamically bound symbols.</p>
@@ -71,15 +541,15 @@
     <updated>2017-11-15T00:00:00Z</updated>
     <summary type="html"><![CDATA[<p>Docker containers can commmunicate with each other either using the deprecated links machinery or using user-defined networks. The latter also is the way to go when using <code>docker-compose</code> since a user-defined network is created by default (at least in recent versions). <!--more--></p>
 <p>The postgres official image on <a href="https://hub.docker.com/_/postgres/">Docker Hub</a> contains an example for the former case: when creating the container running the <code>psql</code> command using the default <code>bridge</code> network interface, we need to supply the <code>--link</code> option with the name (and optionally alias) of the postgres instance and the <code>--host</code> option with its <strong>alias</strong> (if no alias is supplied the name is also the alias):</p>
-<pre><code>$ docker run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres</code></pre></div>
 <p>There is no example for the latter case though, so let’s see how it can be achieved. First let’s create a user-defined network and give it an arbitrary name - i.e. <code>my_bridge</code> - by simply typing: <code>docker network create my_bridge</code>. When using user-defined networks is essential to know the <strong>IP</strong> of the container running the postgres instance, this can be retrieved like this:</p>
-<pre><code>$ docker run -itd --name=postgres-instance postgres # Make sure there&#39;s an instance running
-$ docker inspect --format=&#39;{{ .NetworkSettings.Networks.my_bridge.IPAddress }}&#39; postgres-instance
-172.19.0.2</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -itd --name=postgres-instance postgres <span class="co"># Make sure there&#39;s an instance running</span>
+$ <span class="ex">docker</span> inspect --format=<span class="st">&#39;{{ .NetworkSettings.Networks.my_bridge.IPAddress }}&#39;</span> postgres-instance
+<span class="ex">172.19.0.2</span></code></pre></div>
 <p>Now let’s create another container that connects to the postgres instance and runs the <code>psql</code> command, and use the configuration options to set the user-defined network and to provide the IP of the postgres instance the container has to connect to:</p>
-<pre><code>$ docker run -it --rm --network=my_bridge postgres psql --host=172.19.0.2 --username=postgres</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --network=my_bridge postgres psql --host=172.19.0.2 --username=postgres</code></pre></div>
 <p>Alternatively, if we leverage the <code>--add-host</code> option, the command is going to look very similar to the one we used when connecting containers using links:</p>
-<pre><code>$ docker run -it --rm --network=my_bridge --add-host=postgres-instance:172.19.0.2 postgres psql --host=postgres-instance --username=postgres</code></pre>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --network=my_bridge --add-host=postgres-instance:172.19.0.2 postgres psql --host=postgres-instance --username=postgres</code></pre></div>
 <p>The <code>--add-host</code> option simply adds an entry to the <code>/etc/hosts</code> file of the container.</p>]]></summary>
 </entry>
 <entry>
@@ -463,16 +933,16 @@ mkFromList&#39; errRate xs <span class="fu">=</span>
       <span class="kw">let</span> bfilt <span class="fu">=</span> B.fromList (doubleHash numHashes) bits xs
       <span class="kw">in</span> array bfilt <span class="ot">`seq`</span> bfilt</code></pre></div>
 <p>Let’s test it in GHCI:</p>
-<pre><code>ƛ let !ebf&#39;&#39; = mkFromList&#39; 0.01 ([1..10^6] :: [Int])
-ebf&#39;&#39; :: Either String (B.IBloom Int)
-(19.29 secs, 13819004104 bytes)
-ƛ :print ebf&#39;&#39;
-ebf&#39;&#39; = Right
-         (B.IB
-            (_t1::Int -&gt; [Word32])
-            (Data.Array.Base.UArray
-               (GHC.Word.W32# 0) (GHC.Word.W32# 9592954) 9592955
-               (_t2::ghc-prim-0.5.0.0:GHC.Prim.ByteArray#)))</code></pre>
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell">ƛ <span class="kw">let</span> <span class="fu">!</span>ebf&#39;&#39; <span class="fu">=</span> mkFromList&#39; <span class="fl">0.01</span> ([<span class="dv">1</span><span class="fu">..</span><span class="dv">10</span><span class="fu">^</span><span class="dv">6</span>]<span class="ot"> ::</span> [<span class="dt">Int</span>])
+<span class="ot">ebf&#39;&#39; ::</span> <span class="dt">Either</span> <span class="dt">String</span> (<span class="dt">B.IBloom</span> <span class="dt">Int</span>)
+(<span class="fl">19.29</span> secs, <span class="dv">13819004104</span> bytes)
+ƛ <span class="fu">:</span>print ebf&#39;&#39;
+ebf&#39;&#39; <span class="fu">=</span> <span class="dt">Right</span>
+         (<span class="dt">B.IB</span>
+            (<span class="ot">_t1::</span><span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">Word32</span>])
+            (<span class="dt">Data.Array.Base.UArray</span>
+               (<span class="dt">GHC.Word.W32</span><span class="fu">#</span> <span class="dv">0</span>) (<span class="dt">GHC.Word.W32</span><span class="fu">#</span> <span class="dv">9592954</span>) <span class="dv">9592955</span>
+               (<span class="ot">_t2::</span>ghc<span class="fu">-</span>prim<span class="fu">-</span><span class="fl">0.5</span><span class="fu">.</span><span class="fl">0.0</span><span class="fu">:</span><span class="dt">GHC.Prim.ByteArray</span><span class="fu">#</span>)))</code></pre></div>
 <p>And YES! We finally managed to fully evaluate our Bloom filter before its first use in our code.</p>
 <h2 id="wrapping-up">Wrapping up</h2>
 <ol style="list-style-type: decimal">
@@ -688,129 +1158,6 @@ ebf&#39;&#39; = Right
 	    }
 	}</code></pre></div>
 <p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it’s pretty straightforward but here’s a little explanation of how it works. Let’s say you want to show a “Rate App” dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>]]></summary>
-</entry>
-<entry>
-    <title>Location on Android...the Qype way</title>
-    <link href="https://futtetennismo.me/posts/archive/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html" />
-    <id>https://futtetennismo.me/posts/archive/2012-10-16-location-on-android-dot-dot-dot-the-qype-way.html</id>
-    <published>2012-10-16T00:00:00Z</published>
-    <updated>2012-10-16T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Some months ago we released the first stable version of ignition. In this post I explaned how the ignition-location library works and how it’s possible to include it in an already existing application. This time I’ll explain how we integrated it in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype Android</a> application. <!--more--> A very typical use case when using our app is to look for a place to eat, drink or go party nearby. In order to display the best places around, the app needs to know the user’s location, and it needs to know it as quickly as possible - nobody likes to stare at his/her phone for 5 minutes waiting for something to happen right? Ignition-location is pretty good at that but there are a couple of things the Qype app itself must take care of. In particular, when developing our new location manager, we had two requirements in mind:</p>
-<ol style="list-style-type: decimal">
-<li>a good trade off between quickness and accuracy is achieved.</li>
-<li>battery is not drained.</li>
-</ol>
-<p>There are two key components in our location logic: one is <code>QypeLocationManager</code>, the other <code>QypeNewLocationHandler</code>. The former contains all the location logic, in particular it takes care of deciding if a location is <em>good enough</em> - I’ll go back to this in a bit - and if the app should keep requesting location updates, the latter handles UI-related behaviour. For the sake of completeness, there is a third component which is a small interface called QypeLocationAwareActivity implemented by all our location-aware activities.</p>
-<p>So what happens when a new location is received? As you already know from the previous post, <code>IgnitedLocationManager</code> invokes the <code>onIgnitedLocationChanged()</code> callback in the current <code>IgnitedActivity</code>. Since we want our logic to be shared across all out location-aware activities, each of them has a reference to an instance of the <code>QypeLocationManager</code> and it invokes a callback on this object each time a new location is returned:</p>
-<pre><code>@Override
-public boolean onIgnitedLocationChanged(Location location) {
-    return locationManager.onNewLocation(this, location, lastSearchedLocation);
-}</code></pre>
-<p>This callback has got two locations as parameters: the current location and the location used for the last search. I’ll expain in the next few lines why both are needed. The <code>onNewLocation()</code> callback is the hearth of our location logic, It checks if it’s the first time the current Activity is making a request - in this case the Activity is probably being created for the first time - and, if that’s the case, it checks if the current location is not null and if it’s “good enough” or not. If it is, it invokes the <code>onLocationAvailable()</code> callback (defined in the <code>QypeLocationAwareActivity</code> interface) on the <code>Activity</code>, that will perform whatever task it needs to perform, i.e. searching the best nearby places. Here is a code snippet:</p>
-<pre><code>public boolean onNewLocation(final QypeLocationAwareActivity context, Location newLocation,
-        Location lastSearchedLocation) {
-
-    ...
-
-    // Check if the new location is too old, if so wait for a most recent location.
-    if (lastSearchedLocation == null) {
-        // Delete any pending API request with an old location and send a new request right
-        // away using the most up-to-date location.
-        if (locationHandler
-                .hasMessages(QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION)) {
-            locationHandler
-                    .removeMessages(QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION);
-        }
-        Activity activity = (Activity) context;
-        // Wait some time if the location is too old, but if a new fix doesn&#39;t arrive send the
-        // request using the location we&#39;ve got.
-        if (isOldLocation(newLocation)) {
-            DialogSupport.safeShowDialog(activity, R.id.ign_loc_dialog_wait_for_fix);
-            locationHandler.sendEmptyMessageDelayed(
-                    QypeNewLocationHandler.MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION,
-                    INTERVAL_SEND_REQUEST_USING_UNRELIABLE_LOCATION);
-        } else {
-            Dialog waitForLocationDialog = context.getWaitForLocationDialog();
-            if (waitForLocationDialog != null &amp;&amp; waitForLocationDialog.isShowing()) {
-                activity.dismissDialog(R.id.ign_loc_dialog_wait_for_fix);
-            }
-            context.onLocationAvailable();
-        }
-}</code></pre>
-<p>So when is a location <em>good enough</em>? In this specific case, that simply means fresh enough. You might ask: so it doesn’t matter if the location is too coarse? Well…yes and no. Keep in mind the requirements in first point above, the app should return results as quickly as possible. Moreover in a densely populated area, i.e. a city, a location returned by a coarse provider, i.e. the the network provider, is often a good approximation of the current location. I’ll explain in a bit when accuracy is taken into account.</p>
-<p>Going back to the <code>onLocationAvailable()</code> callback, what happens if the location is not <em>good enough</em>? A couple of possible approaches are: waiting for a better location or using this location anyway. Our approach is somewhere in the middle: the app waits for a certain amount of time, 5 seconds, for a new location. If no new location is received, the app sends an API request using the old location. This is a tricky situation: on one hand we don’t want our users to wait too much before they can get some results, but we’d like to make sure that they get the best results we can give them. In this particular case we decided to take an optimistic approach and the app sends a request anyway, it can be that a user didn’t move too much from the last known location saved by the location manager. But the app does a little bit more under the hood. Let’s jump for a second at the end of this callback:</p>
-<pre><code>    ...
-    return requestMoreLocationUpdates(newLocation);
-}
-
-private boolean requestMoreLocationUpdates(Location newLocation) {
-    double accuracy = newLocation.getAccuracy();
-    int desiredAccuracy = getDesiredAccuracy();
-
-    // Check if the new location is fresh and accurate enough.
-    return isOldLocation(newLocation) || accuracy &gt; desiredAccuracy;
-}
-
-private boolean isOldLocation(Location location) {
-    long locationTime = location.getTime();
-    long timeDiff = getDesiredTimeDifference();
-    long desiredTime = System.currentTimeMillis() - timeDiff;
-    return locationTime &lt; desiredTime;
-}</code></pre>
-<p>Let’s assume that the location isn’t either precise or fresh enough, in this case the location manager will keep asking for location updates until it gets a location that is accurate enough. I’d like to point out something here: in our specific use case, the app doesn’t need to continuously ask for location updates. If the app finds a location that is fresh and accurate enough, the app will simply stop requesting location updates. The tricky part here is to find a good threshold: if it requires the location to be too accurate this logic will be useless, otherwise the risk is to use really coarse locations and have bad results returned (if, like in our case, the API you’re using searches for results in an area centered around user’s location). If you read the previous post you know that the logic that requests a new location is always re-triggered <code>onResume()</code>, so by “stopping” I don’t actually mean that location updates won’t be requested at any point in the future, but only that as long as the user stays withiin the context of that <code>Activity</code> the location logic will be turned off, saving battery power. This fulfills our second requirement.</p>
-<p>If the last location isn’t either precise or fresh enough, at some point in the future a new location will be returned by one of the available providers. The <code>onNewLocation()</code> callback will be invoked again but in this case the last searched location won’t be null.</p>
-<pre><code>...
-
-} else {
-    boolean diffDistanceTooBig = diffDistanceTooBig(newLocation, lastSearchedLocation);
-    if (diffDistanceTooBig) {
-        boolean hasBetterLocationMessages = locationHandler
-                .hasMessages(MSG_BETTER_LOCATION);
-        if (!hasBetterLocationMessages) {
-            // It&#39;s a better location, invite the user to refresh his location
-            locationHandler.obtainMessage(MSG_BETTER_LOCATION).sendToTarget();
-        } else {
-            locationHandler.removeMessages(MSG_BETTER_LOCATION);
-            Message msg = locationHandler.obtainMessage(MSG_BETTER_LOCATION);
-            locationHandler.sendMessageDelayed(msg,
-                    QypeNewLocationHandler.DELAY_SHOW_BETTER_LOCATION_RELOAD_TOOLTIP);
-        }
-    }
-}
-
-...</code></pre>
-<p>The location manager will calculate the distance between the new and the old distance and, if this distance is greater than a defined threshold (in our case this is simply the desired location accuracy), it will send a new message to the location handler. The rationale here is that if the new location doesn’t differ too much from the old one, it means that the old location wasn’t that bad and the app doesn’t need to do anything special (note: it doesn’t matter how coarse it was!). But if the new location is too far away from the last one, the app will show a reload view that asks the user if he/she wants to reload the results.</p>
-<p>The last piece of the puzzle is the <code>QypeNewLocationHandler</code> class, which is just a simple implementation of a Handler that takes advantage of delayed messages to show/hide the reload view.</p>
-<pre><code>@Override
-public void handleMessage(Message msg) {
-    ReloadTooltip reloadTooltip = context.getReloadTooltip();
-    switch (msg.what) {
-    case MSG_BETTER_LOCATION:
-        if (showReloadTooltip(reloadTooltip)) {
-            reloadTooltip.setText(R.string.msg_reload_results_on_new_location);
-            reloadTooltip.show(true);
-            sendEmptyMessageDelayed(MSG_HIDE_RELOAD_TOOLTIP, TIMEOUT_HIDE_RELOAD_TOOLTIP);
-            reloadTooltip.setTag(System.currentTimeMillis());
-            hasBetterLocation = false;
-        } else if (context.isLoadingData()) {
-            hasBetterLocation = true;
-        }
-        break;
-    case MSG_HIDE_RELOAD_TOOLTIP:
-        reloadTooltip.hide(true);
-        break;
-    case MSG_SEND_REQUEST_USING_UNRELIABLE_LOCATION:
-        Dialog waitForLocationDialog = context.getWaitForLocationDialog();
-        if (waitForLocationDialog != null &amp;&amp; waitForLocationDialog.isShowing()) {
-            ((Activity) context).dismissDialog(R.id.ign_loc_dialog_wait_for_fix);
-        }
-        context.onLocationAvailable();
-        break;
-    default:
-        super.handleMessage(msg);
-    }
-}</code></pre>
-<p>Nothing special here, apart from a tweak we added while we were testing the app that prevents the reload view from being shown too often and becoming annoying for the user.</p>]]></summary>
 </entry>
 
 </feed>
