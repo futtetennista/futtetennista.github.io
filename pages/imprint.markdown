@@ -23,7 +23,7 @@ feedback please feel free to get in touch!
 ##### Credits
 This website is it's built with [Hakyll](https://jaspervdj.be/hakyll/). The theme
 is a port of the [Materialize Jekill](https://github.com/mumuxme/materialize-jekyll/)
-theme developed by [mumuxme](https://github.com/mumuxme). The materail icons are
+theme developed by [mumuxme](https://github.com/mumuxme). The material icons are
 taken from [Material Design Icons](https://materialdesignicons.com/). Blog source
 and code files licensed under the [MIT license](/LICENSE.html), all rights
 reserved for content (everything else).

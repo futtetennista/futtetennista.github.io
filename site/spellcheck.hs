@@ -16,43 +16,44 @@ import Turtle
 import Prelude hiding (FilePath)
 
 main :: IO ()
-main = do
-  [fp] <- getArgs
-  massageFileForSpellchecker fp
-  runSpellchecker fp
+main = spellcheck =<< getArgs
   where
-    mkFilePath = flip replaceExtension ".spellcheck"
+    spellcheck [fp] = massageFileForSpellchecker fp >> runSpellchecker fp
+    spellcheck _ = print "Usage: ./site.hs /path/to/file/to/spellcheck"
 
-    massageFileForSpellchecker fp = S.evalStateT (runConduitRes $ spellCheckFile fp) False
+mkFilePath = flip replaceExtension ".spellcheck"
 
-    runSpellchecker fp = stdout (inproc "hunspell" args empty) >> sh (inproc "rm" [file] empty)
+massageFileForSpellchecker fp = S.evalStateT (runConduitRes $ spellCheckFile fp) False
+
+runSpellchecker fp = stdout (inproc "hunspell" args empty) >> void (proc "rm" [file] empty)
+  where
+    args = ["-d en_GB", "-w", "-p custom_dict", file]
+
+    file = T.pack $ mkFilePath fp
+
+spellCheckFile fp = -- sourceDirectory dir
+  -- .| mapMC (\x -> liftIO $ print x >> return x)
+  -- .| filterC (\fp -> takeExtension fp `elem` [".markdown", ".md", ".lhs"])
+  -- .| awaitForever sourceFile
+  sourceFile fp
+  .| decodeUtf8C
+  .| mapC T.lines
+  .| mapMCE removeCodeSnippet
+  .| filterCE (not . T.null)
+  .| mapC T.unlines
+  .| encodeUtf8C
+  .| sinkFile (mkFilePath fp)
+
+removeCodeSnippet l
+  | isCodeSnippet l = S.modify' not >> return T.empty
+  | otherwise = do isCode <- S.get; return $ if isCode then T.empty else l
+  where
+    isCodeSnippet l = isCodeSnippetMd l || isCodeSnippetLhs l
+
+    isCodeSnippetMd = (=="```") . T.take 3
+
+    isCodeSnippetLhs l = birdStyle l || latexStyle l
       where
-        args = ["-d en_GB", "-w", "-p custom_dict", file]
+        birdStyle = (=="> ") . T.take 2
 
-        file = T.pack $ mkFilePath fp
-
-    spellCheckFile fp = -- sourceDirectory dir
-      -- .| mapMC (\x -> liftIO $ print x >> return x)
-      -- .| filterC (\fp -> takeExtension fp `elem` [".markdown", ".md", ".lhs"])
-      -- .| awaitForever sourceFile
-      sourceFile fp
-      .| decodeUtf8C
-      .| mapC T.lines
-      .| mapMCE removeCodeSnippet
-      .| filterCE (not . T.null)
-      .| mapC T.unlines
-      .| encodeUtf8C
-      .| sinkFile (mkFilePath fp)
-
-    removeCodeSnippet l
-      | isCodeSnippet l = S.modify' not >> return T.empty
-      | otherwise = do isCode <- S.get; return $ if isCode then T.empty else l
-            where
-              isCodeSnippet l = isCodeSnippetMd l || isCodeSnippetLhs l
-
-              isCodeSnippetMd = (=="```") . T.take 3
-
-              isCodeSnippetLhs l = birdStyle l || latexStyle l
-                where
-                  birdStyle = (=="> ") . T.take 2
-                  latexStyle = (`elem`["\\begin{code}", "\\end{code}"])
+        latexStyle = (`elem`["\\begin{code}", "\\end{code}"])
