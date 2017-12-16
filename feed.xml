@@ -38,14 +38,14 @@
 <span class="kw">import </span><span class="dt">Control.Applicative</span> (liftA2)
 <span class="kw">import </span><span class="dt">Control.Monad.Primitive</span> (<span class="dt">PrimMonad</span>)
 
-<span class="kw">data</span> <span class="dt">Graph</span> weight a <span class="fu">=</span> <span class="dt">Graph</span> [(a, [<span class="dt">EdgeNode</span> weight a])] <span class="dt">Directed</span> <span class="dt">Int</span> <span class="kw">deriving</span> <span class="dt">Eq</span>
+<span class="kw">data</span> <span class="dt">Graph</span> weight label <span class="fu">=</span> <span class="dt">Graph</span> [(label, [<span class="dt">EdgeNode</span> weight label])] <span class="dt">Directed</span> <span class="dt">Int</span> <span class="kw">deriving</span> <span class="dt">Eq</span>
 
-<span class="kw">type</span> <span class="dt">EdgeNode</span> weight a <span class="fu">=</span> (a, weight)
+<span class="kw">type</span> <span class="dt">EdgeNode</span> weight label <span class="fu">=</span> (label, weight)
 
 <span class="kw">type</span> <span class="dt">VertexState</span> s <span class="fu">=</span> <span class="dt">MV.MVector</span> s <span class="dt">VState</span>
 
-<span class="kw">data</span> <span class="dt">DFSState</span> s a weight <span class="fu">=</span>
-  <span class="dt">DFSState</span> {<span class="ot"> dfsVertex ::</span> a
+<span class="kw">data</span> <span class="dt">DFSState</span> s label weight <span class="fu">=</span>
+  <span class="dt">DFSState</span> {<span class="ot"> dfsVertex ::</span> label
            ,<span class="ot"> dfsConnectedComponent ::</span> <span class="dt">ConnectedComponent</span> a weight
            ,<span class="ot"> dfsVertexState ::</span> <span class="dt">VertexState</span> s
            }
@@ -53,15 +53,15 @@
 <span class="co">-- undiscovered, discovered or processed</span>
 <span class="kw">data</span> <span class="dt">VState</span> <span class="fu">=</span> <span class="dt">U</span> <span class="fu">|</span> <span class="dt">D</span> <span class="fu">|</span> <span class="dt">P</span> <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>, <span class="dt">Ord</span>)
 
-<span class="kw">type</span> <span class="dt">ConnectedComponent</span> weight a <span class="fu">=</span> <span class="dt">Tree</span> weight a
+<span class="kw">type</span> <span class="dt">ConnectedComponent</span> weight label <span class="fu">=</span> <span class="dt">Tree</span> weight label
 
-<span class="kw">data</span> <span class="dt">Tree</span> weight a <span class="fu">=</span> <span class="dt">Nil</span> <span class="fu">|</span> <span class="dt">Node</span> <span class="fu">!</span>a [(weight, <span class="dt">Tree</span> weight a)] <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>)
+<span class="kw">data</span> <span class="dt">Tree</span> weight label <span class="fu">=</span> <span class="dt">Nil</span> <span class="fu">|</span> <span class="dt">Node</span> <span class="fu">!</span>label [(weight, <span class="dt">Tree</span> weight a)] <span class="kw">deriving</span> (<span class="dt">Show</span>, <span class="dt">Eq</span>)
 
 <span class="co">-- Let&#39;s assume for simplicity that vertices and weights are integers</span>
 <span class="ot">dfs ::</span> <span class="dt">Graph</span> <span class="dt">Int</span> <span class="dt">Int</span> <span class="ot">-&gt;</span> [<span class="dt">ConnectedComponent</span> <span class="dt">Int</span> <span class="dt">Int</span>]
 dfs g <span class="fu">=</span>
   runST <span class="fu">$</span> <span class="kw">do</span>
-    vstates <span class="ot">&lt;-</span> MV.replicate (verticesCount g) <span class="dt">Undiscovered</span>
+    vstates <span class="ot">&lt;-</span> MV.replicate (verticesCount g) <span class="dt">U</span>
     loop (vertices g) vstates
   <span class="kw">where</span>
 <span class="ot">    loop ::</span> forall s<span class="fu">.</span> [<span class="dt">Int</span>]
