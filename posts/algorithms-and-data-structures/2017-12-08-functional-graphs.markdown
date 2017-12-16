@@ -72,14 +72,14 @@ import Control.Monad.ST (ST, runST)
 import Control.Applicative (liftA2)
 import Control.Monad.Primitive (PrimMonad)
 
-data Graph weight a = Graph [(a, [EdgeNode weight a])] Directed Int deriving Eq
+data Graph weight label = Graph [(label, [EdgeNode weight label])] Directed Int deriving Eq
 
-type EdgeNode weight a = (a, weight)
+type EdgeNode weight label = (label, weight)
 
 type VertexState s = MV.MVector s VState
 
-data DFSState s a weight =
-  DFSState { dfsVertex :: a
+data DFSState s label weight =
+  DFSState { dfsVertex :: label
            , dfsConnectedComponent :: ConnectedComponent a weight
            , dfsVertexState :: VertexState s
            }
@@ -87,15 +87,15 @@ data DFSState s a weight =
 -- undiscovered, discovered or processed
 data VState = U | D | P deriving (Show, Eq, Ord)
 
-type ConnectedComponent weight a = Tree weight a
+type ConnectedComponent weight label = Tree weight label
 
-data Tree weight a = Nil | Node !a [(weight, Tree weight a)] deriving (Show, Eq)
+data Tree weight label = Nil | Node !label [(weight, Tree weight a)] deriving (Show, Eq)
 
 -- Let's assume for simplicity that vertices and weights are integers
 dfs :: Graph Int Int -> [ConnectedComponent Int Int]
 dfs g =
   runST $ do
-    vstates <- MV.replicate (verticesCount g) Undiscovered
+    vstates <- MV.replicate (verticesCount g) U
     loop (vertices g) vstates
   where
     loop :: forall s. [Int]
