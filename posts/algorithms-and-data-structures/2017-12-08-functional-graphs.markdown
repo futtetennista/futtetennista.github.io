@@ -1,7 +1,7 @@
 ---
 title: Functional programming with graphs
 tags: haskell, graphs
-categories: data+strutures, algorithms
+categories: data+structures, algorithms
 ---
 
 Graphs are a fundamental data structure in computer science because *a lot* of
@@ -337,7 +337,7 @@ of edges, where edge is defined as a pair of vertices in `V`.
 Imperative algorithms on graphs discover edges and vertices incrementally
 and usually need to keep track of the visited vertices either using a separate
 data structure or by storing more data in the graph itself.
-In this sense the usual definition of graphs is monolithical and this is the
+In this sense the usual definition of graphs is monolithic and this is the
 reasons why algorithms that use this API are doomed if what they strive for is
 clarity and modularity. Would it be possible to define graphs inductively? If so
 how? A valid definition for a graph data structure defined inductively might look
@@ -405,7 +405,7 @@ that have *already been discovered*
 ### Active graph patterns
 
 Pattern matching was identified as one of the ingredients that made lists and
-trees algorithms clean and succint, the paper refers to an extension of pattern
+trees algorithms clean and succinct, the paper refers to an extension of pattern
 matching for graphs named *"active graph pattern"* whose main goal is as far as
 I understood to make the notation more compact, augmenting the classic pattern
 matching by allowing a function to be called before the matching is applied. It
@@ -484,9 +484,9 @@ There key observations about the algorithm are:
 
 1. destination vertices are appended *in front of* the current vertex: this is
 what makes the algorithm traversing the input graph depth-first. This is exactly
-what the second invariant of DFS dictates: visit successors before sibilings.
+what the second invariant of DFS dictates: visit successors before siblings.
 2. the `match` function returns a new graph *without* the query vertex: this is
-what the first invariant of DFS dictates: visit each vertex exectly once.
+what the first invariant of DFS dictates: visit each vertex exactly once.
 Since the new graph doesn't contain the query vertex there is no need for keeping
 track of the visited vertices therefore no bookkeeping is necessary.
 
@@ -573,7 +573,7 @@ There key facts to notice about the algorithm are:
 the algorithm traversing the input graph breadth-first. This is exactly what the
 second invariant of BFS dictates : visit siblings before the successor.
 2. the `match` function returns a new graph *without* the current vertex: this is
-what the first invariant of BFS dictates: traverse each vertex exectly once.
+what the first invariant of BFS dictates: traverse each vertex exactly once.
 Since the new graph doesn't contain the current vertex there is no need for keeping
 track of the visited vertices.
 3. the algorithm is mostly the same as `dfs`, the only thing that changes is
@@ -602,7 +602,7 @@ pathTo p = head . filter p
 
 The `esp` function requires a source vertex and a destination vertex, filters the
 path to the destination and reverses it (why this is necessary will become clear
-in a moment). Notice that since Haskell has non-strict sematics,
+in a moment). Notice that since Haskell has non-strict semantics,
 `esp` stops as soon as the path to the target destination vertex is found. Now
 let's have a look at the implementation of the `bft` function:
 
@@ -746,7 +746,7 @@ elegant and modular. Let's have a look at an example on the following graph:
 
 Prim's algorithm to find the minimum spanning tree (MST) always traverses
 the cheapest edge among the discovered edges - like Dijkstra's it's a greedy
-algorithm. The two algrithms are notoriously very similar and this
+algorithm. The two algorithms are notoriously very similar and this
 becomes evident using recursive functions. We'll re-use the same types defined
 for the shortest path algorithm but define different auxiliary functions:
 
@@ -826,11 +826,11 @@ library is a whole different topic, possibly for a future blog post.
 
 ## Wrapping up
 
-One of the tradeoffs to achieve clear and elegant graph algorithms seemed to be
+One of the trade-offs to achieve clear and elegant graph algorithms seemed to be
 shifting the complexity from the algorithm itself to the supporting data
 structures: for example implementing an inductive graph is more complex than
 implementing  an adjacency list, and using a min-heap in the shortest path or MST
-algorithms eliminates the need for bookkeeping when deciding which edge shoul be
+algorithms eliminates the need for bookkeeping when deciding which edge should be
 traversed next.
 
 This exploration into graphs and related algorithms in functional programming
