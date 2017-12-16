@@ -9,6 +9,7 @@ executable futtetennismo
   build-depends:    base == 4.*
                   , hakyll == 4.9.*
                   , bytestring == 0.10.8.*
+                  , text
                   , containers == 0.5.7.*
                   , stm == 2.4.4.*
                   , mtl == 2.2.*
