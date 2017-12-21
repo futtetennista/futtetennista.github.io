@@ -3,23 +3,39 @@
 script
 --no-install-ghc
 --resolver lts-9.14
---package conduit-combinators,text,filepath,mtl,turtle,system-filepath
+--package conduit-combinators,text,filepath,mtl,turtle,foldl
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 import Conduit
 import qualified Data.Text as T
-import System.FilePath (replaceExtension)
+import System.FilePath (replaceExtension, takeExtension)
 import System.Environment (getArgs)
 import qualified Control.Monad.State.Strict as S
 import Turtle
 import Prelude hiding (FilePath)
+import qualified Control.Foldl as Fold
+
 
 main :: IO ()
-main = spellcheck =<< getArgs
+main = mapM_ spellcheck =<< contentFiles
   where
-    spellcheck [fp] = massageFileForSpellchecker fp >> runSpellchecker fp
-    spellcheck _ = print "Usage: ./site.hs /path/to/file/to/spellcheck"
+    spellcheck fp = do
+      print $ "spellchecking '" ++ fp ++ "'"
+      massageFileForSpellchecker fp
+      runSpellchecker fp
+    -- spellcheck _ = print "Usage: ./site.hs /path/to/file/to/spellcheck"
+
+contentFiles :: MonadIO io => io [String]
+contentFiles = (toListOfStrings . filter markdownFile) <$> files
+  where
+    toListOfStrings = map (T.unpack . lineToText)
+
+    markdownFile = (`elem` [".markdown", ".md"]) . takeExtension . T.unpack . lineToText
+
+    files :: MonadIO io => io [Line]
+    files = let changed = inproc "git" ["--no-pager", "diff", "--cached", "--name-only"] empty
+            in fold changed Fold.list
 
 mkFilePath = flip replaceExtension ".spellcheck"
 
