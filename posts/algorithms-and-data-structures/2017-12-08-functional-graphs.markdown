@@ -524,10 +524,10 @@ dff' (v:vs) g = case v `match` g of
   Nothing -> dff' vs g
   Just (ctx, g') -> (Node v ts : forest, g'')
   where
-    -- `second` applies the function `dff' vs` to the second element of
-    -- the pair returned by `dff' (destvs ctx) g'`
     (ts, (forest, g'')) = let (_,g'') = dff' (destvs ctx) g' in (ts, dff' vs g'')
     -- or more succinctly: (ts, (forest, g'')) = second (dff' vs) (dff' (destvs ctx) g')
+    -- `second` applies the function `dff' vs` to the second element of
+    -- the pair returned by `dff' (destvs ctx) g'`
 
 -- extracts destination vertices from the outbound edges of a context
 destvs :: Context label weight -> [Vertex]
@@ -845,9 +845,9 @@ manages to be elegant, clear and efficient - with some caveats - by leveraging
 inductive data structures and functions.
 
 
-#### UPDATE
+#### Updates
 
-[2017-12-15]: This blog post is an expanded version of a
+- This blog post is an expanded version of a
 [presentation](https://prezi.com/p/jplozqursbfo/)
 I gave at the [Berlin Haskell User Group](https://www.meetup.com/berlinhug/events/wfhdrnywpbtb/)
 in November 2017 where I gathered lots of valuable feedback that made it into this
