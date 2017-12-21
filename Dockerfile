@@ -1,6 +1,6 @@
 FROM futtetennista/hakyll:4.9.8.0-ext
 
-RUN stack --resolver lts-9.14 install hlint
+RUN stack upgrade && stack --resolver lts-9.14 install hlint
 
 EXPOSE 8000
 
