@@ -281,9 +281,9 @@ dfs (v<span class="fu">:</span>vs) g <span class="fu">=</span> <span class="kw">
 
 <span class="co">-- extracts destination vertices from the outbound edges of a context</span>
 <span class="ot">destvs ::</span> <span class="dt">Context</span> label weight <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]</code></pre></div>
-<p><code>dfs</code> is a recursive function that takes a list of input vertices and a graph and returns a list of vertices sorted by traversing the graph in DFS-style. If the graph or their input vertices are empty it returns the empty list, otherwise it <code>match</code>es the current vertex <code>v</code> against the graph. If <code>v</code> is a vertex in the graph, <code>match</code> will first return its context and a new graph without it, append <code>v</code> to the results list and finally the recursion will happen using as input the list of destination vertices for all outbound edges of <code>v</code> appended to the remaining source vertices and the new graph returned by the <code>match</code> function; if <code>v</code> is not a vertex in the graph then it is simply ignored. There key observations about the algorithm are:</p>
+<p><code>dfs</code> is a recursive function that takes a list of input vertices and a graph and returns a list of vertices sorted by traversing the graph in DFS-style. If the graph or their input vertices are empty it returns the empty list, otherwise it <code>match</code>es the current vertex <code>v</code> against the graph. If <code>v</code> is a vertex in the graph, <code>match</code> will first return its context and a new graph without it, append <code>v</code> to the results list and finally the recursion will happen using as input the list of destination vertices for all outbound edges of <code>v</code> appended to the remaining input vertices and the new graph returned by the <code>match</code> function; if <code>v</code> is not a vertex in the graph then it is simply ignored. There key observations about the algorithm are:</p>
 <ol style="list-style-type: decimal">
-<li>destination vertices are appended <em>in front of</em> the current vertex: this is what makes the algorithm traversing the input graph depth-first. This is exactly what the second invariant of DFS dictates: visit successors before siblings.</li>
+<li>destination vertices are appended <em>to the left end</em> of the input vertices: this is what makes the algorithm traversing the input graph depth-first. This is exactly what the second invariant of DFS dictates: visit successors before siblings.</li>
 <li>the <code>match</code> function returns a new graph <em>without</em> the query vertex: this is what the first invariant of DFS dictates: visit each vertex exactly once. Since the new graph doesn’t contain the query vertex there is no need for keeping track of the visited vertices therefore no bookkeeping is necessary.</li>
 </ol>
 <p>Let’s have a look at a very simple example using one of the sample graphs above:</p>
@@ -319,20 +319,20 @@ dff&#39; (v<span class="fu">:</span>vs) g <span class="fu">=</span> <span class=
 [<span class="dt">Node</span> <span class="dv">1</span> [<span class="dt">Node</span> <span class="dv">2</span> [<span class="dt">Node</span> <span class="dv">3</span> []]], <span class="dt">Node</span> <span class="dv">4</span> [<span class="dt">Node</span> <span class="dv">5</span> []]]</code></pre></div>
 <h4 id="breadth-first-search">Breadth-first search</h4>
 <p>Using a breadth-first search strategy to visit a graph essentially means: traverse each vertex <strong>once</strong> and visit <strong>siblings before successors</strong>. Here’s what the algorithm looks like:</p>
-<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">bfs ::</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]
-bfs gr vs <span class="fu">=</span> bfs&#39; gr vs
-  <span class="kw">where</span>
-    bfs&#39; g svs
-      <span class="fu">|</span> isEmpty g <span class="fu">||</span> null svs <span class="fu">=</span> []
-      <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
-          <span class="dt">Nothing</span> <span class="ot">-&gt;</span> bfs&#39; g vs
-          <span class="dt">Just</span> ((_,v,_,outs), g&#39;) <span class="ot">-&gt;</span> v <span class="fu">:</span> dfs (vs <span class="fu">++</span> destvs outs) g&#39;
+<div class="sourceCode"><pre class="sourceCode haskell"><code class="sourceCode haskell"><span class="ot">bfs ::</span> [<span class="dt">Vertex</span>] <span class="ot">-&gt;</span> <span class="dt">Graph</span> weight label <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]
+bfs vs g <span class="fu">=</span>
+  <span class="fu">|</span> isEmpty g <span class="fu">||</span> null vs <span class="fu">=</span> []
+  <span class="fu">|</span> otherwise <span class="fu">=</span> <span class="kw">case</span> v <span class="ot">`match`</span> g <span class="kw">of</span>
+      <span class="dt">Nothing</span> <span class="ot">-&gt;</span> bfs g vs&#39;
+      <span class="dt">Just</span> (ctx, g&#39;) <span class="ot">-&gt;</span> v <span class="fu">:</span> bfs g&#39; (vs&#39; <span class="fu">++</span> destvs ctx)
+
+    (v, vs&#39;) <span class="fu">=</span> (head vs, tail vs)
 
 <span class="co">-- extracts destination vertices from the outbound edges of a context</span>
 <span class="ot">destvs ::</span> <span class="dt">Context</span> label weight <span class="ot">-&gt;</span> [<span class="dt">Vertex</span>]</code></pre></div>
 <p>There key facts to notice about the algorithm are:</p>
 <ol style="list-style-type: decimal">
-<li>siblings are appended <em>at the end of</em> the source vertices: this is what makes the algorithm traversing the input graph breadth-first. This is exactly what the second invariant of BFS dictates : visit siblings before the successor.</li>
+<li>siblings are appended <em>at the right end of</em> the input vertices: this is what makes the algorithm traversing the input graph breadth-first. This is exactly what the second invariant of BFS dictates : visit siblings before the successor.</li>
 <li>the <code>match</code> function returns a new graph <em>without</em> the current vertex: this is what the first invariant of BFS dictates: traverse each vertex exactly once. Since the new graph doesn’t contain the current vertex there is no need for keeping track of the visited vertices.</li>
 <li>the algorithm is mostly the same as <code>dfs</code>, the only thing that changes is where siblings are appended: in case of BFS they’re appended at the end of the list, in case of DFS in front of it. To fully appreciate this it might be useful to think of these algorithms in terms of the data structures they use: LIFO in case of DFS and a FIFO in case of BFS.</li>
 </ol>
@@ -481,6 +481,7 @@ joinAt src ps ps&#39; <span class="fu">=</span> reverse ps <span class="fu">++</
 <h4 id="updates">Updates</h4>
 <ul>
 <li>This blog post is an expanded version of a <a href="https://prezi.com/p/jplozqursbfo/">presentation</a> I gave at the <a href="https://www.meetup.com/berlinhug/events/wfhdrnywpbtb/">Berlin Haskell User Group</a> in November 2017 where I gathered lots of valuable feedback that made it into this post. A special thanks goes to Matthias, Ben &amp; Adrian.</li>
+<li>Fixed <code>bfs</code> implementation and rewordings based on <a href="https://www.perimeterinstitute.ca/personal/eschnetter/">Erik</a>’s feedback</li>
 </ul>]]></summary>
 </entry>
 <entry>
