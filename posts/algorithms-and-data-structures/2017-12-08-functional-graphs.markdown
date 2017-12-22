@@ -478,11 +478,11 @@ otherwise it `match`es the current vertex `v` against the graph.
 If `v` is a vertex in the graph, `match` will first return its context and a new
 graph without it, append `v` to the results list and finally the recursion will
 happen using as input the list of destination vertices for all outbound edges of
-`v` appended to the remaining source vertices and the new graph returned by the
+`v` appended to the remaining input vertices and the new graph returned by the
 `match` function; if `v` is not a vertex in the graph then it is simply ignored.
 There key observations about the algorithm are:
 
-1. destination vertices are appended *in front of* the current vertex: this is
+1. destination vertices are appended *to the left end* of the input vertices: this is
 what makes the algorithm traversing the input graph depth-first. This is exactly
 what the second invariant of DFS dictates: visit successors before siblings.
 2. the `match` function returns a new graph *without* the query vertex: this is
@@ -554,14 +554,14 @@ each vertex **once** and visit **siblings before successors**.
 Here's what the algorithm looks like:
 
 ``` haskell
-bfs :: Graph weight label -> [Vertex] -> [Vertex]
-bfs gr vs = bfs' gr vs
-  where
-    bfs' g svs
-      | isEmpty g || null svs = []
-      | otherwise = case v `match` g of
-          Nothing -> bfs' g vs
-          Just ((_,v,_,outs), g') -> v : dfs (vs ++ destvs outs) g'
+bfs :: [Vertex] -> Graph weight label -> [Vertex]
+bfs vs g =
+  | isEmpty g || null vs = []
+  | otherwise = case v `match` g of
+      Nothing -> bfs g vs'
+      Just (ctx, g') -> v : bfs g' (vs' ++ destvs ctx)
+
+    (v, vs') = (head vs, tail vs)
 
 -- extracts destination vertices from the outbound edges of a context
 destvs :: Context label weight -> [Vertex]
@@ -569,9 +569,9 @@ destvs :: Context label weight -> [Vertex]
 
 There key facts to notice about the algorithm are:
 
-1. siblings are appended *at the end of* the source vertices: this is what makes
-the algorithm traversing the input graph breadth-first. This is exactly what the
-second invariant of BFS dictates : visit siblings before the successor.
+1. siblings are appended *at the right end of* the input vertices: this is what
+makes the algorithm traversing the input graph breadth-first. This is exactly what
+the second invariant of BFS dictates : visit siblings before the successor.
 2. the `match` function returns a new graph *without* the current vertex: this is
 what the first invariant of BFS dictates: traverse each vertex exactly once.
 Since the new graph doesn't contain the current vertex there is no need for keeping
@@ -852,3 +852,5 @@ inductive data structures and functions.
 I gave at the [Berlin Haskell User Group](https://www.meetup.com/berlinhug/events/wfhdrnywpbtb/)
 in November 2017 where I gathered lots of valuable feedback that made it into this
 post. A special thanks goes to Matthias, Ben & Adrian.
+- Fixed `bfs` implementation and rewordings based on
+[Erik](https://www.perimeterinstitute.ca/personal/eschnetter/)'s feedback
