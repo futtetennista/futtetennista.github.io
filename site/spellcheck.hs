@@ -39,13 +39,13 @@ contentFiles = (toListOfStrings . filter markdownFile) <$> files
 
 mkFilePath = flip replaceExtension ".spellcheck"
 
-massageFileForSpellchecker fp = S.evalStateT (runConduitRes $ spellCheckFile fp) False
-
 runSpellchecker fp = stdout (inproc "hunspell" args empty) >> void (proc "rm" [file] empty)
   where
     args = ["-d en_GB", "-w", "-p custom_dict", file]
 
     file = T.pack $ mkFilePath fp
+
+massageFileForSpellchecker fp = S.evalStateT (runConduitRes $ spellCheckFile fp) False
 
 spellCheckFile fp = -- sourceDirectory dir
   -- .| mapMC (\x -> liftIO $ print x >> return x)
