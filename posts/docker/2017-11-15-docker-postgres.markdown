@@ -4,7 +4,7 @@ author: futtetennista
 tags: docker, postgres, snippet
 ---
 
-Docker containers can commmunicate with each other either using the deprecated
+Docker containers can communicate with each other either using the deprecated
 links machinery or using user-defined networks. The latter also is the way to go
 when using `docker-compose` since a user-defined network is created by default
 (at least in recent versions).

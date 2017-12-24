@@ -15,6 +15,7 @@ import qualified Control.Monad.State.Strict as S
 import Turtle
 import Prelude hiding (FilePath)
 import qualified Control.Foldl as Fold
+import GHC.IO (FilePath)
 
 
 main :: IO ()
@@ -22,47 +23,65 @@ main = mapM_ spellcheck =<< contentFiles
   where
     spellcheck fp = do
       print $ "spellchecking '" ++ fp ++ "'"
-      massageFileForSpellchecker fp
       runSpellchecker fp
-    -- spellcheck _ = print "Usage: ./site.hs /path/to/file/to/spellcheck"
 
-contentFiles :: MonadIO io => io [String]
-contentFiles = (toListOfStrings . filter markdownFile) <$> files
+class (MonadThrow m, MonadIO m) => MonadGit m  where
+  runGit :: Text -> [Text] -> Maybe Text -> m [String]
+
+instance MonadThrow Shell where
+  throwM _ = empty
+
+instance MonadGit IO where
+  runGit cmd args = runGit' . maybe empty toLine
+    where
+      runGit' ins = let res = inproc cmd args ins in toListOfStrings <$> fold res Fold.list
+
+      toListOfStrings = map (T.unpack . lineToText)
+
+      toLine = maybe (throwM NewlineForbidden) pure . textToLine
+
+contentFiles :: MonadGit m => m [String]
+contentFiles = filter markdownFile <$> files
   where
-    toListOfStrings = map (T.unpack . lineToText)
+    markdownFile = (`elem` [".markdown", ".md"]) . takeExtension
 
-    markdownFile = (`elem` [".markdown", ".md"]) . takeExtension . T.unpack . lineToText
+    files :: MonadGit m => m [String]
+    files =  runGit "git" ["--no-pager", "diff", "--cached", "--name-only"] Nothing
 
-    files :: MonadIO io => io [Line]
-    files = let changed = inproc "git" ["--no-pager", "diff", "--cached", "--name-only"] empty
-            in fold changed Fold.list
-
-mkFilePath = flip replaceExtension ".spellcheck"
-
-runSpellchecker fp = stdout (inproc "hunspell" args empty) >> void (proc "rm" [file] empty)
+runSpellchecker fp = S.evalStateT state False
   where
-    args = ["-d en_GB", "-w", "-p custom_dict", file]
+    state = runConduitRes $ spellcheckFile fp
 
-    file = T.pack $ mkFilePath fp
-
-massageFileForSpellchecker fp = S.evalStateT (runConduitRes $ spellCheckFile fp) False
-
-spellCheckFile fp = -- sourceDirectory dir
+spellcheckFile fp = -- sourceDirectory dir
   -- .| mapMC (\x -> liftIO $ print x >> return x)
   -- .| filterC (\fp -> takeExtension fp `elem` [".markdown", ".md", ".lhs"])
   -- .| awaitForever sourceFile
   sourceFile fp
-  .| decodeUtf8C
-  .| mapC T.lines
-  .| mapMCE removeCodeSnippet
-  .| filterCE (not . T.null)
-  .| mapC T.unlines
-  .| encodeUtf8C
-  .| sinkFile (mkFilePath fp)
+  .| contentToLines
+  .| mapMCE (spellcheck spellcheckLine)
+  .| outputTypos
 
-removeCodeSnippet l
-  | isCodeSnippet l = S.modify' not >> return T.empty
-  | otherwise = do isCode <- S.get; return $ if isCode then T.empty else l
+contentToLines = decodeUtf8C .| mapC T.lines .| filterCE (not . T.null)
+
+outputTypos = filterCE (not . T.null) .| mapC T.unlines .| encodeUtf8C .| stdoutC
+
+type Spellchecker m = Text -> m Text
+
+spellcheckLine l = toText <$> fold outlines Fold.list
+  where
+    toText = T.unlines . filter typos . map lineToText . drop 1
+
+    outlines = inproc "hunspell" args inline
+
+    typos = (=="& ") . T.take 2
+
+    args = ["-d", "en_US", "-p", "custom_dict"]
+
+    inline = pure $ unsafeTextToLine l
+
+spellcheck s l
+  | isCodeSnippet l = S.modify' not >> pure T.empty
+  | otherwise = do isCode <- S.get; if isCode then pure T.empty else s l
   where
     isCodeSnippet l = isCodeSnippetMd l || isCodeSnippetLhs l
 
