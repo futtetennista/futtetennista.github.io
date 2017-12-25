@@ -7,6 +7,7 @@ script
 -}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE BangPatterns #-}
 import Conduit
 import qualified Data.Text as T
 import System.FilePath (replaceExtension, takeExtension)
@@ -16,14 +17,17 @@ import Turtle
 import Prelude hiding (FilePath)
 import qualified Control.Foldl as Fold
 import GHC.IO (FilePath)
-
+import Control.Monad (foldM, when)
+import System.Exit (exitFailure)
 
 main :: IO ()
-main = mapM_ spellcheck =<< contentFiles
+main = do
+  n <- foldM countTypos 0 =<< contentFiles
+  when (n > 0) $ print (show n ++ " typos found") >> exitFailure
   where
-    spellcheck fp = do
-      print $ "spellchecking '" ++ fp ++ "'"
-      runSpellchecker fp
+    countTypos n xs = (\m -> let !tot = n + m in tot) <$> spellcheck xs
+
+    spellcheck fp = print ("spellchecking '" ++ fp ++ "'") >> runSpellchecker fp
 
 class (MonadThrow m, MonadIO m) => MonadGit m  where
   runGit :: Text -> [Text] -> Maybe Text -> m [String]
@@ -59,11 +63,11 @@ spellcheckFile fp = -- sourceDirectory dir
   sourceFile fp
   .| contentToLines
   .| mapMCE (spellcheck spellcheckLine)
-  .| outputTypos
+  .| filterCE (not . T.null)
+  .| mapMCE (\xs -> liftIO (print xs) >> return xs)
+  .| lengthCE
 
 contentToLines = decodeUtf8C .| mapC T.lines .| filterCE (not . T.null)
-
-outputTypos = filterCE (not . T.null) .| mapC T.unlines .| encodeUtf8C .| stdoutC
 
 type Spellchecker m = Text -> m Text
 
