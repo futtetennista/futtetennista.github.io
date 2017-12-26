@@ -19,26 +19,36 @@ import qualified Control.Foldl as Fold
 import GHC.IO (FilePath)
 import Control.Monad (foldM, when)
 import System.Exit (exitFailure)
+import qualified Data.ByteString as BS
+
 
 main :: IO ()
-main = do
+main = program
+
+program = do
   n <- foldM countTypos 0 =<< contentFiles
-  when (n > 0) $ print (show n ++ " typos found") >> exitFailure
+  when (n > 0) (explainFailure n)
   where
-    countTypos n xs = (\m -> let !tot = n + m in tot) <$> spellcheck xs
+    explainFailure n = liftIO (print $ show n ++ " typos found") >> exitFailure
 
-    spellcheck fp = print ("spellchecking '" ++ fp ++ "'") >> runSpellchecker fp
+    countTypos n fp = runSpellchecker fp >> return 1
+      where
+        count m = let !tot = n + m in tot
 
-class (MonadThrow m, MonadIO m) => MonadGit m  where
-  runGit :: Text -> [Text] -> Maybe Text -> m [String]
+type Args = [Text]
+
+type InputLine = Maybe Text
+
+class (MonadThrow m) => MonadGit m  where
+  git :: Args -> InputLine -> m [String]
 
 instance MonadThrow Shell where
   throwM _ = empty
 
 instance MonadGit IO where
-  runGit cmd args = runGit' . maybe empty toLine
+  git args = exec . maybe empty toLine
     where
-      runGit' ins = let res = inproc cmd args ins in toListOfStrings <$> fold res Fold.list
+      exec ins = let res = inproc "git" args ins in toListOfStrings <$> fold res Fold.list
 
       toListOfStrings = map (T.unpack . lineToText)
 
@@ -50,42 +60,83 @@ contentFiles = filter markdownFile <$> files
     markdownFile = (`elem` [".markdown", ".md"]) . takeExtension
 
     files :: MonadGit m => m [String]
-    files =  runGit "git" ["--no-pager", "diff", "--cached", "--name-only"] Nothing
+    files =  git (T.words "--no-pager diff --cached --name-only") Nothing
 
+-- runSpellchecker
+--   :: (MonadBaseControl IO m, MonadHunspell m, MonadResource m, MonadPrint m) =>
+--      GHC.IO.FilePath -> m Integer
 runSpellchecker fp = S.evalStateT state False
   where
     state = runConduitRes $ spellcheckFile fp
 
+type State = S.StateT Bool
+
+-- spellcheckFile
+--   :: (MonadHunspell m, MonadResource m, MonadPrint m)
+--   => GHC.IO.FilePath -> ConduitM a c (ResourceT (State m)) Integer
 spellcheckFile fp = -- sourceDirectory dir
   -- .| mapMC (\x -> liftIO $ print x >> return x)
   -- .| filterC (\fp -> takeExtension fp `elem` [".markdown", ".md", ".lhs"])
   -- .| awaitForever sourceFile
   sourceFile fp
-  .| contentToLines
-  .| mapMCE (spellcheck spellcheckLine)
-  .| filterCE (not . T.null)
-  .| mapMCE (\xs -> liftIO (print xs) >> return xs)
-  .| lengthCE
+  .| toLinesC
+  .| spellcheckC
+  .| showAndFoldResultsC
 
-contentToLines = decodeUtf8C .| mapC T.lines .| filterCE (not . T.null)
+class MonadPrint m where
+  printit :: (Show a) => a -> m ()
 
-type Spellchecker m = Text -> m Text
+instance MonadPrint IO where
+  printit = print
 
-spellcheckLine l = toText <$> fold outlines Fold.list
+showAndFoldResultsC
+  :: (Monad m, MonadPrint m)
+  => ConduitM [Text] c (ResourceT (State m)) Integer
+showAndFoldResultsC = mapMCE printAndReturn .| lengthCE
   where
-    toText = T.unlines . filter typos . map lineToText . drop 1
+    printAndReturn xs = lift (lift $ printit xs) >> return xs
 
-    outlines = inproc "hunspell" args inline
+spellcheckC
+  :: MonadHunspell m
+  => Conduit [Text] (ResourceT (State m)) [Text]
+spellcheckC = mapMCE (spellcheck liftedHunspell) .| filterCE (not . T.null)
+  where
+    args = T.words "-d en_US -p custom_dict"
 
-    typos = (=="& ") . T.take 2
+    liftedHunspell = lift . lift . hunspell args -- aaarrrggghhh
 
-    args = ["-d", "en_US", "-p", "custom_dict"]
+-- TODO: use `linesUnboundedC` instead of `mapC T.lines` ?
+toLinesC
+  :: (MonadThrow m, MonadIO m)
+  => Conduit BS.ByteString (ResourceT (State m)) [Text]
+toLinesC = decodeUtf8C .| mapC T.lines .| filterCE (not . T.null)
 
-    inline = pure $ unsafeTextToLine l
+-- newtype Suggestions a = Sugg (a, a)
+-- type Spellchecker m a = Text -> m (Suggestions a)
+type Spellchecker m = Args -> InputLine -> m Text
 
+class (MonadThrow m) => MonadHunspell m where
+  hunspell :: Spellchecker m
+
+instance MonadHunspell IO where
+  hunspell args l = toText <$> fold output Fold.list
+    where
+      toText
+        | "-w" `elem` args || "-l" `elem` args = T.unlines . map lineToText
+        | otherwise = T.unlines . filter isSuggestion . map lineToText . drop 1
+
+      output = inproc "hunspell" args input
+
+      isSuggestion = (=="& ") . T.take 2
+
+      input = maybe empty (pure . unsafeTextToLine) l
+
+spellcheck
+  :: S.MonadState Bool m
+  => (InputLine -> m Text) -> Text -> m Text
 spellcheck s l
   | isCodeSnippet l = S.modify' not >> pure T.empty
-  | otherwise = do isCode <- S.get; if isCode then pure T.empty else s l
+  | otherwise = do isCode <- S.get; if isCode then pure T.empty else s (Just l)
   where
     isCodeSnippet l = isCodeSnippetMd l || isCodeSnippetLhs l
 
