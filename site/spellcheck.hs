@@ -20,26 +20,40 @@ import GHC.IO (FilePath)
 import Control.Monad (foldM, when)
 import System.Exit (exitFailure)
 import qualified Data.ByteString as BS
+import Data.List.NonEmpty (NonEmpty(..))
+import Data.Bifunctor
 
 
 main :: IO ()
 main = program
 
+program
+  :: (MonadHunspell m, MonadGit m, MonadPrint m, MonadBaseControl IO m, MonadExit m, MonadIO m)
+  => m ()
 program = do
   n <- foldM countTypos 0 =<< contentFiles
   when (n > 0) (explainFailure n)
   where
-    explainFailure n = liftIO (print $ show n ++ " typos found") >> exitFailure
+    -- explainFailure :: (Monad m, MonadExit m, MonadPrint m) => Int -> m ()
+    explainFailure n = printit (show n ++ " typos found") >> exitFail
 
-    countTypos n fp = runSpellchecker fp >> return 1
+    countTypos n fp = printit ("Spellchecking: " ++ fp)
+      >> runSpellchecker fp
+      >>= count
       where
-        count m = let !tot = n + m in tot
+        count m = let !tot = n + m in pure tot
+
+class Monad m => MonadExit m where
+  exitFail :: m ()
+
+instance MonadExit IO where
+  exitFail = exitFailure
 
 type Args = [Text]
 
 type InputLine = Maybe Text
 
-class (MonadThrow m) => MonadGit m  where
+class MonadThrow m => MonadGit m  where
   git :: Args -> InputLine -> m [String]
 
 instance MonadThrow Shell where
@@ -55,25 +69,37 @@ instance MonadGit IO where
       toLine = maybe (throwM NewlineForbidden) pure . textToLine
 
 contentFiles :: MonadGit m => m [String]
-contentFiles = filter markdownFile <$> files
+contentFiles = filter markdown <$> staged
   where
-    markdownFile = (`elem` [".markdown", ".md"]) . takeExtension
+    markdown = (`elem` [".markdown", ".md"]) . takeExtension
 
-    files :: MonadGit m => m [String]
-    files =  git (T.words "--no-pager diff --cached --name-only") Nothing
+    staged :: MonadGit m => m [String]
+    staged =  git (T.words "--no-pager diff --cached --name-only") Nothing
 
--- runSpellchecker
---   :: (MonadBaseControl IO m, MonadHunspell m, MonadResource m, MonadPrint m) =>
---      GHC.IO.FilePath -> m Integer
-runSpellchecker fp = S.evalStateT state False
+runSpellchecker
+  :: (MonadBaseControl IO m, MonadPrint m, MonadHunspell m, MonadIO m)
+  => GHC.IO.FilePath -> m Int
+runSpellchecker fp = S.evalStateT state empty
   where
+    empty = State False 1
+
     state = runConduitRes $ spellcheckFile fp
 
-type State = S.StateT Bool
+data State a b = State { isCode :: !a
+                       , lineNum :: !b
+                       }
 
--- spellcheckFile
---   :: (MonadHunspell m, MonadResource m, MonadPrint m)
---   => GHC.IO.FilePath -> ConduitM a c (ResourceT (State m)) Integer
+instance Bifunctor State where
+  bimap f g (State x y) = State (f x) (g y)
+
+type StateT = S.StateT (State Bool Int)
+
+-- it kinda defies the whole purpose of having task-specific type classes that
+-- I have to add the MonadIO contet here but MonadResource needs it so not much
+-- I can do about it
+spellcheckFile
+  :: (MonadHunspell m, MonadPrint m, MonadBase IO m, MonadIO m)
+  => GHC.IO.FilePath -> ConduitM a c (ResourceT (StateT m)) Int
 spellcheckFile fp = -- sourceDirectory dir
   -- .| mapMC (\x -> liftIO $ print x >> return x)
   -- .| filterC (\fp -> takeExtension fp `elem` [".markdown", ".md", ".lhs"])
@@ -83,42 +109,53 @@ spellcheckFile fp = -- sourceDirectory dir
   .| spellcheckC
   .| showAndFoldResultsC
 
-class MonadPrint m where
+class Monad m => MonadPrint m where
   printit :: (Show a) => a -> m ()
 
 instance MonadPrint IO where
   printit = print
 
 showAndFoldResultsC
-  :: (Monad m, MonadPrint m)
-  => ConduitM Text c (ResourceT (State m)) Integer
+  :: (MonadPrint m)
+  => ConduitM Suggestion c (ResourceT (StateT m)) Int
 showAndFoldResultsC = mapMC printAndReturn .| lengthCE
   where
     printAndReturn xs = lift (lift $ printit xs) >> return xs
 
 spellcheckC
   :: MonadHunspell m
-  => Conduit Text (ResourceT (State m)) Text
-spellcheckC = mapMC (spellcheck liftedHunspell) .| filterC (not . T.null)
+  => Conduit Text (ResourceT (StateT m)) Suggestion
+spellcheckC = mapMC (spellcheck liftHunspell)
+  .| filterC (not . T.null . snd)
+  .| mapMC toSugg
   where
     args = T.words "-d en_US -p custom_dict"
 
-    liftedHunspell = lift . lift . hunspell args -- aaarrrggghhh
+    liftHunspell n = lift . lift . hunspell args n
+
+    toSugg :: MonadHunspell m => (Int, Text) -> (ResourceT (StateT m)) Suggestion
+    toSugg (n, xs) = pure (n, (typo, suggs))
+      where
+        xs' = T.splitOn " " xs
+
+        -- hunspell output ex: "& typo 1 12: sugg1 sugg2 sugg3\n"
+        (typo, suggs) = (xs' !! 1,  T.unlines $ drop 4 xs')
 
 toLinesC
-  :: (MonadThrow m, MonadIO m)
-  => Conduit BS.ByteString (ResourceT (State m)) Text
-toLinesC = decodeUtf8C .| linesUnboundedC .| filterC (not . T.null)
+  :: MonadThrow m
+  => Conduit BS.ByteString (ResourceT (StateT m)) Text
+toLinesC = decodeUtf8C .| linesUnboundedC
 
--- newtype Suggestions a = Sugg (a, a)
--- type Spellchecker m a = Text -> m (Suggestions a)
-type Spellchecker m = Args -> InputLine -> m Text
+-- this is convenient since (,) has already an instance for MonoFoldable
+type Suggestion = (Int, (Text, Text))
 
-class (MonadThrow m) => MonadHunspell m where
+type Spellchecker m = Args -> Int -> InputLine -> m (Int, Text)
+
+class MonadThrow m => MonadHunspell m where
   hunspell :: Spellchecker m
 
 instance MonadHunspell IO where
-  hunspell args l = toText <$> fold output Fold.list
+  hunspell args n l = (,) <$> pure n <*> toText `fmap` fold output Fold.list
     where
       toText
         | "-w" `elem` args || "-l" `elem` args = T.unlines . map lineToText
@@ -131,11 +168,17 @@ instance MonadHunspell IO where
       input = maybe empty (pure . unsafeTextToLine) l
 
 spellcheck
-  :: S.MonadState Bool m
-  => (InputLine -> m Text) -> Text -> m Text
-spellcheck s l
-  | isCodeSnippet l = S.modify' not >> pure T.empty
-  | otherwise = do isCode <- S.get; if isCode then pure T.empty else s (Just l)
+  :: S.MonadState (State Bool Int) m
+  => (Int -> InputLine -> m (Int, Text)) -> Text -> m (Int, Text)
+spellcheck f l
+  | isCodeSnippet l = do
+      n <- S.gets lineNum
+      S.modify' (bimap not (+1))
+      return (n, T.empty)
+  | otherwise = do
+      State code n <- S.get
+      S.modify' (bimap id (+1))
+      if code then return (n, T.empty) else f n (Just l)
   where
     isCodeSnippet l = isCodeSnippetMd l || isCodeSnippetLhs l
 
