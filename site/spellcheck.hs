@@ -31,11 +31,13 @@ program
   :: (MonadHunspell m, MonadGit m, MonadPrint m, MonadBaseControl IO m, MonadExit m, MonadIO m)
   => m ()
 program = do
-  n <- foldM countTypos 0 =<< contentFiles
-  when (n > 0) (explainFailure n)
+  n <- foldM countTypos 0 =<< getContentFiles
+  when (n > 0) $ printTotalTyposAndFail n
   where
-    -- explainFailure :: (Monad m, MonadExit m, MonadPrint m) => Int -> m ()
-    explainFailure n = printit (show n ++ " typos found") >> exitFail
+    printTotalTyposAndFail :: (Monad m, MonadExit m, MonadPrint m) => Int -> m ()
+    printTotalTyposAndFail n
+      | n > 1 = printit (show n ++ " typos found") >> exitFail
+      | otherwise = printit "1 typo found" >> exitFail
 
     countTypos n fp = printit ("Spellchecking: " ++ fp)
       >> runSpellchecker fp
@@ -68,22 +70,22 @@ instance MonadGit IO where
 
       toLine = maybe (throwM NewlineForbidden) pure . textToLine
 
-contentFiles :: MonadGit m => m [String]
-contentFiles = filter markdown <$> staged
+getContentFiles :: MonadGit m => m [GHC.IO.FilePath]
+getContentFiles = filter markdown <$> stagedFiles
   where
     markdown = (`elem` [".markdown", ".md"]) . takeExtension
 
-    staged :: MonadGit m => m [String]
-    staged =  git (T.words "--no-pager diff --cached --name-only") Nothing
+    stagedFiles :: MonadGit m => m [String]
+    stagedFiles =  git (T.words "--no-pager diff --cached --name-only") Nothing
 
 runSpellchecker
   :: (MonadBaseControl IO m, MonadPrint m, MonadHunspell m, MonadIO m)
   => GHC.IO.FilePath -> m Int
-runSpellchecker fp = S.evalStateT state empty
+runSpellchecker fp = S.evalStateT spellcheckerState empty
   where
     empty = State False 1
 
-    state = runConduitRes $ spellcheckFile fp
+    spellcheckerState = runConduitRes $ spellcheckFile fp
 
 data State a b = State { isCode :: !a
                        , lineNum :: !b
@@ -92,22 +94,22 @@ data State a b = State { isCode :: !a
 instance Bifunctor State where
   bimap f g (State x y) = State (f x) (g y)
 
-type StateT = S.StateT (State Bool Int)
+type StateT = S.StateT (State Bool LineNum)
 
 -- it kinda defies the whole purpose of having task-specific type classes that
 -- I have to add the MonadIO contet here but MonadResource needs it so not much
--- I can do about it
+-- I can do about it or...?!
 spellcheckFile
   :: (MonadHunspell m, MonadPrint m, MonadBase IO m, MonadIO m)
   => GHC.IO.FilePath -> ConduitM a c (ResourceT (StateT m)) Int
-spellcheckFile fp = -- sourceDirectory dir
+spellcheckFile fp = sourceFile fp
+  .| toLinesC
+  .| spellcheckC
+  .| processResultsC
+  -- sourceDirectory dir
   -- .| mapMC (\x -> liftIO $ print x >> return x)
   -- .| filterC (\fp -> takeExtension fp `elem` [".markdown", ".md", ".lhs"])
   -- .| awaitForever sourceFile
-  sourceFile fp
-  .| toLinesC
-  .| spellcheckC
-  .| showAndFoldResultsC
 
 class Monad m => MonadPrint m where
   printit :: (Show a) => a -> m ()
@@ -115,10 +117,10 @@ class Monad m => MonadPrint m where
 instance MonadPrint IO where
   printit = print
 
-showAndFoldResultsC
+processResultsC
   :: (MonadPrint m)
   => ConduitM Suggestion c (ResourceT (StateT m)) Int
-showAndFoldResultsC = mapMC printAndReturn .| lengthCE
+processResultsC = mapMC printAndReturn .| lengthCE
   where
     printAndReturn xs = lift (lift $ printit xs) >> return xs
 
@@ -147,38 +149,41 @@ toLinesC
 toLinesC = decodeUtf8C .| linesUnboundedC
 
 -- this is convenient since (,) has already an instance for MonoFoldable
-type Suggestion = (Int, (Text, Text))
+type Suggestion = (LineNum, (Text, Text))
 
-type Spellchecker m = Args -> Int -> InputLine -> m (Int, Text)
+type LineNum = Int
+
+type Spellchecker m = Args -> LineNum -> InputLine -> m (LineNum, Text)
 
 class MonadThrow m => MonadHunspell m where
   hunspell :: Spellchecker m
 
 instance MonadHunspell IO where
-  hunspell args n l = (,) <$> pure n <*> toText `fmap` fold output Fold.list
+  hunspell args n ml = (,) <$> pure n <*> toText `fmap` fold outLine Fold.list
     where
       toText
         | "-w" `elem` args || "-l" `elem` args = T.unlines . map lineToText
-        | otherwise = T.unlines . filter isSuggestion . map lineToText . drop 1
+        | otherwise = T.unlines . filter suggestion . map lineToText . drop 1
 
-      output = inproc "hunspell" args input
+      outLine = inproc "hunspell" args inLine
 
-      isSuggestion = (=="& ") . T.take 2
+      -- hunspell output ex: "& typo 1 12: sugg1 sugg2 sugg3\n"
+      suggestion = (=="& ") . T.take 2
 
-      input = maybe empty (pure . unsafeTextToLine) l
+      inLine = maybe empty (pure . unsafeTextToLine) ml
 
 spellcheck
-  :: S.MonadState (State Bool Int) m
-  => (Int -> InputLine -> m (Int, Text)) -> Text -> m (Int, Text)
+  :: S.MonadState (State Bool LineNum) m
+  => (LineNum -> InputLine -> m (LineNum, Text)) -> Text -> m (LineNum, Text)
 spellcheck f l
   | isCodeSnippet l = do
       n <- S.gets lineNum
       S.modify' (bimap not (+1))
       return (n, T.empty)
   | otherwise = do
-      State code n <- S.get
-      S.modify' (bimap id (+1))
-      if code then return (n, T.empty) else f n (Just l)
+      State codeSnippet n <- S.get
+      S.modify' (second (+1))
+      if codeSnippet then return (n, T.empty) else f n (Just l)
   where
     isCodeSnippet l = isCodeSnippetMd l || isCodeSnippetLhs l
 
