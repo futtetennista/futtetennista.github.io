@@ -91,25 +91,24 @@ instance MonadPrint IO where
 
 showAndFoldResultsC
   :: (Monad m, MonadPrint m)
-  => ConduitM [Text] c (ResourceT (State m)) Integer
-showAndFoldResultsC = mapMCE printAndReturn .| lengthCE
+  => ConduitM Text c (ResourceT (State m)) Integer
+showAndFoldResultsC = mapMC printAndReturn .| lengthCE
   where
     printAndReturn xs = lift (lift $ printit xs) >> return xs
 
 spellcheckC
   :: MonadHunspell m
-  => Conduit [Text] (ResourceT (State m)) [Text]
-spellcheckC = mapMCE (spellcheck liftedHunspell) .| filterCE (not . T.null)
+  => Conduit Text (ResourceT (State m)) Text
+spellcheckC = mapMC (spellcheck liftedHunspell) .| filterC (not . T.null)
   where
     args = T.words "-d en_US -p custom_dict"
 
     liftedHunspell = lift . lift . hunspell args -- aaarrrggghhh
 
--- TODO: use `linesUnboundedC` instead of `mapC T.lines` ?
 toLinesC
   :: (MonadThrow m, MonadIO m)
-  => Conduit BS.ByteString (ResourceT (State m)) [Text]
-toLinesC = decodeUtf8C .| mapC T.lines .| filterCE (not . T.null)
+  => Conduit BS.ByteString (ResourceT (State m)) Text
+toLinesC = decodeUtf8C .| linesUnboundedC .| filterC (not . T.null)
 
 -- newtype Suggestions a = Sugg (a, a)
 -- type Spellchecker m a = Text -> m (Suggestions a)
