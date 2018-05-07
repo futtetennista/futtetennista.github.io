@@ -12,10 +12,10 @@
   <!-- Metadata. -->
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"><link rel="shortcut icon" href="../../images/favicons/favicon32.png"><link rel="apple-touch-icon-precomposed" sizes="144x144" href="../../images/favicons/favicon144.png"><link rel="apple-touch-icon-precomposed" sizes="114x114" href="../../images/favicons/favicon114.png"><link rel="apple-touch-icon-precomposed" sizes="72x72" href="../../images/favicons/favicon72.png"><link rel="apple-touch-icon-precomposed" sizes="57x57" href="../../images/favicons/favicon57.png">
   <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
-  <title>Connecting to a dockerised postgres instance via psql using user-defined bridge networks</title>
-  <meta name="description" content="Docker containers can communicate with each other either using the deprecated links machinery or using user-defined networks. The latter also is the way to go w">
-  <link rel="canonical" href="../../posts/docker/2017-11-15-docker-postgres.html">
-  <link rel="alternate" type="application/atom+xml" title="Connecting to a dockerised postgres instance via psql using user-defined bridge networks" href="../../feed.xml" />
+  <title>SQL CHECK constraints</title>
+  <meta name="description" content="CHECK constraints are a powerful way to control data stored in a SQL database beyond types and make sure invariants are respected and the data is “sane”.">
+  <link rel="canonical" href="../../posts/postgresql/2018-05-06-sql-check-constraints.html">
+  <link rel="alternate" type="application/atom+xml" title="SQL CHECK constraints" href="../../feed.xml" />
 
   <!-- Stylesheets. -->
   <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
@@ -124,41 +124,51 @@
 
       <p class="grey-text">
         <i class="mdi mdi-calendar"></i>&nbsp;
-        Posted on November 15, 2017
-        
-          &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
-          by futtetennista
+        Posted on May  6, 2018
         
         &nbsp;
         
           <i class="mdi mdi-folder"></i>&nbsp;
-          <span class="capitalize"><a href="../../categories/docker.html">docker</a></span>
+          <span class="capitalize"></span>
           <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
         
       </p>
 
       <div class="post-header">
-        <h1 class="post-title">Connecting to a dockerised postgres instance via psql using user-defined bridge networks</h1>
+        <h1 class="post-title">SQL CHECK constraints</h1>
 
         
           <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
-          <div class="chip"><a href="../../tags/docker.html">docker</a>, <a href="../../tags/postgres.html">postgres</a>, <a href="../../tags/snippet.html">snippet</a></div>
+          <div class="chip"><a href="../../tags/databases.html">databases</a>, <a href="../../tags/postgres.html">postgres</a>, <a href="../../tags/snippet.html">snippet</a></div>
         
       </div>
 
       <article class="post-content">
-        <p>Docker containers can communicate with each other either using the deprecated links machinery or using user-defined networks. The latter also is the way to go when using <code>docker-compose</code> since a user-defined network is created by default (at least in recent versions). <!--more--></p>
-<p>The postgres official image on <a href="https://hub.docker.com/_/postgres/">Docker Hub</a> contains an example for the former case: when creating the container running the <code>psql</code> command using the default <code>bridge</code> network interface, we need to supply the <code>--link</code> option with the name (and optionally alias) of the postgres instance and the <code>--host</code> option with its <strong>alias</strong> (if no alias is supplied the name is also the alias):</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres</code></pre></div>
-<p>There is no example for the latter case though, so let’s see how it can be achieved. First let’s create a user-defined network and give it an arbitrary name - i.e. <code>my_bridge</code> - by simply typing: <code>docker network create my_bridge</code>. When using user-defined networks is essential to know the <strong>IP</strong> of the container running the postgres instance, this can be retrieved like this:</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -itd --name=postgres-instance postgres <span class="co"># Make sure there's an instance running</span>
-$ <span class="ex">docker</span> inspect --format=<span class="st">'{{ .NetworkSettings.Networks.my_bridge.IPAddress }}'</span> postgres-instance
-<span class="ex">172.19.0.2</span></code></pre></div>
-<p>Now let’s create another container that connects to the postgres instance and runs the <code>psql</code> command, and use the configuration options to set the user-defined network and to provide the IP of the postgres instance the container has to connect to:</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --network=my_bridge postgres psql --host=172.19.0.2 --username=postgres</code></pre></div>
-<p>Alternatively, if we leverage the <code>--add-host</code> option, the command is going to look very similar to the one we used when connecting containers using links:</p>
-<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --network=my_bridge --add-host=postgres-instance:172.19.0.2 postgres psql --host=postgres-instance --username=postgres</code></pre></div>
-<p>The <code>--add-host</code> option simply adds an entry to the <code>/etc/hosts</code> file of the container.</p>
+        <p><code>CHECK</code> constraints are a powerful way to control data stored in a SQL database beyond types and make sure invariants are respected and the data is “sane”.</p>
+<!--more-->
+<p>Taking PostgreSQL as our SQL database of choice, the <a href="https://www.postgresql.org/docs/9.6/static/ddl-constraints.html">docs</a> show some basic examples, i.e.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
+    product_no <span class="dt">integer</span>,
+    name text,
+    price <span class="dt">numeric</span> <span class="kw">CHECK</span> (price &gt; <span class="dv">0</span>),
+    discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
+    <span class="kw">CHECK</span> (price &gt; discounted_price)
+);</code></pre></div>
+<p>Here the schema imposes three different but related constraints, namely that the price and discounted price of a product must not be negative amounts if they exist and that the discounted price must be less than the normal price. The docs stop here but recently I found myself wanting to express something like: if the price is <strong>less than n</strong>, there cannot be a discount price. Essentially I wanted to express a <em>conditional</em> constraint on a column that depended on the value of another one.</p>
+<p>There’s no explicit mention that combining <a href="https://www.postgresql.org/docs/9.6/static/functions-conditional.html#FUNCTIONS-CASE">conditional expressions</a> and <code>CHECK</code> constraints ends up being a valid expression but it turns out it does and in retrospect it makes total sense. Knowing that, there is a straightforward way of expressing that constraint:</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
+    product_no <span class="dt">integer</span>,
+    name text,
+    price <span class="dt">numeric</span> <span class="kw">CHECK</span> (price &gt; <span class="dv">0</span>),
+    discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
+    <span class="kw">CHECK</span> (price &gt; discounted_price),
+    <span class="kw">CONSTRAINT</span> products_bargain_no_discount
+    <span class="kw">CHECK</span> (<span class="kw">CASE</span> <span class="kw">WHEN</span> price &lt; <span class="dv">1</span> <span class="kw">THEN</span> discounted_price <span class="kw">IS</span> <span class="kw">NULL</span> <span class="kw">END</span>)
+);</code></pre></div>
+<p>Now if we try to insert a product that with a bargain price and a discounted one, the <code>INSERT</code> statement will be rejected:</p>
+<pre><code>postgres=# INSERT INTO products VALUES (1,'test',0.99,0.55);
+ERROR:  new row for relation &quot;products&quot; violates check constraint &quot;products_bargain_no_discount&quot;
+DETAIL:  Failing row contains (1, test, 0.99, 0.55).</code></pre>
       </article>
 
       

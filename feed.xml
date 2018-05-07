@@ -8,8 +8,40 @@
         <name>futtetennista</name>
         <email>futtetennista@gmail.com</email>
     </author>
-    <updated>2017-12-08T00:00:00Z</updated>
+    <updated>2018-05-06T00:00:00Z</updated>
     <entry>
+    <title>SQL CHECK constraints</title>
+    <link href="https://futtetennismo.me/posts/postgresql/2018-05-06-sql-check-constraints.html" />
+    <id>https://futtetennismo.me/posts/postgresql/2018-05-06-sql-check-constraints.html</id>
+    <published>2018-05-06T00:00:00Z</published>
+    <updated>2018-05-06T00:00:00Z</updated>
+    <summary type="html"><![CDATA[<p><code>CHECK</code> constraints are a powerful way to control data stored in a SQL database beyond types and make sure invariants are respected and the data is “sane”.</p>
+<!--more-->
+<p>Taking PostgreSQL as our SQL database of choice, the <a href="https://www.postgresql.org/docs/9.6/static/ddl-constraints.html">docs</a> show some basic examples, i.e.</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
+    product_no <span class="dt">integer</span>,
+    name text,
+    price <span class="dt">numeric</span> <span class="kw">CHECK</span> (price &gt; <span class="dv">0</span>),
+    discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
+    <span class="kw">CHECK</span> (price &gt; discounted_price)
+);</code></pre></div>
+<p>Here the schema imposes three different but related constraints, namely that the price and discounted price of a product must not be negative amounts if they exist and that the discounted price must be less than the normal price. The docs stop here but recently I found myself wanting to express something like: if the price is <strong>less than n</strong>, there cannot be a discount price. Essentially I wanted to express a <em>conditional</em> constraint on a column that depended on the value of another one.</p>
+<p>There’s no explicit mention that combining <a href="https://www.postgresql.org/docs/9.6/static/functions-conditional.html#FUNCTIONS-CASE">conditional expressions</a> and <code>CHECK</code> constraints ends up being a valid expression but it turns out it does and in retrospect it makes total sense. Knowing that, there is a straightforward way of expressing that constraint:</p>
+<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
+    product_no <span class="dt">integer</span>,
+    name text,
+    price <span class="dt">numeric</span> <span class="kw">CHECK</span> (price &gt; <span class="dv">0</span>),
+    discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
+    <span class="kw">CHECK</span> (price &gt; discounted_price),
+    <span class="kw">CONSTRAINT</span> products_bargain_no_discount
+    <span class="kw">CHECK</span> (<span class="kw">CASE</span> <span class="kw">WHEN</span> price &lt; <span class="dv">1</span> <span class="kw">THEN</span> discounted_price <span class="kw">IS</span> <span class="kw">NULL</span> <span class="kw">END</span>)
+);</code></pre></div>
+<p>Now if we try to insert a product that with a bargain price and a discounted one, the <code>INSERT</code> statement will be rejected:</p>
+<pre><code>postgres=# INSERT INTO products VALUES (1,&#39;test&#39;,0.99,0.55);
+ERROR:  new row for relation &quot;products&quot; violates check constraint &quot;products_bargain_no_discount&quot;
+DETAIL:  Failing row contains (1, test, 0.99, 0.55).</code></pre>]]></summary>
+</entry>
+<entry>
     <title>Functional programming with graphs</title>
     <link href="https://futtetennismo.me/posts/algorithms-and-data-structures/2017-12-08-functional-graphs.html" />
     <id>https://futtetennismo.me/posts/algorithms-and-data-structures/2017-12-08-functional-graphs.html</id>
@@ -544,7 +576,7 @@ joinAt src ps ps&#39; <span class="fu">=</span> reverse ps <span class="fu">++</
     <id>https://futtetennismo.me/posts/docker/2017-11-15-docker-postgres.html</id>
     <published>2017-11-15T00:00:00Z</published>
     <updated>2017-11-15T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>Docker containers can commmunicate with each other either using the deprecated links machinery or using user-defined networks. The latter also is the way to go when using <code>docker-compose</code> since a user-defined network is created by default (at least in recent versions). <!--more--></p>
+    <summary type="html"><![CDATA[<p>Docker containers can communicate with each other either using the deprecated links machinery or using user-defined networks. The latter also is the way to go when using <code>docker-compose</code> since a user-defined network is created by default (at least in recent versions). <!--more--></p>
 <p>The postgres official image on <a href="https://hub.docker.com/_/postgres/">Docker Hub</a> contains an example for the former case: when creating the container running the <code>psql</code> command using the default <code>bridge</code> network interface, we need to supply the <code>--link</code> option with the name (and optionally alias) of the postgres instance and the <code>--host</code> option with its <strong>alias</strong> (if no alias is supplied the name is also the alias):</p>
 <div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash">$ <span class="ex">docker</span> run -it --rm --link=postgres:postgres-instance postgres psql --host=postgres-instance --username=postgres</code></pre></div>
 <p>There is no example for the latter case though, so let’s see how it can be achieved. First let’s create a user-defined network and give it an arbitrary name - i.e. <code>my_bridge</code> - by simply typing: <code>docker network create my_bridge</code>. When using user-defined networks is essential to know the <strong>IP</strong> of the container running the postgres instance, this can be retrieved like this:</p>
@@ -1112,57 +1144,6 @@ ebf&#39;&#39; <span class="fu">=</span> <span class="dt">Right</span>
 <div style="clear: both; height: 3px; width: 652px;">
 
 </div>]]></summary>
-</entry>
-<entry>
-    <title>Dealing with the unforeseen</title>
-    <link href="https://futtetennismo.me/posts/archive/2013-04-28-dealing-with-the-unforeseen.html" />
-    <id>https://futtetennismo.me/posts/archive/2013-04-28-dealing-with-the-unforeseen.html</id>
-    <published>2013-04-28T00:00:00Z</published>
-    <updated>2013-04-28T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p>It’s quite common to invite users to rate an app on Google Play at some point, on one hand it’s good to know that your users are happy and on the other it’s a good way to attract new users. It’s definitely not the only variable in the equation, but I can definitely say that user satisfaction is inversely proportional to the amount of crashes. But bugs are unfortunately something we have to expect as developers, even after testing our apps thoroughly. One thing we probably don’t want to do, is to ask a user to rate our app just after a crash since we can be reasonably sure that he’s not going to be too happy about it. How can we make sure that this doesn’t happen? <!--more--> When an uncaught exception is thrown, the <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html#uncaughtException(java.lang.Thread,%20java.lang.Throwable)">uncaughtException</a> method of the default <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> for that Thread is called. Good news is, you can supply your own <a href="https://developer.android.com/reference/java/lang/Thread.UncaughtExceptionHandler.html">UncaughtExceptionHandler</a> using the <a href="https://developer.android.com/reference/java/lang/Thread.html#setDefaultUncaughtExceptionHandler(java.lang.Thread.UncaughtExceptionHandler)">setDefaultUncaughtExceptionHandler</a> setter (this is what <a href="https://www.google.com/url?sa=t&amp;rct=j&amp;q=&amp;esrc=s&amp;source=web&amp;cd=1&amp;cad=rja&amp;ved=0CDYQFjAA&amp;url=http%3A%2F%2Fcode.google.com%2Fp%2Facra%2F&amp;ei=kAwBUezwL8_IsgbIvYH4Dg&amp;usg=AFQjCNF1L9fawVNYyKuqqIa7q22TBcL08w&amp;sig2=_FrQnihkSMcsqGUV5XXp1A&amp;bvm=bv.41524429,d.Yms">ACRA</a> and I suppose other libraries like <a href="https://www.crittercism.com/">Crittercism</a> or <a href="https://www.bugsense.com/">BugSense</a> do under the hood). Here is a little snippet of what we do in the <a href="https://play.google.com/store/apps/details?id=com.qype.radar">Qype app</a>:</p>
-<div class="sourceCode"><pre class="sourceCode java"><code class="sourceCode java">	<span class="kw">public</span> <span class="kw">class</span> CustomUncaughtExceptionHandlerProxy <span class="kw">implements</span> <span class="bu">Thread</span>.<span class="fu">UncaughtExceptionHandler</span> {
-
-	    <span class="kw">private</span> <span class="dt">static</span> CustomUncaughtExceptionHandlerProxy proxy;
-
-	    <span class="kw">private</span> <span class="dt">final</span> <span class="dt">boolean</span> enabled;
-
-	    <span class="kw">private</span> <span class="bu">Thread</span>.<span class="fu">UncaughtExceptionHandler</span> customUncaughtExceptionHandler;
-
-	    <span class="kw">private</span> <span class="fu">CustomUncaughtExceptionHandlerProxy</span>(CustomApplication application) {
-	        enabled = !application.<span class="fu">inDevMode</span>();
-	        <span class="kw">if</span> (enabled) {
-	            <span class="co">// Save a reference to the current default handler.</span>
-	            customUncaughtExceptionHandler = <span class="bu">Thread</span>.<span class="fu">getDefaultUncaughtExceptionHandler</span>();
-	            <span class="co">// Set our custom handler as the default one, so that it&#39;s first notified when something ugly happens.</span>
-	            <span class="bu">Thread</span>.<span class="fu">setDefaultUncaughtExceptionHandler</span>(<span class="kw">this</span>);
-	        }
-	    }
-
-	    <span class="kw">public</span> <span class="dt">static</span> <span class="dt">void</span> <span class="fu">initialize</span>(CustomApplication application) {
-	        <span class="kw">if</span> (proxy == <span class="kw">null</span>) {
-	            proxy = <span class="kw">new</span> <span class="fu">CustomUncaughtExceptionHandlerProxy</span>(application);
-	        }
-	    }
-
-	    <span class="kw">public</span> <span class="dt">static</span> CustomUncaughtExceptionHandlerProxy <span class="fu">getInstance</span>() {
-	        <span class="kw">return</span> proxy;
-	    }
-
-	    <span class="at">@Override</span>
-	    <span class="kw">public</span> <span class="dt">void</span> <span class="fu">uncaughtException</span>(<span class="bu">Thread</span> thread, <span class="bu">Throwable</span> ex) {
-	        <span class="kw">if</span> (enabled) {
-	            <span class="kw">if</span> (!preferences.<span class="fu">rateAppDialogAlreadyShown</span>()) {
-	                <span class="co">// reset count only if the &#39;rate app&#39; dialog hasn&#39;t been already shown.</span>
-	                preferences.<span class="fu">resetShowRateAppDialogCountdown</span>();
-	            }
-	            <span class="co">// Let the default uncaught exception handler do its job.</span>
-	            customUncaughtExceptionHandler.<span class="fu">uncaughtException</span>(thread, ex);
-	        } <span class="kw">else</span> {
-	            <span class="bu">Thread</span>.<span class="fu">getDefaultUncaughtExceptionHandler</span>().<span class="fu">uncaughtException</span>(thread, ex);
-	        }
-	    }
-	}</code></pre></div>
-<p>This is a typical implementation of the <a href="http://en.wikipedia.org/wiki/Proxy_pattern">Proxy design pattern</a>, it’s pretty straightforward but here’s a little explanation of how it works. Let’s say you want to show a “Rate App” dialog after n times the app is opened by the user, you would use a counter and increment it each time the launcher Activity is created and it will show the dialog when the value of the counter is exactly n. But if the app crashes and the dialog is yet to be shown, you may want to reset the counter.</p>]]></summary>
 </entry>
 
 </feed>
