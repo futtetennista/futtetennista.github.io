@@ -15,7 +15,7 @@
     <id>https://futtetennismo.me/posts/postgresql/2018-05-06-sql-check-constraints.html</id>
     <published>2018-05-06T00:00:00Z</published>
     <updated>2018-05-06T00:00:00Z</updated>
-    <summary type="html"><![CDATA[<p><code>CHECK</code> constraints are a powerful way to control data stored in a SQL database beyond types and make sure invariants are respected and the data is “sane”.</p>
+    <summary type="html"><![CDATA[<p><code>CHECK</code> constraints are a powerful way to control data stored in a SQL database. Combined with choosing the appropriate type for we can enforce that the data written adheres to our business rules.</p>
 <!--more-->
 <p>Taking PostgreSQL as our SQL database of choice, the <a href="https://www.postgresql.org/docs/9.6/static/ddl-constraints.html">docs</a> show some basic examples, i.e.</p>
 <div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
@@ -25,8 +25,8 @@
     discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
     <span class="kw">CHECK</span> (price &gt; discounted_price)
 );</code></pre></div>
-<p>Here the schema imposes three different but related constraints, namely that the price and discounted price of a product must not be negative amounts if they exist and that the discounted price must be less than the normal price. The docs stop here but recently I found myself wanting to express something like: if the price is <strong>less than n</strong>, there cannot be a discount price. Essentially I wanted to express a <em>conditional</em> constraint on a column that depended on the value of another one.</p>
-<p>There’s no explicit mention that combining <a href="https://www.postgresql.org/docs/9.6/static/functions-conditional.html#FUNCTIONS-CASE">conditional expressions</a> and <code>CHECK</code> constraints ends up being a valid expression but it turns out it does and in retrospect it makes total sense. Knowing that, there is a straightforward way of expressing that constraint:</p>
+<p>Here the schema imposes three different but related constraints, namely that the price and discounted price of a product must not be negative amounts if they exist and that the discounted price must be less than the normal price. The docs stop here but recently I found myself wanting to express something like: if the price is <em>less than an amount n</em>, there cannot be a discount price. Essentially I wanted to express a <em>conditional</em> constraint on a column that depends on the value of another one.</p>
+<p>There’s no examples of <code>CHECK</code> constraints using <a href="https://www.postgresql.org/docs/9.6/static/functions-conditional.html#FUNCTIONS-CASE">conditional expressions</a> and I wasn’t totally sure if the resulting expression would actually be a valid SQL expression; it turns out it does and with hindsight it makes total sense. Knowing that, we can express that business rule in a straightforward way:</p>
 <div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
     product_no <span class="dt">integer</span>,
     name text,
@@ -36,7 +36,7 @@
     <span class="kw">CONSTRAINT</span> products_bargain_no_discount
     <span class="kw">CHECK</span> (<span class="kw">CASE</span> <span class="kw">WHEN</span> price &lt; <span class="dv">1</span> <span class="kw">THEN</span> discounted_price <span class="kw">IS</span> <span class="kw">NULL</span> <span class="kw">END</span>)
 );</code></pre></div>
-<p>Now if we try to insert a product that with a bargain price and a discounted one, the <code>INSERT</code> statement will be rejected:</p>
+<p>Now if we try to insert a product that with a bargain and a discounted price, the <code>INSERT</code> statement will be rejected:</p>
 <pre><code>postgres=# INSERT INTO products VALUES (1,&#39;test&#39;,0.99,0.55);
 ERROR:  new row for relation &quot;products&quot; violates check constraint &quot;products_bargain_no_discount&quot;
 DETAIL:  Failing row contains (1, test, 0.99, 0.55).</code></pre>]]></summary>
