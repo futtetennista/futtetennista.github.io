@@ -18,7 +18,7 @@ jobs:
           command: stack install hlint && stack exec hlint site/
       - run:
           name: Build executable
-          command: stack build
+          command: stack build --flag futtetennismo:-spellcheck
       - save_cache:
           paths:
             - ~/futtetennismo/.stack-work
