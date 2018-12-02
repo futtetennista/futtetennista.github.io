@@ -13,6 +13,7 @@ I guess every software developer is familiar with the boolean `AND` which is
 the `(&&)` function in Haskell. In an effectful context, we can lift `(&&)`
 and use it without having to rewrite it using combinators like `liftA2` or
 `liftM2`. Let's take some simple example usages:
+
 ```haskell
 import Data.Maybe (fromMaybe)
 
@@ -23,12 +24,8 @@ CallStack (from HasCallStack):
   undefined, called at <interactive>:10:53 in interactive:Ghci3
 ```
 
-If you are puzzled by that welcome to the club. If not, bravo: you have not
-being tricked by the nuances of the interaction of applicative functors and
-lazy functions. What's going on here? One of the awesome things about a purely
-functional language is that the way expressions are evaluated is simple, namely
-by using reduction rules so we can use those rules and understand why the
-exception was thrown
+What's going on? Let's apply the reduction rules to
+understand why the exception was thrown
 
 ```haskell
 -- definition of liftA2
@@ -46,29 +43,27 @@ liftA2 f x y = fmap f x <*> y
 *** Exception: Prelude.undefined
 ```
 
-The catch here is that applicative functors are "dumb" when it comes to
-evaluate computations: they are always evaluated. The lifted `(&&)` will be
-lazy then in the evaluation of the **values** but not in the
+The catch here is that effects are always evaluated. The lifted `(&&)`
+will be lazy then in the evaluation of the **values** but not in the
 evaluation of the **effects**. This might be counterintuitive or surprising
-at a first glance since `(&&)` appears to "lose some of its laziness" when
-it is lifted to an applicative functor. A deeper analysis of what we want to
-achieve reveals that in this situation we don't really want an applicative
-functor, we want something a bit more powerful, i.e. a monad:
+at first glance: `(&&)` appears to "lose some of its laziness" when
+it's lifted. If effects need to be lazily evaluated, we need to
+write our own "lazy lifted" version of `(&&)`:
 
 ```haskell
 (.&&) f g = do
   p <- f
   if p
-  then do { p' <- g ; pure (p && p') }
-  else pure p
+    then do { p' <- g ; pure (p && p') }
+    else pure p
 
 ƛ: (.&&) (pure False) (const True <$> fromMaybe undefined Nothing)
 False
 ```
 
 ## Wrapping up
-Lifting a pure function adds a "effectful dimension" to it:
+Lifting a pure function adds an "effectful dimension" to it:
 when it comes to how the lifted function evaluates _values_ think about
 the semantics of the pure function, when it comes to how the lifted
-function evaluates _side effects_ think about the semantics of the
+function evaluates _effects_ think about the semantics of the
 underlying type class.
