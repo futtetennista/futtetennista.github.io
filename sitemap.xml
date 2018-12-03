@@ -20,6 +20,12 @@
     </url>
 
     <url>
+        <loc>https://futtetennismo.me/posts/haskell/2018-11-17-a-short-tale-of-lifted-functions.html</loc>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
         <loc>https://futtetennismo.me/posts/postgresql/2018-05-06-sql-check-constraints.html</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
