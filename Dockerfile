@@ -1,15 +1,22 @@
-FROM futtetennista/hakyll:4.9.8.0-ext
+FROM futtetennista/hakyll-ext:4.12.5.1
 
 # apt is updated in the base image
-RUN apt-get install --yes \
-    hunspell \
-    xz-utils
+RUN apt-get update && apt-get install --yes \
+  hunspell \
+  xz-utils
 
 RUN stack upgrade && \
-    stack --resolver lts-9.14 install hlint
+  stack --resolver lts-13.6 install --fast \
+    hlint
 
-# RUN stack build futtetennismo:exe:futtetennismo
+COPY    . /home/futtetennismo.io
+WORKDIR /home/futtetennismo.io
+RUN     stack install --fast futtetennismo
 
 EXPOSE 8000
 
-ENTRYPOINT ["bash"]
+ENTRYPOINT ["stack", "exec", "futtetennismo"]
+CMD ["-- watch"]
+
+# CMD stack install --fast futtetennismo
+# CMD stack exec futtetennismo -- watch
