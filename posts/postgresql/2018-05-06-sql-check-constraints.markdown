@@ -1,6 +1,6 @@
 ---
 title: SQL CHECK constraints
-tags: databases, postgres, snippet
+tags: databases, postgresql, snippet
 ---
 
 `CHECK` constraints are a powerful way to control data stored in
