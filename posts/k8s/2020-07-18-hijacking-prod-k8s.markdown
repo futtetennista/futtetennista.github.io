@@ -55,6 +55,13 @@ for `Pod`s so that we can forward a port in our `localhost` to the remote port o
 kubectl port-forward pod/<pod-name> <local-port>:<remote-port>
 ```
 
+You can find the value of `remote-port` by looking at the description of the pod
+
+```bash
+# Look for Containers.<container-name>.Ports
+kubectl describe pod/<pod-name>
+```
+
 Now we can for example `curl localhost:<local-port>/<my-api>` to make the
 hijacked `Pod` handle that request.
 
