@@ -8,6 +8,9 @@ jobs:
       only:
         - source
     steps:
+      - add_ssh_keys:
+          fingerprints:
+            - "7a:01:16:ae:b5:e9:16:ff:bd:9a:e4:47:ca:a4:04:2b"
       - checkout
       - restore_cache:
           keys:
