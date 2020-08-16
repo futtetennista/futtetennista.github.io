@@ -12,10 +12,10 @@
   <!-- Metadata. -->
   <link rel="shortcut icon" href="favicon.ico" type="image/x-icon"><link rel="shortcut icon" href="../../images/favicons/favicon32.png"><link rel="apple-touch-icon-precomposed" sizes="144x144" href="../../images/favicons/favicon144.png"><link rel="apple-touch-icon-precomposed" sizes="114x114" href="../../images/favicons/favicon114.png"><link rel="apple-touch-icon-precomposed" sizes="72x72" href="../../images/favicons/favicon72.png"><link rel="apple-touch-icon-precomposed" sizes="57x57" href="../../images/favicons/favicon57.png">
   <meta name="keywords" content="hakyll,static site generator,static,site,generator,haskell,blog" />
-  <title>SQL CHECK constraints</title>
-  <meta name="description" content="CHECK constraints are a powerful way to control data stored in a SQL database. Combined with choosing the appropriate type for we can enforce that the data writ">
-  <link rel="canonical" href="../../posts/postgresql/2018-05-06-sql-check-constraints.html">
-  <link rel="alternate" type="application/atom+xml" title="SQL CHECK constraints" href="../../feed.xml" />
+  <title>Hijacking production with Kubernetes</title>
+  <meta name="description" content="Imagine having a glitch in your code that caused an entity in the production environment to be in an inconsistent state that cannot be easily fixed by existing">
+  <link rel="canonical" href="../../posts/k8s/2020-07-18-hijacking-prod-k8s.html">
+  <link rel="alternate" type="application/atom+xml" title="Hijacking production with Kubernetes" href="../../feed.xml" />
 
   <!-- Stylesheets. -->
   <link rel="stylesheet" href="../../lib/materialize/css/materialize.min.css">
@@ -124,51 +124,48 @@
 
       <p class="grey-text">
         <i class="mdi mdi-calendar"></i>&nbsp;
-        Posted on May  6, 2018
+        Posted on July 18, 2020
+        
+          &nbsp;&nbsp;<i class="mdi mdi-account-circle"></i>&nbsp;
+          by futtetennista
         
         &nbsp;
         
           <i class="mdi mdi-folder"></i>&nbsp;
-          <span class="capitalize"><a href="../../categories/postgresql.html">postgresql</a></span>
+          <span class="capitalize"><a href="../../categories/k8s.html">k8s</a>, <a href="../../categories/docker.html">docker</a></span>
           <!-- &emsp;<i class="mdi mdi-refresh"></i>&nbsp;UPDATE: {% if page.update %}{{ page.update | date: "%b %-d, %Y" }}{% else %}{{ page.last_modified_at | date: "%b %-d, %Y" }}{% endif %} -->
         
       </p>
 
       <div class="post-header">
-        <h1 class="post-title">SQL CHECK constraints</h1>
+        <h1 class="post-title">Hijacking production with Kubernetes</h1>
 
         
           <i class="post-tag mdi mdi-tag-multiple waves-effect waves-light"></i>
-          <div class="chip"><a href="../../tags/databases.html">databases</a>, <a href="../../tags/postgresql.html">postgresql</a>, <a href="../../tags/snippet.html">snippet</a></div>
+          <div class="chip"><a href="../../tags/k8s.html">k8s</a>, <a href="../../tags/docker.html">docker</a></div>
         
       </div>
 
       <article class="post-content">
-        <p><code>CHECK</code> constraints are a powerful way to control data stored in a SQL database. Combined with choosing the appropriate type for we can enforce that the data written adheres to our business rules.</p>
-<!--more-->
-<p>Taking PostgreSQL as our SQL database of choice, the <a href="https://www.postgresql.org/docs/9.6/static/ddl-constraints.html">docs</a> show some basic examples, i.e.</p>
-<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
-    product_no <span class="dt">integer</span>,
-    name text,
-    price <span class="dt">numeric</span> <span class="kw">CHECK</span> (price &gt; <span class="dv">0</span>),
-    discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
-    <span class="kw">CHECK</span> (price &gt; discounted_price)
-);</code></pre></div>
-<p>Here the schema imposes three different but related constraints, namely that the price and discounted price of a product must not be negative amounts if they exist and that the discounted price must be less than the normal price. The docs stop here but recently I found myself wanting to express something like: if the price is <em>less than an amount n</em>, there cannot be a discount price. Essentially I wanted to express a <em>conditional</em> constraint on a column that depends on the value of another one.</p>
-<p>There’s no examples of <code>CHECK</code> constraints using <a href="https://www.postgresql.org/docs/9.6/static/functions-conditional.html#FUNCTIONS-CASE">conditional expressions</a> and I wasn’t totally sure if the resulting expression would actually be a valid SQL expression; it turns out it does and with hindsight it makes total sense. Knowing that, we can express that business rule in a straightforward way:</p>
-<div class="sourceCode"><pre class="sourceCode sql"><code class="sourceCode sql"><span class="kw">CREATE</span> <span class="kw">TABLE</span> products (
-    product_no <span class="dt">integer</span>,
-    name text,
-    price <span class="dt">numeric</span> <span class="kw">CHECK</span> (price &gt; <span class="dv">0</span>),
-    discounted_price <span class="dt">numeric</span> <span class="kw">CHECK</span> (discounted_price &gt; <span class="dv">0</span>),
-    <span class="kw">CHECK</span> (price &gt; discounted_price),
-    <span class="kw">CONSTRAINT</span> products_bargain_no_discount
-    <span class="kw">CHECK</span> (<span class="kw">CASE</span> <span class="kw">WHEN</span> price &lt; <span class="dv">1</span> <span class="kw">THEN</span> discounted_price <span class="kw">IS</span> <span class="kw">NULL</span> <span class="kw">END</span>)
-);</code></pre></div>
-<p>Now if we try to insert a product that with a bargain and a discounted price, the <code>INSERT</code> statement will be rejected:</p>
-<pre><code>postgres=# INSERT INTO products VALUES (1,'test',0.99,0.55);
-ERROR:  new row for relation &quot;products&quot; violates check constraint &quot;products_bargain_no_discount&quot;
-DETAIL:  Failing row contains (1, test, 0.99, 0.55).</code></pre>
+        <p>Imagine having a glitch in your code that caused an entity in the production environment to be in an inconsistent state that cannot be easily fixed by existing code. Luckily a couple of lines of code will fix the issue, if only there was a quick way to ship that code to production making sure it’s targeted to that specific entity and that can be safely thrown away as soon as the issue is fixed.</p>
+<p>In this post we’ll explore how to do this with help of Docker and Kubernetes. <!--more--> After the code has been changed and tested locally, the first thing to do is to create a Docker image and push it; once that image can be pulled by the production Kubernetes cluster, we’ll typically need to swap the Docker image of one of the pods in the service we need to hijack and hit a particular endpoint that will run the code.</p>
+<p>Using <code>kubectl</code> we can <a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/#isolating-pods-from-a-replicaset">isolate</a> a <code>Pod</code> by updating its label</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># Add a label to make it obvious that this pod is hijacked and remove the ones</span>
+<span class="co"># that match the selector in the corresponding replica set / deployment</span>
+<span class="ex">kubectl</span> label pods <span class="op">&lt;</span>pod-name<span class="op">&gt;</span> hijacked=true <span class="op">&lt;</span>label-to-rm<span class="op">&gt;</span>-</code></pre></div>
+<p>and <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#updating-a-deployment">update</a> its Docker image</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ex">kubectl</span> set image pod/<span class="op">&lt;</span>pod-name<span class="op">&gt;</span> <span class="op">&lt;</span>container-name<span class="op">&gt;</span>=<span class="op">&lt;</span>docker-image<span class="op">&gt;</span> --record</code></pre></div>
+<p>and wait for Kubernetes to update the <code>Pod</code>, which usually happens in a matter of seconds.</p>
+<p>One short digression: if the pod was managed by a <code>ReplicaSet</code> - which is how Kubernetes tries to make sure that there are a specified number of copies of a service running at any given time - Kubernetes will notice that a <code>Pod</code> suddently “disappeared” because the labels on that pod changed and it will create a new pod to replace it. Notice that this means that we shouldn’t observe any unwanted effects like performance degradation in production.</p>
+<p>This bring us to the question: how can we send a request to the hijacked <code>Pod</code> now? Typically <code>Pod</code>s are not run in isolation, there are multiple copies runningbehind a load balancer - a <code>Service</code> in Kubernetes - therefore when we sent a request to a given endpoint, the load balancer decides which <code>Pod</code> will handle the request. Kubernetes to the rescue! Using <a href="https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#port-forward">port forwarding</a> we can forward a port in our <code>localhost</code> to the remote port of the hijacked <code>Pod</code></p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="ex">kubectl</span> port-forward pod/<span class="op">&lt;</span>pod-name<span class="op">&gt;</span> <span class="op">&lt;</span>local-port<span class="op">&gt;</span>:<span class="op">&lt;</span>remote-port<span class="op">&gt;</span></code></pre></div>
+<p>You can find the value of <code>remote-port</code> by looking at the description of the pod</p>
+<div class="sourceCode"><pre class="sourceCode bash"><code class="sourceCode bash"><span class="co"># Look for Containers.&lt;container-name&gt;.Ports</span>
+<span class="ex">kubectl</span> describe pod/<span class="op">&lt;</span>pod-name<span class="op">&gt;</span></code></pre></div>
+<p>Now we can for example <code>curl localhost:&lt;local-port&gt;/&lt;my-api&gt;</code> to make the hijacked <code>Pod</code> handle that request.</p>
+<p>Once we checked that the fix has been successfully applied, we can simply remove the <code>Pod</code> with <code>kubectl delete pod -l hijacked=true</code> from the cluster.</p>
+<h2 id="final-thoughts-and-credits">Final thoughts and credits</h2>
+<p>Hijacking a production environment for good was first suggested to me by my former colleague <a href="https://github.com/jcpetruzza/">Daniel Gorin</a> and it turned out to be extremely handy in some situations e.g. fixing one-off bugs or reconciling state in the database. That said, it should be used parsimoniously and it’s possibly a sign that the deployment process is too slow.</p>
       </article>
 
       

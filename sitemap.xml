@@ -20,6 +20,12 @@
     </url>
 
     <url>
+        <loc>https://futtetennismo.me/posts/k8s/2020-07-18-hijacking-prod-k8s.html</loc>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>
+
+    <url>
         <loc>https://futtetennismo.me/posts/haskell/2018-11-17-a-short-tale-of-lifted-functions.html</loc>
         <changefreq>weekly</changefreq>
         <priority>0.8</priority>
