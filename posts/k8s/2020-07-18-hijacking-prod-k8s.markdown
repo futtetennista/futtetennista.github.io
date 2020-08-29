@@ -69,6 +69,8 @@ with `kubectl delete pod -l hijacked=true` from the cluster.
 ## Final thoughts and credits
 
 Hijacking a production environment for good was first suggested to me by my former colleague 
-[Daniel Gorin](https://github.com/jcpetruzza/) and it turned out to be extremely handy in some situations e.g.
-fixing one-off bugs or reconciling state in the database. That said, it should be used parsimoniously 
-and it's possibly a sign that the deployment process is too slow.
+[Daniel Gorin](https://github.com/jcpetruzza/) and it turned out to be extremely handy in 
+fixing one-off bugs or reconciling state in the database. 
+That said, it should be used parsimoniously as it is tempting to use it to bypass the regular 
+deployment process, which is potentially a sign that the deployment process is too slow or unreliable.
+
