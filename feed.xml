@@ -33,7 +33,7 @@
 <p>Now we can for example <code>curl localhost:&lt;local-port&gt;/&lt;my-api&gt;</code> to make the hijacked <code>Pod</code> handle that request.</p>
 <p>Once we checked that the fix has been successfully applied, we can simply remove the <code>Pod</code> with <code>kubectl delete pod -l hijacked=true</code> from the cluster.</p>
 <h2 id="final-thoughts-and-credits">Final thoughts and credits</h2>
-<p>Hijacking a production environment for good was first suggested to me by my former colleague <a href="https://github.com/jcpetruzza/">Daniel Gorin</a> and it turned out to be extremely handy in some situations e.g. fixing one-off bugs or reconciling state in the database. That said, it should be used parsimoniously and it’s possibly a sign that the deployment process is too slow.</p>]]></summary>
+<p>Hijacking a production environment for good was first suggested to me by my former colleague <a href="https://github.com/jcpetruzza/">Daniel Gorin</a> and it turned out to be extremely handy in fixing one-off bugs or reconciling state in the database. That said, it should be used parsimoniously as it is tempting to use it to bypass the regular deployment process, which is potentially a sign that the deployment process is too slow or unreliable.</p>]]></summary>
 </entry>
 <entry>
     <title>A short tale of lifted functions</title>
