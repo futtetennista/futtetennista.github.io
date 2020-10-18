@@ -1,7 +1,6 @@
-.PHONY: rebuild-site watch-site build-image
+IMAGE = futtetennista/hakyll-ext:futtetennismo-0.1.1
 
-.EXPORT_ALL_VARIABLES:
-image = futtetennista/hakyll-ext:futtetennismo-0.1.1
+.PHONY: rebuild-site watch-site build-image
 
 rebuild-site:
 	docker exec -d futtetennismo stack exec futtetennismo -- rebuild
@@ -13,8 +12,8 @@ watch-site:
     -w /home/futtetennismo.io \
     --name futtetennismo  \
     --entrypoint stack \
-    $$image exec futtetennismo -- watch  # -s stack exec futtetennismo -- watch
+    $(IMAGE) exec futtetennismo -- watch  # -s stack exec futtetennismo -- watch
 
 build-image:
 	set +o pipefail
-	docker build -t $$image .
+	docker build -t $(IMAGE) .
