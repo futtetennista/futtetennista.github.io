@@ -6,7 +6,7 @@ jobs:
       - image: futtetennista/hakyll:futtetennismo-0.1.1
     auth:
       username: futtetennista
-      password: $DOCKERHUB_PASSWORD  # or project environment variable reference      
+      password: $DOCKERHUB_PASSWORD  # or project environment variable reference
     branches:
       only:
         - source
