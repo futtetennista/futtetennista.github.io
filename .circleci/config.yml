@@ -4,6 +4,9 @@ jobs:
     working_directory: ~/futtetennismo
     docker:
       - image: futtetennista/hakyll:futtetennismo-0.1.1
+    auth:
+      username: futtetennista
+      password: $DOCKERHUB_PASSWORD  # or project environment variable reference      
     branches:
       only:
         - source
