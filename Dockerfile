@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install --yes \
   xz-utils
 
 RUN stack upgrade && \
-  stack --resolver lts-13.6 install --fast \
+  stack --resolver lts-13.7 install --fast \
     hlint
 
 COPY    . /home/futtetennismo.io
