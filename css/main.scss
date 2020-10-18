@@ -165,18 +165,16 @@ li {
 /* Links */
 
 a {
-    //color: darken($blue, 10%);
-    color: #00BCD4;
+    color: $grey-dark;
 
     text-decoration: none;
 
-    &:visited {
-        //color: darken($blue, 20%);
-    }
+    // &:visited {
+    //     color: darken($grey-light, 20%);
+    // }
 
     &:hover {
-        color: $pink;
-        //text-decoration: underline;
+        color: $grey;
     }
 }
 
@@ -473,7 +471,7 @@ a.reversefootnote {
     font-size: 1.5em;
     margin-bottom: 10px;
 
-    color: $pink;
+    // color: $pink;
 
     &:hover {
         color: $blue;
