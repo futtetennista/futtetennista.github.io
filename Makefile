@@ -9,7 +9,7 @@ rebuild-site:
 watch-site:
 	# docker exec -d futtetennismo stack exec futtetennismo -- watch
 	docker run -d --rm -p 8000:8000 \
-    -v "/Users/futtetennista/Developer/futtetennismo.io:/home/$(SITE_NAME)" \
+    -v "/Users/futtetennista/Developer/$(SITE_NAME):/home/$(SITE_NAME)" \
     -w "/home/$(SITE_NAME)" \
     --name futtetennismo  \
     --entrypoint stack \
